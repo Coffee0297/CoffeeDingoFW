@@ -152,13 +152,9 @@ void ProcessParamMsg(CANRxFrame *rx) {
     if (msg.eCmd == MsgCmd::WriteAllComplete) {
         // Ensure all params were written
         uint16_t nExpectedParams = rx->data8[1] | (rx->data8[2] << 8);
-        if (nNumWriteParams != nExpectedParams) {
-            // Mismatch in expected vs actual params
-            EncodeParamRsp(&tx, static_cast<uint8_t>(MsgCmd::WriteAllComplete), 0, 0, 0);
-            PostTxFrame(&tx);
-            return;
+        if (nNumWriteParams == nExpectedParams) {
+            ApplyTempParams();
         }
-        ApplyTempParams();
         EncodeParamRsp(&tx, static_cast<uint8_t>(MsgCmd::WriteAllComplete), nNumWriteParams, 0, 0); // End of params marker, return number of params written
         PostTxFrame(&tx);
         return;
