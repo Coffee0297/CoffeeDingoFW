@@ -63,20 +63,14 @@ void SendAllNonDefaultParams() {
 
 void SetAllDefaultParams(bool temp) {
     for (int i = 0; i < NUM_PARAMS; i++) {
-        uint32_t defaultVal;
-        if (stParams[i].eType == ParamType::Float) {
-            memcpy(&defaultVal, &stParams[i].fDefaultVal, sizeof(float));
-        } else {
-            defaultVal = static_cast<uint32_t>(stParams[i].fDefaultVal);
-        }
-        WriteParam(&stParams[i], defaultVal, temp);
+        WriteParam(&stParams[i], stParams[i].nDefaultVal, temp);
     }
 }
 
 void ApplyTempParams() {
     for (int i = 0; i < NUM_PARAMS; i++) {
-            uint32_t tempVal = ReadParam(&stParams[i], true);
-            WriteParam(&stParams[i], tempVal, false);
+        uint32_t tempVal = ReadParam(&stParams[i], true);
+        WriteParam(&stParams[i], tempVal, false);
     }
 }
 
@@ -118,7 +112,7 @@ void ProcessParamMsg(CANRxFrame *rx) {
     if (msg.eCmd == MsgCmd::Write) {
         const ParamInfo* param = FindParam(msg.nIndex, msg.nSubIndex);
         if (param && WriteParam(param, msg.nValue)) {
-            uint32_t value = ReadParam(param, true);
+            uint32_t value = ReadParam(param);
             EncodeParamRsp(&tx, static_cast<uint8_t>(MsgCmd::Write), msg.nIndex, msg.nSubIndex, value);
             PostTxFrame(&tx);
             return;

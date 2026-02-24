@@ -89,8 +89,12 @@ uint32_t ReadParam(const ParamInfo* param, bool temp)
         case ParamType::Int16:
             return static_cast<uint32_t>(*static_cast<int16_t*>(targetPtr));
         case ParamType::UInt32:
-        case ParamType::Float:
             return *static_cast<uint32_t*>(targetPtr);
+        case ParamType::Float: {
+            uint32_t raw;
+            memcpy(&raw, targetPtr, sizeof(uint32_t));
+            return raw;
+        }
         case ParamType::Int32:
             return static_cast<uint32_t>(*static_cast<int32_t*>(targetPtr));
         default:
@@ -103,18 +107,28 @@ bool WriteParam(const ParamInfo* param, uint32_t value, bool temp)
     if(param == nullptr || param->pVal == nullptr || param->pTempVal == nullptr)
         return false;
 
-    // Range validation
-    if (param->eType == ParamType::Float) {
-        // Float values: reinterpret raw bits and compare
-        float fValue;
-        memcpy(&fValue, &value, sizeof(float));
-        if (fValue < param->fMinVal || fValue > param->fMaxVal)
-            return false;
-    } else {
-        // Integer values: cast float limits to uint32_t for comparison
-        if (value < static_cast<uint32_t>(param->fMinVal) ||
-            value > static_cast<uint32_t>(param->fMaxVal))
-            return false;
+    // Range validation using native wire-format uint32_t limits
+    switch (param->eType) {
+        case ParamType::Float: {
+            float fVal, fMin, fMax;
+            memcpy(&fVal, &value,           sizeof(float));
+            memcpy(&fMin, &param->nMinVal,  sizeof(float));
+            memcpy(&fMax, &param->nMaxVal,  sizeof(float));
+            if (fVal < fMin || fVal > fMax) return false;
+            break;
+        }
+        case ParamType::Int8:
+        case ParamType::Int16:
+        case ParamType::Int32: {
+            int32_t v   = static_cast<int32_t>(value);
+            int32_t min = static_cast<int32_t>(param->nMinVal);
+            int32_t max = static_cast<int32_t>(param->nMaxVal);
+            if (v < min || v > max) return false;
+            break;
+        }
+        default: // UInt8, UInt16, UInt32, Bool, Enum
+            if (value < param->nMinVal || value > param->nMaxVal) return false;
+            break;
     }
 
     void* targetPtr = temp ? param->pTempVal : param->pVal;
@@ -137,8 +151,10 @@ bool WriteParam(const ParamInfo* param, uint32_t value, bool temp)
             *static_cast<int16_t*>(targetPtr) = static_cast<int16_t>(value);
             break;
         case ParamType::UInt32:
-        case ParamType::Float:
             *static_cast<uint32_t*>(targetPtr) = value;
+            break;
+        case ParamType::Float:
+            memcpy(targetPtr, &value, sizeof(uint32_t));
             break;
         case ParamType::Int32:
             *static_cast<int32_t*>(targetPtr) = static_cast<int32_t>(value);
@@ -154,11 +170,5 @@ bool IsDefaultValue(const ParamInfo* param)
     if(param == nullptr || param->pVal == nullptr)
         return false;
 
-    if (param->eType == ParamType::Float) {
-        float fValue;
-        uint32_t raw = ReadParam(param);
-        memcpy(&fValue, &raw, sizeof(float));
-        return fValue == param->fDefaultVal;
-    }
-    return ReadParam(param) == static_cast<uint32_t>(param->fDefaultVal);
+    return ReadParam(param) == param->nDefaultVal;
 }

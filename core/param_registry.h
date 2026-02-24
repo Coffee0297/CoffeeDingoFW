@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <bit>
 
 // 0x0000 - 0x0FFF: System
 // 0x1000 - 0x10FF: Outputs
@@ -38,10 +39,18 @@ struct ParamInfo
     void* pVal;
     void* pTempVal; // Used for staging new value before applying
     ParamType eType;
-    float fDefaultVal;
-    float fMinVal;
-    float fMaxVal;
+    uint32_t nDefaultVal;
+    uint32_t nMinVal;
+    uint32_t nMaxVal;
 };
+
+// Helpers: encode signed values as sign-extended uint32_t (wire format)
+constexpr uint32_t I8 (int8_t  v) { return static_cast<uint32_t>(v); }
+constexpr uint32_t I16(int16_t v) { return static_cast<uint32_t>(v); }
+constexpr uint32_t I32(int32_t v) { return static_cast<uint32_t>(v); }
+
+// Helper: encode a float as its IEEE-754 bit pattern
+constexpr uint32_t F(float v) { return std::bit_cast<uint32_t>(v); }
 
 extern const ParamInfo stParams[];
 extern const uint16_t NUM_PARAMS;
