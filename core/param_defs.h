@@ -229,6 +229,7 @@
 // Keypad Dial Parameters - Base 0x3200 + (keypad * 4) + dial
 //=============================================================================
 #define KEYPAD_DIAL_PARAMS(k, d) \
-    {0x3200 + (k) * 4 + (d), 0, &stConfig.stKeypad[k].stDial[d].nMinCount,    &stConfigTemp.stKeypad[k].stDial[d].nMinCount,    ParamType::UInt8, 0, 0, 16}, \
-    {0x3200 + (k) * 4 + (d), 1, &stConfig.stKeypad[k].stDial[d].nMaxCount,    &stConfigTemp.stKeypad[k].stDial[d].nMaxCount,    ParamType::UInt8, 16, 0, 16}, \
-    {0x3200 + (k) * 4 + (d), 2, &stConfig.stKeypad[k].stDial[d].nLedOffset,   &stConfigTemp.stKeypad[k].stDial[d].nLedOffset,   ParamType::UInt8, 0, 0, 16}
+    {0x3200 + (k) * 4 + (d), 0, &stConfig.stKeypad[k].stDial[d].bEnabled,     &stConfigTemp.stKeypad[k].stDial[d].bEnabled,     ParamType::Bool,   0, 0, 1},  \
+    {0x3200 + (k) * 4 + (d), 1, &stConfig.stKeypad[k].stDial[d].nMinCount,    &stConfigTemp.stKeypad[k].stDial[d].nMinCount,    ParamType::UInt8, 0, 0, 16},  \
+    {0x3200 + (k) * 4 + (d), 2, &stConfig.stKeypad[k].stDial[d].nMaxCount,    &stConfigTemp.stKeypad[k].stDial[d].nMaxCount,    ParamType::UInt8, 16, 0, 16}, \
+    {0x3200 + (k) * 4 + (d), 3, &stConfig.stKeypad[k].stDial[d].nLedOffset,   &stConfigTemp.stKeypad[k].stDial[d].nLedOffset,   ParamType::UInt8, 0, 0, 16}
