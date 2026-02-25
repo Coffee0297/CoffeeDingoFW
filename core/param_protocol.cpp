@@ -106,6 +106,8 @@ void ProcessParamMsg(CANRxFrame *rx) {
             PostTxFrame(&tx);
             return;
         }
+        EncodeParamRsp(&tx, static_cast<uint8_t>(MsgCmd::ReadParamNotFound), msg.nIndex, msg.nSubIndex, 0);
+        PostTxFrame(&tx);
         return;
     }
 
@@ -139,13 +141,23 @@ void ProcessParamMsg(CANRxFrame *rx) {
 
     if (msg.eCmd == MsgCmd::WriteAllVal) {
         const ParamInfo* param = FindParam(msg.nIndex, msg.nSubIndex);
-        if (param && WriteParam(param, msg.nValue, true)) {
-            uint32_t value = ReadParam(param, true);
-            EncodeParamRsp(&tx, static_cast<uint8_t>(MsgCmd::WriteAllVal), msg.nIndex, msg.nSubIndex, value);
+        //Param not found or invalid value, respond with error
+        if (!param){
+            EncodeParamRsp(&tx, static_cast<uint8_t>(MsgCmd::WriteAllParamNotFound), msg.nIndex, msg.nSubIndex, 0);
             PostTxFrame(&tx);
-            nNumWriteParams++;
             return;
         }
+        //Param out of range, respond with error
+        if (!WriteParam(param, msg.nValue, true)) {
+            EncodeParamRsp(&tx, static_cast<uint8_t>(MsgCmd::WriteAllOutOfRange), msg.nIndex, msg.nSubIndex, msg.nValue);
+            PostTxFrame(&tx);
+            return;
+        }
+        //Param found, in range, staged successfully, respond with value for confirmation
+        uint32_t value = ReadParam(param, true);
+        EncodeParamRsp(&tx, static_cast<uint8_t>(MsgCmd::WriteAllVal), msg.nIndex, msg.nSubIndex, value);
+        PostTxFrame(&tx);
+        nNumWriteParams++;
         return;
     }
 

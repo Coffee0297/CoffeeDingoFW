@@ -41,6 +41,7 @@ enum class MsgCmd : uint8_t
     Null = 0,
     Read = 1,
     Write = 2,
+    ReadParamNotFound = 5,
 
     ReadAll = 10,
     ReadAllRsp = 11,
@@ -49,11 +50,13 @@ enum class MsgCmd : uint8_t
     WriteAll = 20,
     WriteAllVal = 21,
     WriteAllComplete = 22,
+    WriteAllParamNotFound = 25,
+    WriteAllOutOfRange = 26,
 
     BurnSettings = 30,
     Version = 31,
     Sleep = 32,
-    Bootloader = 33
+    Bootloader = 33,
 };
 
 enum class MsgType : uint8_t

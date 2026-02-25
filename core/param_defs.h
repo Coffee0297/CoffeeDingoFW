@@ -23,7 +23,7 @@
     {0x1000 + (i), 1,  &stConfig.stOutput[i].nInput,                     &stConfigTemp.stOutput[i].nInput,                     ParamType::UInt16, 0, 0, PDM_VAR_MAP_SIZE - 1}, \
     {0x1000 + (i), 2,  &stConfig.stOutput[i].fCurrentLimit,              &stConfigTemp.stOutput[i].fCurrentLimit,              ParamType::Float,  F(20.0f), F(0.0f), F(100.0f)}, \
     {0x1000 + (i), 3,  &stConfig.stOutput[i].fInrushLimit,               &stConfigTemp.stOutput[i].fInrushLimit,               ParamType::Float,  F(50.0f), F(0.0f), F(100.0f)}, \
-    {0x1000 + (i), 4,  &stConfig.stOutput[i].nInrushTime,                &stConfigTemp.stOutput[i].nInrushTime,                ParamType::UInt16, 100, 0, 10000}, \
+    {0x1000 + (i), 4,  &stConfig.stOutput[i].nInrushTime,                &stConfigTemp.stOutput[i].nInrushTime,                ParamType::UInt16, 1000, 0, 10000}, \
     {0x1000 + (i), 5,  &stConfig.stOutput[i].eResetMode,                 &stConfigTemp.stOutput[i].eResetMode,                 ParamType::Enum,   static_cast<uint32_t>(ProfetResetMode::None), 0, 2}, \
     {0x1000 + (i), 6,  &stConfig.stOutput[i].nResetTime,                 &stConfigTemp.stOutput[i].nResetTime,                 ParamType::UInt16, 1000, 0, 60000}, \
     {0x1000 + (i), 7,  &stConfig.stOutput[i].nResetLimit,                &stConfigTemp.stOutput[i].nResetLimit,                ParamType::UInt8,  3, 0, 20}, \
@@ -33,8 +33,8 @@
     {0x1000 + (i), 11, &stConfig.stOutput[i].stPwm.nDutyCycleInput,      &stConfigTemp.stOutput[i].stPwm.nDutyCycleInput,      ParamType::UInt16, 0, 0, PDM_VAR_MAP_SIZE - 1}, \
     {0x1000 + (i), 12, &stConfig.stOutput[i].stPwm.nFixedDutyCycle,      &stConfigTemp.stOutput[i].stPwm.nFixedDutyCycle,      ParamType::UInt8,  100, 0, 100}, \
     {0x1000 + (i), 13, &stConfig.stOutput[i].stPwm.nFreq,                &stConfigTemp.stOutput[i].stPwm.nFreq,                ParamType::UInt16, 100, 0, 400}, \
-    {0x1000 + (i), 14, &stConfig.stOutput[i].stPwm.nSoftStartRampTime,   &stConfigTemp.stOutput[i].stPwm.nSoftStartRampTime,   ParamType::UInt16, 0, 0, 2000}, \
-    {0x1000 + (i), 15, &stConfig.stOutput[i].stPwm.nDutyCycleInputDenom, &stConfigTemp.stOutput[i].stPwm.nDutyCycleInputDenom, ParamType::UInt16, 100, 0, 5000}, \
+    {0x1000 + (i), 14, &stConfig.stOutput[i].stPwm.nSoftStartRampTime,   &stConfigTemp.stOutput[i].stPwm.nSoftStartRampTime,   ParamType::UInt16, 0, 0, 10000}, \
+    {0x1000 + (i), 15, &stConfig.stOutput[i].stPwm.nDutyCycleInputDenom, &stConfigTemp.stOutput[i].stPwm.nDutyCycleInputDenom, ParamType::UInt16, 100, 1, 5000}, \
     {0x1000 + (i), 16, &stConfig.stOutput[i].nPrimaryOutput,             &stConfigTemp.stOutput[i].nPrimaryOutput,             ParamType::Int8,  I8(-1), I8(-1), PDM_NUM_OUTPUTS - 1}
 
 //=============================================================================
@@ -175,7 +175,7 @@
     {0x2000 + (i), 3,  &stConfig.stCanOutput[i].nSID,       &stConfigTemp.stCanOutput[i].nSID,       ParamType::UInt16, 0, 0, 0x7FF}, \
     {0x2000 + (i), 4,  &stConfig.stCanOutput[i].nEID,       &stConfigTemp.stCanOutput[i].nEID,       ParamType::UInt32, 0, 0, 536870911}, \
     {0x2000 + (i), 5,  &stConfig.stCanOutput[i].nStartBit,  &stConfigTemp.stCanOutput[i].nStartBit,  ParamType::UInt8,  0, 0, 63}, \
-    {0x2000 + (i), 6,  &stConfig.stCanOutput[i].nBitLength, &stConfigTemp.stCanOutput[i].nBitLength, ParamType::UInt8,  0, 1, 32}, \
+    {0x2000 + (i), 6,  &stConfig.stCanOutput[i].nBitLength, &stConfigTemp.stCanOutput[i].nBitLength, ParamType::UInt8,  8, 1, 32}, \
     {0x2000 + (i), 7,  &stConfig.stCanOutput[i].fFactor,    &stConfigTemp.stCanOutput[i].fFactor,    ParamType::Float,  F(1.0f), F(0.0f), F(1e9f)}, \
     {0x2000 + (i), 8,  &stConfig.stCanOutput[i].fOffset,    &stConfigTemp.stCanOutput[i].fOffset,    ParamType::Float,  F(0.0f), F(-1e9f), F(1e9f)}, \
     {0x2000 + (i), 9,  &stConfig.stCanOutput[i].eByteOrder, &stConfigTemp.stCanOutput[i].eByteOrder, ParamType::Enum,   static_cast<uint32_t>(ByteOrder::LittleEndian), 0, 1}, \
@@ -191,12 +191,12 @@
     {0x3000 + (i), 2,  &stConfig.stKeypad[i].bTimeoutEnabled,         &stConfigTemp.stKeypad[i].bTimeoutEnabled,          ParamType::Bool,   0, 0, 1}, \
     {0x3000 + (i), 3,  &stConfig.stKeypad[i].nTimeout,                &stConfigTemp.stKeypad[i].nTimeout,                 ParamType::UInt16, 0, 0, 60000}, \
     {0x3000 + (i), 4,  &stConfig.stKeypad[i].eModel,                  &stConfigTemp.stKeypad[i].eModel,                   ParamType::Enum,   static_cast<uint32_t>(KeypadModel::Blink12Key), 0, 13}, \
-    {0x3000 + (i), 5,  &stConfig.stKeypad[i].nBacklightBrightness,    &stConfigTemp.stKeypad[i].nBacklightBrightness,     ParamType::UInt8,  100, 0, 100}, \
-    {0x3000 + (i), 6,  &stConfig.stKeypad[i].nDimBacklightBrightness, &stConfigTemp.stKeypad[i].nDimBacklightBrightness,  ParamType::UInt8,  50, 0, 100}, \
+    {0x3000 + (i), 5,  &stConfig.stKeypad[i].nBacklightBrightness,    &stConfigTemp.stKeypad[i].nBacklightBrightness,     ParamType::UInt8,  63, 0, 63}, \
+    {0x3000 + (i), 6,  &stConfig.stKeypad[i].nDimBacklightBrightness, &stConfigTemp.stKeypad[i].nDimBacklightBrightness,  ParamType::UInt8,  32, 0, 63}, \
     {0x3000 + (i), 7,  &stConfig.stKeypad[i].nBacklightColor,         &stConfigTemp.stKeypad[i].nBacklightColor,          ParamType::UInt8,  0, 0, 9}, \
     {0x3000 + (i), 8,  &stConfig.stKeypad[i].nDimmingVar,             &stConfigTemp.stKeypad[i].nDimmingVar,              ParamType::UInt16, 0, 0, PDM_VAR_MAP_SIZE - 1}, \
-    {0x3000 + (i), 9,  &stConfig.stKeypad[i].nButtonBrightness,       &stConfigTemp.stKeypad[i].nButtonBrightness,        ParamType::UInt8,  100, 0, 100}, \
-    {0x3000 + (i), 10, &stConfig.stKeypad[i].nDimButtonBrightness,    &stConfigTemp.stKeypad[i].nDimButtonBrightness,     ParamType::UInt8,  50, 0, 100}
+    {0x3000 + (i), 9,  &stConfig.stKeypad[i].nButtonBrightness,       &stConfigTemp.stKeypad[i].nButtonBrightness,        ParamType::UInt8,  63, 0, 63}, \
+    {0x3000 + (i), 10, &stConfig.stKeypad[i].nDimButtonBrightness,    &stConfigTemp.stKeypad[i].nDimButtonBrightness,     ParamType::UInt8,  32, 0, 63}
 
 //=============================================================================
 // Keypad Button Parameters - Base 0x3100 + (keypad * 32) + button
