@@ -39,21 +39,22 @@ void EncodeParamRsp(CANTxFrame *tx, uint8_t cmd, uint16_t index, uint8_t subinde
     tx->data8[7] = (value >> 24) & 0xFF;
 }
 
-void SendAllNonDefaultParams() {
+void SendAllParams(bool modifiedOnly) {
     CANTxFrame tx;
 
     for (int i = 0; i < NUM_PARAMS; i++) {
-        //if (!IsDefaultValue(&stParams[i])) {
-            uint32_t value = ReadParam(&stParams[i]);
-            EncodeParamRsp(&tx, static_cast<uint8_t>(MsgCmd::ReadAllRsp), 
-                            stParams[i].nIndex, stParams[i].nSubIndex, value);
-            PostTxFrame(&tx);
+        if (modifiedOnly && IsDefaultValue(&stParams[i])) {
+            continue; // Skip default params if only sending modified
+        }
+        uint32_t value = ReadParam(&stParams[i]);
+        EncodeParamRsp(&tx, static_cast<uint8_t>(MsgCmd::ReadAllRsp), 
+                        stParams[i].nIndex, stParams[i].nSubIndex, value);
+        PostTxFrame(&tx);
 
-            nNumReadParams++;
-            
-            // Small delay to avoid saturating mailbox
-            chThdSleepMilliseconds(1);
-        //}
+        nNumReadParams++;
+        
+        // Small delay to avoid saturating mailbox
+        chThdSleepMilliseconds(1);
     }
 
     chThdSleepMilliseconds(1);
@@ -121,17 +122,18 @@ void ProcessParamMsg(CANRxFrame *rx) {
         }
     }
 
-    if (msg.eCmd == MsgCmd::ReadAll) {
+    if ((msg.eCmd == MsgCmd::ReadAll) || 
+        (msg.eCmd == MsgCmd::ReadAllModified)) {
         nNumReadParams = 0;
-        EncodeParamRsp(&tx, static_cast<uint8_t>(MsgCmd::ReadAll), 0, 0, 0); // Start of params marker
+        EncodeParamRsp(&tx, static_cast<uint8_t>(MsgCmd::ReadAllModified), 0, 0, 0); // Start of params marker
         PostTxFrame(&tx);
         chThdSleepMilliseconds(1);
-        // Send multiple responses for non-default params
-        SendAllNonDefaultParams();
+        SendAllParams(msg.eCmd == MsgCmd::ReadAllModified);
         return;
     }
 
-    if (msg.eCmd == MsgCmd::WriteAll) {
+    if ((msg.eCmd == MsgCmd::WriteAll) ||
+        (msg.eCmd == MsgCmd::WriteAllModified)) {
         nNumWriteParams = 0;
         SetAllDefaultParams(true); // Clear temp values
         EncodeParamRsp(&tx, static_cast<uint8_t>(MsgCmd::WriteAll), 0, 0, 0); // Start of params marker

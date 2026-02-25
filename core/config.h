@@ -6,7 +6,7 @@
 #include "hardware/mb85rc.h"
 #include "dbc.h"
 
-#define CONFIG_VERSION 0x0004 //Increment when config structure changes
+#define CONFIG_VERSION 0x0005 //Increment when config structure changes
 
 struct Config_DeviceConfig{
   uint16_t nConfigVersion;

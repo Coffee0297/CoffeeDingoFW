@@ -29,10 +29,13 @@ void CheckRequestMsgs(CANRxFrame *frame)
         txMsg.IDE = CAN_IDE_STD;
         txMsg.DLC = 2;
         txMsg.data8[0] = static_cast<uint8_t>(MsgCmd::Sleep);
-        txMsg.data8[1] = 1;
-        txMsg.data16[1] = 0;
-        txMsg.data16[2] = 0;
-        txMsg.data16[3] = 0;
+        txMsg.data8[1] = 'Q';
+        txMsg.data8[2] = 'U';
+        txMsg.data8[3] = 'I';
+        txMsg.data8[4] = 'T';
+        txMsg.data8[5] = 1; // Acknowledge sleep request
+        txMsg.data8[6] = 0;
+        txMsg.data8[7] = 0;
 
         PostTxFrame(&txMsg);
 
@@ -51,10 +54,13 @@ void CheckRequestMsgs(CANRxFrame *frame)
         txMsg.IDE = CAN_IDE_STD;
         txMsg.DLC = 8;
         txMsg.data8[0] = static_cast<uint8_t>(MsgCmd::BurnSettings);
-        txMsg.data8[1] = WriteConfig();
-        txMsg.data16[1] = 0;
-        txMsg.data16[2] = 0;
-        txMsg.data16[3] = 0;
+        txMsg.data8[1] = 1;
+        txMsg.data8[2] = 3;
+        txMsg.data8[3] = 8;
+        txMsg.data8[4] = WriteConfig();
+        txMsg.data8[5] = 0;
+        txMsg.data8[6] = 0;
+        txMsg.data8[7] = 0;
         PostTxFrame(&txMsg);
     }
 
@@ -76,13 +82,13 @@ void CheckRequestMsgs(CANRxFrame *frame)
         txMsg.IDE = CAN_IDE_STD;
         txMsg.DLC = 8;
         txMsg.data8[0] = static_cast<uint8_t>(MsgCmd::Version);
-        txMsg.data8[1] = MAJOR_VERSION;
-        txMsg.data8[2] = MINOR_VERSION;
-        txMsg.data8[3] = BUILD >> 8;
-        txMsg.data8[4] = BUILD & 0xFF;
-        txMsg.data8[5] = 0;
-        txMsg.data8[6] = 0;
-        txMsg.data8[7] = 0;
+        txMsg.data8[1] = 0;
+        txMsg.data8[2] = 0;
+        txMsg.data8[3] = 0;
+        txMsg.data8[4] = MAJOR_VERSION;
+        txMsg.data8[5] = MINOR_VERSION;
+        txMsg.data8[6] = BUILD >> 8;
+        txMsg.data8[7] = BUILD & 0xFF;
 
         PostTxFrame(&txMsg);
     }
