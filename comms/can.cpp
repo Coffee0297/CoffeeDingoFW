@@ -61,10 +61,7 @@ void CanTxThread(void *)
             {
                 msg.IDE = CAN_IDE_STD;
                 msg.RTR = CAN_RTR_DATA;
-                canTryTransmitI(&CAND1, CAN_ANY_MAILBOX, &msg);
-                // Returns true if mailbox full or nothing connected
-
-                chThdSleepMicroseconds(CAN_TX_MSG_SPLIT);
+                canTransmitTimeout(&CAND1, CAN_ANY_MAILBOX, &msg, TIME_MS2I(10));
             }
         } while (res == MSG_OK);
 

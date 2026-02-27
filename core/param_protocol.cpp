@@ -27,7 +27,7 @@ void EncodeParamRsp(CANTxFrame *tx, uint8_t cmd, uint16_t index, uint8_t subinde
     tx->RTR = 0;
     tx->DLC = 8;
 
-    tx->SID = stConfig.stDevConfig.nBaseId + TX_SETTINGS_ID_OFFSET;
+    tx->SID =  0x081;//stConfig.stDevConfig.nBaseId + TX_SETTINGS_ID_OFFSET;
 
     tx->data8[0] = cmd;
     tx->data8[1] = index & 0xFF;
@@ -49,12 +49,14 @@ void SendAllParams(bool modifiedOnly) {
         uint32_t value = ReadParam(&stParams[i]);
         EncodeParamRsp(&tx, static_cast<uint8_t>(MsgCmd::ReadAllRsp), 
                         stParams[i].nIndex, stParams[i].nSubIndex, value);
-        PostTxFrame(&tx);
+        msg_t ret;
+        do {
+            ret = PostTxFrame(&tx);
+            if (ret != MSG_OK)
+                chThdSleepMicroseconds(200);
+        } while (ret != MSG_OK);
 
         nNumReadParams++;
-        
-        // Small delay to avoid saturating mailbox
-        chThdSleepMilliseconds(1);
     }
 
     chThdSleepMilliseconds(1);
@@ -79,7 +81,7 @@ void ProcessParamMsg(CANRxFrame *rx) {
     CANTxFrame tx;
     ParamMsg msg;
 
-    if (rx->SID != stConfig.stDevConfig.nBaseId - 1)
+    if (rx->SID != 0x080)// stConfig.stDevConfig.nBaseId - 1)
         return;
 
     if (rx->DLC != 8)
@@ -146,8 +148,8 @@ void ProcessParamMsg(CANRxFrame *rx) {
             }
             //Param found, in range, staged successfully, respond with value for confirmation
             uint32_t value = ReadParam(param, true);
-            EncodeParamRsp(&tx, static_cast<uint8_t>(MsgCmd::WriteAllVal), msg.nIndex, msg.nSubIndex, value);
-            PostTxFrame(&tx);
+            //EncodeParamRsp(&tx, static_cast<uint8_t>(MsgCmd::WriteAllVal), msg.nIndex, msg.nSubIndex, value);
+            //PostTxFrame(&tx);
             nNumWriteParams++;
             break;
         }
