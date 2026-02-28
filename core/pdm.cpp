@@ -225,7 +225,17 @@ void CyclicUpdate()
                 keypad[i].CheckMsg(rxMsg);
 
             CheckRequestMsgs(&rxMsg);
-            ProcessParamMsg(&rxMsg);
+            
+            uint16_t nIndex = 0;
+            MsgCmd cmd = ProcessParamMsg(&rxMsg, &nIndex);
+            if (cmd == MsgCmd::WriteAllComplete)
+            {
+                ApplyAllConfig();
+            }
+            if (cmd == MsgCmd::Write)
+            {
+                ApplyConfig(nIndex & 0xFF00); // Mask instance, only base index is needed
+            }
         }
     }
 

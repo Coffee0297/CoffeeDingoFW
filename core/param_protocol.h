@@ -11,5 +11,5 @@ struct ParamMsg
     uint32_t nValue;
 };
 
-void ProcessParamMsg(CANRxFrame *rx);
+MsgCmd ProcessParamMsg(CANRxFrame *rx, uint16_t *nIndex);
 void SetAllDefaultParams(bool temp = false);

@@ -77,19 +77,23 @@ void ApplyTempParams() {
     }
 }
 
-void ProcessParamMsg(CANRxFrame *rx) {
+MsgCmd ProcessParamMsg(CANRxFrame *rx, uint16_t *nIndex) {
     CANTxFrame tx;
     ParamMsg msg;
 
     if (rx->SID != 0x080)// stConfig.stDevConfig.nBaseId - 1)
-        return;
+        return MsgCmd::Invalid;
+
+
 
     if (rx->DLC != 8)
-        return;
+        return MsgCmd::Invalid;
 
     msg.eCmd = static_cast<MsgCmd>(rx->data8[0]);
 
     DecodeParamCmd(rx, &msg);
+
+    *nIndex = msg.nIndex;
 
     switch(msg.eCmd) {
         case MsgCmd::Read: {
@@ -147,7 +151,7 @@ void ProcessParamMsg(CANRxFrame *rx) {
                 break;
             }
             //Param found, in range, staged successfully, respond with value for confirmation
-            uint32_t value = ReadParam(param, true);
+            //uint32_t value = ReadParam(param, true);
             //EncodeParamRsp(&tx, static_cast<uint8_t>(MsgCmd::WriteAllVal), msg.nIndex, msg.nSubIndex, value);
             //PostTxFrame(&tx);
             nNumWriteParams++;
@@ -168,4 +172,6 @@ void ProcessParamMsg(CANRxFrame *rx) {
         default:
             break;
     }
+
+    return msg.eCmd;
 }
