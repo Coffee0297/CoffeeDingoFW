@@ -29,38 +29,7 @@ void Profet::Update(bool bOutEnabled)
     else
         eReqState = ProfetState::Off;
 
-    static uint32_t nCNT = 0;
-    static uint32_t nCCR = 0;
-
-    if (pwm.IsEnabled() && eState == ProfetState::On)
-    {
-        // Assign to local vars to prevent CNT rolling over and slipping past check
-        // Example:
-        // CCR = 2500
-        // When checking read delay CNT = 2499
-        // Before getting to the CNT < CCR check the CNT has rolled over to 0
-        // This will cause an incorrect reading
-        // Copying to local var freezes the CNT value
-        nCCR = m_pwmDriver->tim->CCR[static_cast<uint8_t>(m_pwmChannel)];
-        nCNT = m_pwmDriver->tim->CNT;
-
-        if ((nCCR > nPwmReadDelay) &&
-            (nCNT > nPwmReadDelay) &&
-            (nCNT < nCCR))
-        {
-            palSetLine(LINE_E2);
-            nIS = GetAdcRaw(m_ain);
-            nLastIS = nIS;
-        }
-        else
-        {
-            nIS = nLastIS;
-        }
-    }
-    else
-        nIS = GetAdcRaw(m_ain);
-
-    CalculateCurrent();
+    MeasureCurrent();
 
     // Sum follower current into primary's reported current
     if (pFollower != nullptr && pFollower->eState != ProfetState::Fault)
@@ -178,8 +147,7 @@ void Profet::Update(bool bOutEnabled)
 
 void Profet::FollowerUpdate()
 {
-    nIS = GetAdcRaw(m_ain);
-    CalculateCurrent();
+    MeasureCurrent();
 
     // Hardware fault — independent, permanent
     if (nIS > 30000)
@@ -243,6 +211,48 @@ void Profet::HandleDsel()
         palSetLine(m_dsel);
         chThdSleepMicroseconds(60);
     }
+}
+
+void Profet::MeasureCurrent()
+{
+    if (pwm.IsEnabled() && eState == ProfetState::On)
+    {
+        // Assign to local vars to prevent CNT rolling over and slipping past check
+        // Example:
+        // CCR = 2500
+        // When checking read delay CNT = 2499
+        // Before getting to the CNT < CCR check the CNT has rolled over to 0
+        // This will cause an incorrect reading
+        // Copying to local var freezes the CNT value
+        uint32_t nCCR = m_pwmDriver->tim->CCR[static_cast<uint8_t>(m_pwmChannel)];
+        uint32_t nCNT = m_pwmDriver->tim->CNT;
+
+        // Delay for the first 1/3 of the PWM period to allow current to stabilize after switching, or a fixed min delay if the period is very short. 
+        // This ensures we don't read during the switching transient
+        uint32_t nDelay = (nCCR / 3 > nPwmReadDelay) ? nCCR / 3 : nPwmReadDelay;
+
+        if ((nCCR > nDelay) &&
+            (nCNT > nDelay) &&
+            (nCNT < nCCR))
+        {
+            //==============================================================================
+            //Trigger E2 on channel 1 for debug purposes to verify timing
+            if (m_num == 1)
+                palSetLine(LINE_E2);
+            //==============================================================================
+
+            nIS = GetAdcRaw(m_ain);
+            nLastIS = nIS;
+        }
+        else
+        {
+            nIS = nLastIS;
+        }
+    }
+    else
+        nIS = GetAdcRaw(m_ain);
+
+    CalculateCurrent();
 }
 
 void Profet::CalculateCurrent()

@@ -132,5 +132,6 @@ private:
 
     void FollowerUpdate();
     void HandleDsel();
+    void MeasureCurrent();
     void CalculateCurrent();
 };
