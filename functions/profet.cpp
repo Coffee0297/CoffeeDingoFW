@@ -203,6 +203,11 @@ void Profet::FollowerUpdate()
             pwm.EnsureStarted();
             pwm.OverrideFrequency(pPrimary->GetFrequency());
             pwm.SetDutyCycle(pPrimary->GetDutyCycle());
+            // Align follower timer phase to primary on first enable so both switches
+            // transition simultaneously. Both timers share the same APB clock so
+            // there is no ongoing drift — only the initial phase offset needs fixing.
+            if (eLastState != ProfetState::On)
+                m_pwmDriver->tim->CNT = pPrimary->m_pwmDriver->tim->CNT;
             pwm.On();
         }
         else
