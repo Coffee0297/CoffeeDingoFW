@@ -29,6 +29,8 @@ float GetTotalCurrent()
 
     for (uint8_t i = 0; i < PDM_NUM_OUTPUTS; i++)
     {
+        if (pf[i].pPrimary != nullptr)
+            continue; // Skip followers since their current is included in the primary
         fTotalCurrent += pf[i].GetCurrent();
     }
 
