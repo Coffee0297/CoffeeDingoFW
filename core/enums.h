@@ -59,6 +59,8 @@ enum class MsgCmd : uint8_t
     Version = 31,
     Sleep = 32,
     Bootloader = 33,
+    CheckCrc = 34,
+    CheckCrcRsp = 35,
 
     Invalid = 0xFF
 };

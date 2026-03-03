@@ -13,6 +13,9 @@ uint16_t nNumReadParams = 0;
 
 uint32_t nReadCrc = 0xFFFFFFFF;
 uint32_t nWriteCrc = 0xFFFFFFFF;
+uint32_t nCheckCrc = 0xFFFFFFFF;
+
+bool bCrcDirty = true;
 
 void DecodeParamCmd(CANRxFrame *rx, ParamMsg *out)
 {
@@ -69,8 +72,26 @@ void SendAllParams(bool modifiedOnly) {
     nReadCrc = ~nReadCrc; // Finalize CRC after all params sent
     EncodeParamRsp(&tx, static_cast<uint8_t>(MsgCmd::ReadAllComplete), nNumReadParams, 0, nReadCrc); // End of params marker, return number of params sent and CRC
     PostTxFrame(&tx);
+}
 
+void CheckCrc() {
+    CANTxFrame tx;
+
+    if(bCrcDirty){
+        nCheckCrc = 0xFFFFFFFF; // Reset CRC for new batch
+        for (int i = 0; i < NUM_PARAMS; i++) {
+            uint32_t value = ReadParam(&stParams[i]);
+            EncodeParamRsp(&tx, static_cast<uint8_t>(MsgCmd::ReadAllRsp), 
+                            stParams[i].nIndex, stParams[i].nSubIndex, value);
+            nCheckCrc = CalculateCRC32Partial(&tx.data8[4], 4, nCheckCrc);
+        }
+        nCheckCrc = ~nCheckCrc; // Finalize CRC after all params sent
+        bCrcDirty = false;
+    }
     
+    EncodeParamRsp(&tx, static_cast<uint8_t>(MsgCmd::CheckCrcRsp), 0, 0, nCheckCrc); // End of params marker, return number of params sent and CRC
+    PostTxFrame(&tx);
+
 }
 
 void SetAllDefaultParams(bool temp) {
@@ -120,6 +141,7 @@ MsgCmd ProcessParamMsg(CANRxFrame *rx, uint16_t *nIndex) {
                 uint32_t value = ReadParam(param);
                 EncodeParamRsp(&tx, static_cast<uint8_t>(MsgCmd::Write), msg.nIndex, msg.nSubIndex, value);
                 PostTxFrame(&tx);
+                bCrcDirty = true; // Mark CRC as dirty since a param was modified
             }
             break;
         }
@@ -171,12 +193,17 @@ MsgCmd ProcessParamMsg(CANRxFrame *rx, uint16_t *nIndex) {
             uint16_t nExpectedParams = rx->data8[1] | (rx->data8[2] << 8);
             if (nNumWriteParams == nExpectedParams) {
                 ApplyTempParams();
+                bCrcDirty = true; // Mark CRC as dirty since params were modified
             }
             nWriteCrc = ~nWriteCrc; // Finalize CRC
             EncodeParamRsp(&tx, static_cast<uint8_t>(MsgCmd::WriteAllComplete), nNumWriteParams, 0, nWriteCrc); // End of params marker, return number of params written and CRC
             PostTxFrame(&tx);
             break;
         }
+
+        case MsgCmd::CheckCrc:
+            CheckCrc();
+            break;
 
         default:
             break;
