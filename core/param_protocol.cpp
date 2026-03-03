@@ -3,12 +3,16 @@
 #include "config.h"
 #include "mailbox.h"
 #include "config_handler.h"
+#include "crc.h"
 #include <cstring>
 
 extern PdmConfig stConfig;
 
 uint16_t nNumWriteParams = 0;
 uint16_t nNumReadParams = 0;
+
+uint32_t nReadCrc = 0xFFFFFFFF;
+uint32_t nWriteCrc = 0xFFFFFFFF;
 
 void DecodeParamCmd(CANRxFrame *rx, ParamMsg *out)
 {
@@ -56,12 +60,17 @@ void SendAllParams(bool modifiedOnly) {
                 chThdSleepMicroseconds(200);
         } while (ret != MSG_OK);
 
+        nReadCrc = CalculateCRC32Partial(&tx.data8[4], 4, nReadCrc);
+
         nNumReadParams++;
     }
 
     chThdSleepMilliseconds(1);
-    EncodeParamRsp(&tx, static_cast<uint8_t>(MsgCmd::ReadAllComplete), nNumReadParams, 0, 0); // End of params marker, return number of params sent
+    nReadCrc = ~nReadCrc; // Finalize CRC after all params sent
+    EncodeParamRsp(&tx, static_cast<uint8_t>(MsgCmd::ReadAllComplete), nNumReadParams, 0, nReadCrc); // End of params marker, return number of params sent and CRC
     PostTxFrame(&tx);
+
+    
 }
 
 void SetAllDefaultParams(bool temp) {
@@ -84,12 +93,8 @@ MsgCmd ProcessParamMsg(CANRxFrame *rx, uint16_t *nIndex) {
     if (rx->SID != 0x080)// stConfig.stDevConfig.nBaseId - 1)
         return MsgCmd::Invalid;
 
-
-
     if (rx->DLC != 8)
         return MsgCmd::Invalid;
-
-    msg.eCmd = static_cast<MsgCmd>(rx->data8[0]);
 
     DecodeParamCmd(rx, &msg);
 
@@ -122,6 +127,7 @@ MsgCmd ProcessParamMsg(CANRxFrame *rx, uint16_t *nIndex) {
         case MsgCmd::ReadAll:
         case MsgCmd::ReadAllModified:
             nNumReadParams = 0;
+            nReadCrc = 0xFFFFFFFF; // Reset CRC for new batch
             EncodeParamRsp(&tx, static_cast<uint8_t>(msg.eCmd), 0, 0, 0); // Start of params marker
             PostTxFrame(&tx);
             chThdSleepMilliseconds(1);
@@ -131,6 +137,7 @@ MsgCmd ProcessParamMsg(CANRxFrame *rx, uint16_t *nIndex) {
         case MsgCmd::WriteAll:
         case MsgCmd::WriteAllModified:
             nNumWriteParams = 0;
+            nWriteCrc = 0xFFFFFFFF; // Reset CRC for new batch
             SetAllDefaultParams(true); // Clear temp values
             EncodeParamRsp(&tx, static_cast<uint8_t>(msg.eCmd), 0, 0, 0); // Start of params marker
             PostTxFrame(&tx);
@@ -154,6 +161,7 @@ MsgCmd ProcessParamMsg(CANRxFrame *rx, uint16_t *nIndex) {
             //uint32_t value = ReadParam(param, true);
             //EncodeParamRsp(&tx, static_cast<uint8_t>(MsgCmd::WriteAllVal), msg.nIndex, msg.nSubIndex, value);
             //PostTxFrame(&tx);
+            nWriteCrc = CalculateCRC32Partial(&rx->data8[4], 4, nWriteCrc);
             nNumWriteParams++;
             break;
         }
@@ -164,7 +172,8 @@ MsgCmd ProcessParamMsg(CANRxFrame *rx, uint16_t *nIndex) {
             if (nNumWriteParams == nExpectedParams) {
                 ApplyTempParams();
             }
-            EncodeParamRsp(&tx, static_cast<uint8_t>(MsgCmd::WriteAllComplete), nNumWriteParams, 0, 0); // End of params marker, return number of params written
+            nWriteCrc = ~nWriteCrc; // Finalize CRC
+            EncodeParamRsp(&tx, static_cast<uint8_t>(MsgCmd::WriteAllComplete), nNumWriteParams, 0, nWriteCrc); // End of params marker, return number of params written and CRC
             PostTxFrame(&tx);
             break;
         }
