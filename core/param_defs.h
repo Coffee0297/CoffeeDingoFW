@@ -12,9 +12,13 @@
 #define DEVICE_CONFIG_PARAMS() \
     {0x0000, 0, &stConfig.stDevConfig.nConfigVersion,     &stConfigTemp.stDevConfig.nConfigVersion,    ParamType::UInt16, CONFIG_VERSION, 0, 0xFFFF}, \
     {0x0000, 1, &stConfig.stDevConfig.nBaseId,            &stConfigTemp.stDevConfig.nBaseId,           ParamType::UInt16, 0x7D0, 0, 0x7FF}, \
-    {0x0000, 2, &stConfig.stDevConfig.eCanSpeed,          &stConfigTemp.stDevConfig.eCanSpeed,         ParamType::Enum,   static_cast<uint32_t>(CanBitrate::Bitrate_500K), 0, 4}, \
-    {0x0000, 3, &stConfig.stDevConfig.bSleepEnabled,      &stConfigTemp.stDevConfig.bSleepEnabled,     ParamType::Bool,   0, 0, 1}, \
-    {0x0000, 4, &stConfig.stDevConfig.bCanFilterEnabled,  &stConfigTemp.stDevConfig.bCanFilterEnabled, ParamType::Bool,   0, 0, 1}
+    {0x0000, 2, &stConfig.stDevConfig.nParamRxId,         &stConfigTemp.stDevConfig.nParamRxId,        ParamType::UInt16, 0x080, 0, 0x7FF}, \
+    {0x0000, 3, &stConfig.stDevConfig.nParamTxId,         &stConfigTemp.stDevConfig.nParamTxId,        ParamType::UInt16, 0x081, 0, 0x7FF}, \
+    {0x0000, 4, &stConfig.stDevConfig.eCanSpeed,          &stConfigTemp.stDevConfig.eCanSpeed,         ParamType::Enum,   static_cast<uint32_t>(CanBitrate::Bitrate_500K), 0, 4}, \
+    {0x0000, 5, &stConfig.stDevConfig.bSleepEnabled,      &stConfigTemp.stDevConfig.bSleepEnabled,     ParamType::Bool,   0, 0, 1}, \
+    {0x0000, 6, &stConfig.stDevConfig.bCanFilterEnabled,  &stConfigTemp.stDevConfig.bCanFilterEnabled, ParamType::Bool,   0, 0, 1}, \
+    {0x0000, 7, &stConfig.stDevConfig.bConnectUsbToCan,   &stConfigTemp.stDevConfig.bConnectUsbToCan,  ParamType::Bool,   1, 0, 1}
+
 //=============================================================================
 // Output Parameters - Base 0x1000
 //=============================================================================

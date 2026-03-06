@@ -25,8 +25,6 @@ static chibios_rt::Mutex txUsbMutex;
 
 msg_t PostTxFrame(CANTxFrame *frame)
 {
-    PostTxUsbFrame(frame);  // Post to USB mailbox first
-
     txMutex.lock();
     for (int i = 0; i < MAILBOX_SIZE; i++) {
         if (!txMsgUsed[i]) {
@@ -34,9 +32,13 @@ msg_t PostTxFrame(CANTxFrame *frame)
             txMsgUsed[i] = true;
 
             msg_t result = txMb.post(&txFrames[i], TIME_IMMEDIATE);
-            if (result != MSG_OK)
+            if (result != MSG_OK) {
                 txMsgUsed[i] = false;
+                txMutex.unlock();
+                return result;
+            }
             txMutex.unlock();
+            PostTxUsbFrame(frame);  // Only post to USB after successful CAN TX post
             return result;
         }
     }
@@ -119,7 +121,7 @@ msg_t PostRxFrame(CANRxFrame *frame)
 
     rxMutex.unlock();
     return MSG_TIMEOUT;  // No free slots
-}
+}   
 
 msg_t FetchRxFrame(CANRxFrame *frame)
 {

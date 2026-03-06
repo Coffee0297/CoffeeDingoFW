@@ -8,6 +8,7 @@
 #define TX_MSG_ID_OFFSET 31
 
 #define CAN_TX_CYCLIC_MSG_DELAY 100 //ms
+#define CAN_TX_MSG_SPLIT 30 //us
 
 #define USB_TX_MSG_SPLIT 30 //us
 

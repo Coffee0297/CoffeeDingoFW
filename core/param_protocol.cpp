@@ -34,7 +34,7 @@ void EncodeParamRsp(CANTxFrame *tx, uint8_t cmd, uint16_t index, uint8_t subinde
     tx->RTR = 0;
     tx->DLC = 8;
 
-    tx->SID =  0x081;//stConfig.stDevConfig.nBaseId + TX_SETTINGS_ID_OFFSET;
+    tx->SID =  stConfig.stDevConfig.nParamTxId;
 
     tx->data8[0] = cmd;
     tx->data8[1] = index & 0xFF;
@@ -48,11 +48,19 @@ void EncodeParamRsp(CANTxFrame *tx, uint8_t cmd, uint16_t index, uint8_t subinde
 
 void SendAllParams(bool modifiedOnly) {
     CANTxFrame tx;
+    uint8_t nBatchCount = 0;
 
     for (int i = 0; i < NUM_PARAMS; i++) {
         if (modifiedOnly && IsDefaultValue(&stParams[i])) {
             continue; // Skip default params if only sending modified
         }
+
+        if(nBatchCount > 50) { // Send in batches of 50 to avoid overflowing CAN buffers
+            chThdSleepMilliseconds(10); // Short delay between batches
+            nBatchCount = 0;
+        }
+        nBatchCount++;
+
         uint32_t value = ReadParam(&stParams[i]);
         EncodeParamRsp(&tx, static_cast<uint8_t>(MsgCmd::ReadAllRsp), 
                         stParams[i].nIndex, stParams[i].nSubIndex, value);
@@ -111,7 +119,7 @@ MsgCmd ProcessParamMsg(CANRxFrame *rx, uint16_t *nIndex) {
     CANTxFrame tx;
     ParamMsg msg;
 
-    if (rx->SID != 0x080)// stConfig.stDevConfig.nBaseId - 1)
+    if (rx->SID != stConfig.stDevConfig.nParamRxId)
         return MsgCmd::Invalid;
 
     if (rx->DLC != 8)
@@ -180,9 +188,6 @@ MsgCmd ProcessParamMsg(CANRxFrame *rx, uint16_t *nIndex) {
                 break;
             }
             //Param found, in range, staged successfully, respond with value for confirmation
-            //uint32_t value = ReadParam(param, true);
-            //EncodeParamRsp(&tx, static_cast<uint8_t>(MsgCmd::WriteAllVal), msg.nIndex, msg.nSubIndex, value);
-            //PostTxFrame(&tx);
             nWriteCrc = CalculateCRC32Partial(&rx->data8[4], 4, nWriteCrc);
             nNumWriteParams++;
             break;

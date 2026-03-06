@@ -63,6 +63,7 @@ void CanTxThread(void *)
                 msg.RTR = CAN_RTR_DATA;
                 canTransmitTimeout(&CAND1, CAN_ANY_MAILBOX, &msg, TIME_MS2I(10));
             }
+            chThdSleepMicroseconds(CAN_TX_MSG_SPLIT);
         } while (res == MSG_OK);
 
         if (chThdShouldTerminateX())
@@ -91,14 +92,21 @@ void CanRxThread(void *)
 
             res = PostRxFrame(&msg);
 
-            //Copy data to USB for data pass through
-            //If USB not connected, mailbox will fill up and messages will be dropped
-            usbTx.SID = msg.SID;
-            usbTx.IDE = msg.IDE;
-            usbTx.DLC = msg.DLC;
-            for(size_t i = 0; i < msg.DLC; i++)
-                usbTx.data8[i] = msg.data8[i];
-            res = PostTxUsbFrame(&usbTx);
+            if(stConfig.stDevConfig.bConnectUsbToCan)
+            {
+                //Copy data to USB for data pass through
+                //Don't send if it's a settings msg for this device
+                if((msg.SID != stConfig.stDevConfig.nParamRxId) && (msg.SID != stConfig.stDevConfig.nParamTxId)) 
+                {
+                    //If USB not connected, mailbox will fill up and messages will be dropped
+                    usbTx.SID = msg.SID;
+                    usbTx.IDE = msg.IDE;
+                    usbTx.DLC = msg.DLC;
+                    for(size_t i = 0; i < msg.DLC; i++)
+                        usbTx.data8[i] = msg.data8[i];
+                    res = PostTxUsbFrame(&usbTx);
+                }
+            }
 
             palToggleLine(LINE_E2);
         }

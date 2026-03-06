@@ -379,11 +379,7 @@ void UsbTxThread(void *)
                     }
 
                     
-                    size_t nWritten = chnWriteTimeout(&SDU1, (const uint8_t *)nData, sizeof(nData), TIME_IMMEDIATE);
-                    if (nWritten == 0)
-                        PostTxUsbFrame(&msg);
-
-                    chThdSleepMicroseconds(USB_TX_MSG_SPLIT);
+                    chnWriteTimeout(&SDU1, (const uint8_t *)nData, sizeof(nData), TIME_MS2I(10));
                 }
             } while (res == MSG_OK);
 
@@ -396,51 +392,110 @@ void UsbTxThread(void *)
     }
 }
 
+void Parse(uint8_t *data, uint8_t dataLen, CANRxFrame *frame)
+{
+    uint8_t firstPos;
+
+    // Convert from ASCII (2nd character to end)
+    for (uint8_t i = 1; i < dataLen; i++)
+    {
+        // Lowercase letters
+        if (data[i] >= 'a')
+            data[i] = data[i] - 'a' + 10;
+        // Uppercase letters
+        else if (data[i] >= 'A')
+            data[i] = data[i] - 'A' + 10;
+        // Numbers
+        else
+            data[i] = data[i] - '0';
+    }
+
+    if (data[0] == 't')
+    {
+        frame->SID = ((data[1] & 0xF) << 8) + ((data[2] & 0xF) << 4) + (data[3] & 0xF);
+
+        frame->DLC = data[4];
+
+        firstPos = 5;
+
+        for (int i = 0; i < frame->DLC; i++)
+        {
+            frame->data8[i] = ((data[i + firstPos] & 0xF) << 4) + (data[i + firstPos + 1] & 0xF);
+            firstPos++;
+        }
+
+        frame->IDE = CAN_IDE_STD;
+        frame->RTR = CAN_RTR_DATA;
+    }
+}
+
 static THD_WORKING_AREA(waUsbRxThread, 1024);
 void UsbRxThread(void *)
 {
     chRegSetThreadName("USB Rx");
 
     CANRxFrame msg;
-    uint8_t buf[8];
+    uint8_t rxBuf[64];  // Larger buffer for accumulating data
+    uint8_t tempBuf[8]; // Small buffer for single reads
+    size_t rxIndex = 0;
 
     CANTxFrame canTx;
 
     while (true)
     {
         if ((SDU1.state == SDU_READY) &&
-             (usbGetDriverStateI(&USBD1) == USB_ACTIVE))
+            (usbGetDriverStateI(&USBD1) == USB_ACTIVE))
         {
-            size_t nRead = chnReadTimeout(&SDU1, buf, 8, TIME_IMMEDIATE);
-            if ((nRead != 0) && (nRead <= 8))
+            size_t nRead = chnReadTimeout(&SDU1, tempBuf, 1, TIME_MS2I(100));
+            if (nRead > 0)
             {
-                msg.DLC = 0;
-                for (uint8_t i = 0; i < nRead; i++)
+                // Add received byte to buffer
+                if (rxIndex < sizeof(rxBuf) - 1)
                 {
-                    msg.data8[i] = buf[i];
-                    msg.DLC++;
+                    rxBuf[rxIndex++] = tempBuf[0];
                 }
 
-                msg.SID = stConfig.stDevConfig.nBaseId - 1;
+                // Check for carriage return
+                if (tempBuf[0] == '\r' || rxIndex >= sizeof(rxBuf) - 1)
+                {
+                    // Null terminate and process the command
+                    rxBuf[rxIndex] = '\0';
 
-                PostRxFrame(&msg);
-                // TODO:What to do if mailbox is full?
+                    if (rxIndex > 0)
+                    {
+                        Parse(rxBuf, rxIndex, &msg);
+                        PostRxFrame(&msg);
+                    }
 
-                //Copy data to CAN for data pass through
-                canTx.SID = msg.SID;
-                canTx.IDE = msg.IDE;
-                canTx.DLC = msg.DLC;
-                for(size_t i = 0; i < msg.DLC; i++)
-                    canTx.data8[i] = msg.data8[i];
-                PostTxFrame(&canTx);
+                    if(stConfig.stDevConfig.bConnectUsbToCan)
+                    {
+                        //Copy data to CAN for data pass through
+                        //Don't send if it's a settings msg for this device
+                        if((msg.SID != stConfig.stDevConfig.nParamRxId) && (msg.SID != stConfig.stDevConfig.nParamTxId)) 
+                        {
+                            canTx.SID = msg.SID;
+                            canTx.IDE = msg.IDE;
+                            canTx.DLC = msg.DLC;
+                            for(size_t i = 0; i < msg.DLC; i++)
+                                canTx.data8[i] = msg.data8[i];
+                            PostTxFrame(&canTx);
+                        }
+                    }
+                    
+                    // Reset buffer
+                    rxIndex = 0;
+                    for (size_t i = 0; i < sizeof(rxBuf); i++)
+                        rxBuf[i] = 0;
+                }
             }
-
-            chThdSleepMicroseconds(30);
-            
         }
         else
         {
-            chThdSleepMilliseconds(50);
+            chThdSleepMilliseconds(200);
+            // Reset buffer when not connected
+            rxIndex = 0;
+            for (size_t i = 0; i < sizeof(rxBuf); i++)
+                rxBuf[i] = 0;
         }
     }
 }

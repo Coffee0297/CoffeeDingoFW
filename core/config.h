@@ -6,14 +6,17 @@
 #include "hardware/mb85rc.h"
 #include "dbc.h"
 
-#define CONFIG_VERSION 0x0005 //Increment when config structure changes
+#define CONFIG_VERSION 0x0006 //Increment when config structure changes
 
 struct Config_DeviceConfig{
   uint16_t nConfigVersion;
   uint16_t nBaseId;
+  uint16_t nParamRxId; //Config->Pdm
+  uint16_t nParamTxId; //Pdm->Config
   CanBitrate eCanSpeed;
   bool bSleepEnabled;
   bool bCanFilterEnabled;
+  bool bConnectUsbToCan;
 };
 
 struct Config_Input{
