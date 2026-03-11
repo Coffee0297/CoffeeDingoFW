@@ -78,7 +78,7 @@ void CanOutput::Update()
     if (!pConfig->bEnabled) return;
     if (assignedFrame[nIndex] == -1) return;
 
-    Dbc::EncodeInt( frames[assignedFrame[nIndex]].data8, static_cast<int32_t>(*pInput), pConfig->nStartBit, pConfig->nBitLength,
+    Dbc::EncodeFloat( frames[assignedFrame[nIndex]].data8, static_cast<float>(*pInput), pConfig->nStartBit, pConfig->nBitLength,
                     pConfig->fFactor, pConfig->fOffset, pConfig->eByteOrder);
 
     CheckTime();
