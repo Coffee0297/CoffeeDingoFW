@@ -6,10 +6,10 @@ bool CanInput::CheckMsg(CANRxFrame rx)
     if (!pConfig->bEnabled)
         return false;
     if (pConfig->nIDE &&
-        (pConfig->nEID != rx.EID))
+        (pConfig->nID != rx.EID))
         return false;
     if (!pConfig->nIDE &&
-        (pConfig->nSID != rx.SID))
+        (pConfig->nID != rx.SID))
         return false;
     if (pConfig->nBitLength == 0)
         return false;

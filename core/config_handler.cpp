@@ -76,10 +76,7 @@ void ApplyConfig(uint16_t nIndex)
             
             // Set filter for this input
             uint32_t nId = 0;
-            if(stConfig.stCanInput[i].nIDE == 1)
-                nId = stConfig.stCanInput[i].nEID;
-            else
-                nId = stConfig.stCanInput[i].nSID;
+            nId = stConfig.stCanInput[i].nID;
             SetCanFilterId(i + 1, nId, stConfig.stCanInput[i].nIDE == 1);
         }
 

@@ -4,10 +4,6 @@
 
 extern CanOutput canOut[PDM_NUM_CAN_OUTPUTS];
 
-// Frame indexes are independent of CAN output indexes, multiple outputs may be packed into the same frame based on ID
-CANTxFrame frames[PDM_NUM_CAN_OUTPUTS];
-int8_t assignedFrame[PDM_NUM_CAN_OUTPUTS]; // Maps CAN output index to frame index, -1 if not assigned
-
 void CanOutput::ClearFrames()
 {
     for (int i = 0; i < PDM_NUM_CAN_OUTPUTS; ++i)
@@ -15,8 +11,7 @@ void CanOutput::ClearFrames()
         frames[i].data64[0] = 0;
         frames[i].DLC = 0;
         frames[i].IDE = 0;
-        frames[i].SID = 0;
-        frames[i].EID = 0;
+        frames[i].EID = 0; //Clears SID as well
 
         assignedFrame[i] = -1;
     }
@@ -31,8 +26,7 @@ void CanOutput::InitAllFrames()
         if (!canOut[i].pConfig->bEnabled) continue;
 
         uint8_t  nIDE       = canOut[i].pConfig->nIDE;
-        uint16_t nSID       = canOut[i].pConfig->nSID;
-        uint32_t nEID       = canOut[i].pConfig->nEID;
+        uint16_t nID       = canOut[i].pConfig->nID;
         uint8_t  nStartBit  = canOut[i].pConfig->nStartBit;
         uint8_t  nBitLength = canOut[i].pConfig->nBitLength;
 
@@ -41,8 +35,8 @@ void CanOutput::InitAllFrames()
         {
             if (frames[j].DLC == 0) continue; // Unused frame slot
 
-            bool bMatch = (nIDE == 0) ? (frames[j].IDE == 0 && frames[j].SID == nSID)
-                                      : (frames[j].IDE == 1 && frames[j].EID == nEID);
+            bool bMatch = (nIDE == 0) ? (frames[j].IDE == 0 && frames[j].SID == nID)
+                                      : (frames[j].IDE == 1 && frames[j].EID == nID);
             if (bMatch)
             {
                 assignedFrame[i] = j;
@@ -63,9 +57,15 @@ void CanOutput::InitAllFrames()
             if (frames[j].DLC == 0)
             {
                 assignedFrame[i] = j;
-                frames[j].SID = nSID;
-                frames[j].EID = nEID;
                 frames[j].IDE = nIDE;
+
+                //Only set one
+                //SID and EID are a union
+                if(nIDE == 0)
+                    frames[j].SID = nID;
+                else
+                    frames[j].EID = nID;
+
                 frames[j].DLC = CalcDLC(nStartBit, nBitLength);
                 break;
             }
@@ -101,9 +101,8 @@ void CanOutput::CheckTime()
 
 uint8_t CanOutput::CalcDLC(uint8_t nStartBit, uint8_t nBitLength)
 {
-    uint8_t nEndBit = nStartBit + nBitLength - 1;
-    uint8_t nStartByte = nStartBit / 8;
-    uint8_t nEndByte = nEndBit / 8;
+    uint8_t nLastBit  = nStartBit + nBitLength - 1;
+    uint8_t nEndByte  = nLastBit / 8;
 
-    return (nEndByte - nStartByte + 1);
+    return (nEndByte + 1);
 }

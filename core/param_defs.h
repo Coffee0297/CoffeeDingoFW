@@ -58,17 +58,16 @@
     {0x1300 + (i), 1,  &stConfig.stCanInput[i].bTimeoutEnabled, &stConfigTemp.stCanInput[i].bTimeoutEnabled, ParamType::Bool,   0, 0, 1}, \
     {0x1300 + (i), 2,  &stConfig.stCanInput[i].nTimeout,        &stConfigTemp.stCanInput[i].nTimeout,        ParamType::UInt16, 1000, 0, 60000}, \
     {0x1300 + (i), 3,  &stConfig.stCanInput[i].nIDE,            &stConfigTemp.stCanInput[i].nIDE,            ParamType::UInt8,  0, 0, 1}, \
-    {0x1300 + (i), 4,  &stConfig.stCanInput[i].nSID,            &stConfigTemp.stCanInput[i].nSID,            ParamType::UInt16, 0, 0, 0x7FF}, \
-    {0x1300 + (i), 5,  &stConfig.stCanInput[i].nEID,            &stConfigTemp.stCanInput[i].nEID,            ParamType::UInt32, 0, 0, 536870911}, \
-    {0x1300 + (i), 6,  &stConfig.stCanInput[i].nStartBit,       &stConfigTemp.stCanInput[i].nStartBit,       ParamType::UInt8,  0, 0, 63}, \
-    {0x1300 + (i), 7,  &stConfig.stCanInput[i].nBitLength,      &stConfigTemp.stCanInput[i].nBitLength,      ParamType::UInt8,  8, 1, 32}, \
-    {0x1300 + (i), 8,  &stConfig.stCanInput[i].fFactor,         &stConfigTemp.stCanInput[i].fFactor,         ParamType::Float,  F(1.0f), F(-1e9f), F(1e9f)}, \
-    {0x1300 + (i), 9,  &stConfig.stCanInput[i].fOffset,         &stConfigTemp.stCanInput[i].fOffset,         ParamType::Float,  F(0.0f), F(-1e9f), F(1e9f)}, \
-    {0x1300 + (i), 10, &stConfig.stCanInput[i].eByteOrder,      &stConfigTemp.stCanInput[i].eByteOrder,      ParamType::Enum,   static_cast<uint32_t>(ByteOrder::LittleEndian), 0, 1}, \
-    {0x1300 + (i), 11, &stConfig.stCanInput[i].bSigned,         &stConfigTemp.stCanInput[i].bSigned,         ParamType::Bool,   0, 0, 1}, \
-    {0x1300 + (i), 12, &stConfig.stCanInput[i].eOperator,       &stConfigTemp.stCanInput[i].eOperator,       ParamType::Enum,   static_cast<uint32_t>(Operator::Equal), 0, 7}, \
-    {0x1300 + (i), 13, &stConfig.stCanInput[i].fOperand,        &stConfigTemp.stCanInput[i].fOperand,        ParamType::Float,  F(0.0f), F(-1e9f), F(1e9f)}, \
-    {0x1300 + (i), 14, &stConfig.stCanInput[i].eMode,           &stConfigTemp.stCanInput[i].eMode,           ParamType::Enum,   static_cast<uint32_t>(InputMode::Momentary), 0, 1}
+    {0x1300 + (i), 4,  &stConfig.stCanInput[i].nID,             &stConfigTemp.stCanInput[i].nID,             ParamType::UInt32, 0, 0, 536870911}, \
+    {0x1300 + (i), 5,  &stConfig.stCanInput[i].nStartBit,       &stConfigTemp.stCanInput[i].nStartBit,       ParamType::UInt8,  0, 0, 63}, \
+    {0x1300 + (i), 6,  &stConfig.stCanInput[i].nBitLength,      &stConfigTemp.stCanInput[i].nBitLength,      ParamType::UInt8,  8, 1, 32}, \
+    {0x1300 + (i), 7,  &stConfig.stCanInput[i].fFactor,         &stConfigTemp.stCanInput[i].fFactor,         ParamType::Float,  F(1.0f), F(-1e9f), F(1e9f)}, \
+    {0x1300 + (i), 8,  &stConfig.stCanInput[i].fOffset,         &stConfigTemp.stCanInput[i].fOffset,         ParamType::Float,  F(0.0f), F(-1e9f), F(1e9f)}, \
+    {0x1300 + (i), 9,  &stConfig.stCanInput[i].eByteOrder,      &stConfigTemp.stCanInput[i].eByteOrder,      ParamType::Enum,   static_cast<uint32_t>(ByteOrder::LittleEndian), 0, 1}, \
+    {0x1300 + (i), 10, &stConfig.stCanInput[i].bSigned,         &stConfigTemp.stCanInput[i].bSigned,         ParamType::Bool,   0, 0, 1}, \
+    {0x1300 + (i), 11, &stConfig.stCanInput[i].eOperator,       &stConfigTemp.stCanInput[i].eOperator,       ParamType::Enum,   static_cast<uint32_t>(Operator::Equal), 0, 7}, \
+    {0x1300 + (i), 12, &stConfig.stCanInput[i].fOperand,        &stConfigTemp.stCanInput[i].fOperand,        ParamType::Float,  F(0.0f), F(-1e9f), F(1e9f)}, \
+    {0x1300 + (i), 13, &stConfig.stCanInput[i].eMode,           &stConfigTemp.stCanInput[i].eMode,           ParamType::Enum,   static_cast<uint32_t>(InputMode::Momentary), 0, 1}
     
 //=============================================================================
 // Virtual Input Parameters - Base 0x1400
@@ -176,15 +175,14 @@
     {0x2000 + (i), 0,  &stConfig.stCanOutput[i].bEnabled,   &stConfigTemp.stCanOutput[i].bEnabled,   ParamType::Bool,   0, 0, 1}, \
     {0x2000 + (i), 1,  &stConfig.stCanOutput[i].nInput,     &stConfigTemp.stCanOutput[i].nInput,     ParamType::UInt16, 0, 0, PDM_VAR_MAP_SIZE - 1}, \
     {0x2000 + (i), 2,  &stConfig.stCanOutput[i].nIDE,       &stConfigTemp.stCanOutput[i].nIDE,       ParamType::UInt8,  0, 0, 1}, \
-    {0x2000 + (i), 3,  &stConfig.stCanOutput[i].nSID,       &stConfigTemp.stCanOutput[i].nSID,       ParamType::UInt16, 0, 0, 0x7FF}, \
-    {0x2000 + (i), 4,  &stConfig.stCanOutput[i].nEID,       &stConfigTemp.stCanOutput[i].nEID,       ParamType::UInt32, 0, 0, 536870911}, \
-    {0x2000 + (i), 5,  &stConfig.stCanOutput[i].nStartBit,  &stConfigTemp.stCanOutput[i].nStartBit,  ParamType::UInt8,  0, 0, 63}, \
-    {0x2000 + (i), 6,  &stConfig.stCanOutput[i].nBitLength, &stConfigTemp.stCanOutput[i].nBitLength, ParamType::UInt8,  8, 1, 32}, \
-    {0x2000 + (i), 7,  &stConfig.stCanOutput[i].fFactor,    &stConfigTemp.stCanOutput[i].fFactor,    ParamType::Float,  F(1.0f), F(0.0f), F(1e9f)}, \
-    {0x2000 + (i), 8,  &stConfig.stCanOutput[i].fOffset,    &stConfigTemp.stCanOutput[i].fOffset,    ParamType::Float,  F(0.0f), F(-1e9f), F(1e9f)}, \
-    {0x2000 + (i), 9,  &stConfig.stCanOutput[i].eByteOrder, &stConfigTemp.stCanOutput[i].eByteOrder, ParamType::Enum,   static_cast<uint32_t>(ByteOrder::LittleEndian), 0, 1}, \
-    {0x2000 + (i), 10, &stConfig.stCanOutput[i].bSigned,    &stConfigTemp.stCanOutput[i].bSigned,    ParamType::Bool,   0, 0, 1}, \
-    {0x2000 + (i), 11, &stConfig.stCanOutput[i].nInterval,  &stConfigTemp.stCanOutput[i].nInterval,  ParamType::UInt16, 1000, 0, 60000}
+    {0x2000 + (i), 3,  &stConfig.stCanOutput[i].nID,        &stConfigTemp.stCanOutput[i].nID,        ParamType::UInt32, 0, 0, 536870911}, \
+    {0x2000 + (i), 4,  &stConfig.stCanOutput[i].nStartBit,  &stConfigTemp.stCanOutput[i].nStartBit,  ParamType::UInt8,  0, 0, 63}, \
+    {0x2000 + (i), 5,  &stConfig.stCanOutput[i].nBitLength, &stConfigTemp.stCanOutput[i].nBitLength, ParamType::UInt8,  8, 1, 32}, \
+    {0x2000 + (i), 6,  &stConfig.stCanOutput[i].fFactor,    &stConfigTemp.stCanOutput[i].fFactor,    ParamType::Float,  F(1.0f), F(0.0f), F(1e9f)}, \
+    {0x2000 + (i), 7,  &stConfig.stCanOutput[i].fOffset,    &stConfigTemp.stCanOutput[i].fOffset,    ParamType::Float,  F(0.0f), F(-1e9f), F(1e9f)}, \
+    {0x2000 + (i), 8,  &stConfig.stCanOutput[i].eByteOrder, &stConfigTemp.stCanOutput[i].eByteOrder, ParamType::Enum,   static_cast<uint32_t>(ByteOrder::LittleEndian), 0, 1}, \
+    {0x2000 + (i), 9,  &stConfig.stCanOutput[i].bSigned,    &stConfigTemp.stCanOutput[i].bSigned,    ParamType::Bool,   0, 0, 1}, \
+    {0x2000 + (i), 10, &stConfig.stCanOutput[i].nInterval,  &stConfigTemp.stCanOutput[i].nInterval,  ParamType::UInt16, 1000, 0, 60000}
 
 //=============================================================================
 // Keypad Parameters - Base 0x3000

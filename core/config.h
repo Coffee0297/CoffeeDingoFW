@@ -101,8 +101,7 @@ struct Config_CanInput{
   bool bTimeoutEnabled;
   uint16_t nTimeout; //ms
   uint8_t nIDE; //0=STD, 1=EXT
-  uint16_t nSID; // 11-bit standard ID (0x000-0x7FF)
-  uint32_t nEID; // 29-bit extended ID
+  uint32_t nID;
   uint8_t nStartBit;   
   uint8_t nBitLength;  
   float fFactor;       
@@ -118,8 +117,7 @@ struct Config_CanOutput{
   bool bEnabled;
   uint16_t nInput;
   uint8_t nIDE; //0=STD, 1=EXT
-  uint16_t nSID; // 11-bit standard ID (0x000-0x7FF)
-  uint32_t nEID; // 29-bit extended ID
+  uint32_t nID;
   uint8_t nStartBit;   
   uint8_t nBitLength;  
   float fFactor;       
