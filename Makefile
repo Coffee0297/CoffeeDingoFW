@@ -155,7 +155,7 @@ CPPSRC = $(ALLCPPSRC) \
 				 core/sleep.cpp \
 				 core/status.cpp \
 				 functions/can_input.cpp \
-				 functions/can_output.cpp \
+				 functions/can_outputs.cpp \
 				 functions/condition.cpp \
 				 functions/counter.cpp \
 				 functions/digital.cpp \

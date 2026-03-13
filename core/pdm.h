@@ -6,7 +6,7 @@
 
 class Digital;
 class CanInput;
-class CanOutput;
+class CanOutputs;
 class VirtualInput;
 class Profet;
 class Wiper;
@@ -18,7 +18,7 @@ class Keypad;
 
 extern Digital in[PDM_NUM_INPUTS];
 extern CanInput canIn[PDM_NUM_CAN_INPUTS];
-extern CanOutput canOut[PDM_NUM_CAN_OUTPUTS];
+extern CanOutputs canOutputs;
 extern VirtualInput virtIn[PDM_NUM_VIRT_INPUTS];
 extern Profet pf[PDM_NUM_OUTPUTS];
 extern Wiper wiper;

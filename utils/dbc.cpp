@@ -71,43 +71,27 @@ int32_t Dbc::DecodeBE(const uint8_t *pData, uint8_t nStartBit,
     if (nBitLength == 0 || nBitLength > 32)
         return 0;
 
-    // For big-endian (Motorola), start bit is the MSB of the signal
-    // We need to convert from Motorola bit numbering to actual bit position
-
-    // Calculate which byte and bit within byte
-    uint8_t startByte = nStartBit / 8;
-    uint8_t startBitInByte = nStartBit % 8;
-
     uint64_t value = 0;
-    int bitsRemaining = nBitLength;
+    uint8_t byteIndex = nStartBit / 8;
+    int8_t  bitIndex  = nStartBit % 8;
 
-    // Extract bits from MSB to LSB
-    while (bitsRemaining > 0)
+    for (int i = 0; i < nBitLength; i++)
     {
-        // Calculate how many bits we can read from current byte
-        int bitsToRead = (startBitInByte + 1 < bitsRemaining) ? (startBitInByte + 1) : bitsRemaining;
+        // Extract bit
+        if ((pData[byteIndex] >> bitIndex) & 1)
+            value |= (1ULL << (nBitLength - 1 - i));
 
-        // Extract bits from current byte
-        uint8_t mask = ((1 << bitsToRead) - 1);
-        uint8_t byteBits = (pData[startByte] >> (startBitInByte - bitsToRead + 1)) & mask;
-
-        // Add to result
-        value |= ((uint64_t)byteBits << (bitsRemaining - bitsToRead));
-
-        // Move to next byte
-        bitsRemaining -= bitsToRead;
-        startByte++;
-        startBitInByte = 7; // Next byte starts from MSB
-    }
-
-    // Handle signed values (two's complement sign extension)
-    if (bSigned)
-    {
-        if (value & (1ULL << (nBitLength - 1)))
+        // Move to next bit: decrement within byte, wrap to bit 7 of next byte
+        bitIndex--;
+        if (bitIndex < 0)
         {
-            value |= (0xFFFFFFFFFFFFFFFFULL << nBitLength);
+            bitIndex = 7;
+            byteIndex++;
         }
     }
+
+    if (bSigned && (value & (1ULL << (nBitLength - 1))))
+        value |= (0xFFFFFFFFFFFFFFFFULL << nBitLength);
 
     return (int32_t)value;
 }
@@ -149,37 +133,25 @@ void Dbc::EncodeBE(uint8_t *pData, int32_t nRawValue,
     if (nBitLength == 0 || nBitLength > 32)
         return;
 
-    // Create mask for the value
-    uint64_t mask = (1ULL << nBitLength) - 1;
+    uint64_t mask  = (1ULL << nBitLength) - 1;
     uint64_t value = (uint64_t)nRawValue & mask;
 
-    // Calculate which byte and bit within byte
-    uint8_t startByte = nStartBit / 8;
-    uint8_t startBitInByte = nStartBit % 8;
+    uint8_t byteIndex = nStartBit / 8;
+    int8_t  bitIndex  = nStartBit % 8;
 
-    int bitsRemaining = nBitLength;
-
-    // Write bits from MSB to LSB
-    while (bitsRemaining > 0)
+    for (int i = 0; i < nBitLength; i++)
     {
-        // Calculate how many bits we can write to current byte
-        int bitsToWrite = (startBitInByte + 1 < bitsRemaining) ? (startBitInByte + 1) : bitsRemaining;
+        if ((value >> (nBitLength - 1 - i)) & 1)
+            pData[byteIndex] |=  (1 << bitIndex);
+        else
+            pData[byteIndex] &= ~(1 << bitIndex);
 
-        // Extract bits to write
-        uint8_t bitMask = ((1 << bitsToWrite) - 1);
-        uint8_t bitsValue = (value >> (bitsRemaining - bitsToWrite)) & bitMask;
-
-        // Clear target bits in byte
-        uint8_t clearMask = ~(bitMask << (startBitInByte - bitsToWrite + 1));
-        pData[startByte] &= clearMask;
-
-        // Write bits
-        pData[startByte] |= (bitsValue << (startBitInByte - bitsToWrite + 1));
-
-        // Move to next byte
-        bitsRemaining -= bitsToWrite;
-        startByte++;
-        startBitInByte = 7;
+        bitIndex--;
+        if (bitIndex < 0)
+        {
+            bitIndex = 7;
+            byteIndex++;
+        }
     }
 }
 

@@ -10,7 +10,7 @@
 #include "hw_devices.h"
 #include "can.h"
 #include "can_input.h"
-#include "can_output.h"
+#include "can_outputs.h"
 #include "virtual_input.h"
 #include "wiper/wiper.h"
 #include "starter.h"
@@ -28,7 +28,7 @@
 #include "status.h"
 
 CanInput canIn[PDM_NUM_CAN_INPUTS];
-CanOutput canOut[PDM_NUM_CAN_OUTPUTS];
+CanOutputs canOutputs;
 VirtualInput virtIn[PDM_NUM_VIRT_INPUTS];
 Wiper wiper;
 Starter starter;
@@ -248,8 +248,7 @@ void CyclicUpdate()
     for (uint8_t i = 0; i < PDM_NUM_CAN_INPUTS; i++)
         canIn[i].CheckTimeout();
 
-    for (uint8_t i = 0; i < PDM_NUM_CAN_OUTPUTS; i++)
-        canOut[i].Update();
+    canOutputs.Update();
 
     for (uint8_t i = 0; i < PDM_NUM_VIRT_INPUTS; i++)
         virtIn[i].Update();
