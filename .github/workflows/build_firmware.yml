@@ -111,6 +111,7 @@ jobs:
           tag_name: v${{ steps.extract_version.outputs.version }}
           name: Release v${{ steps.extract_version.outputs.version }}
           prerelease: ${{ steps.extract_version.outputs.prerelease }}
+          generate_release_notes: true
           body: |
             ## Firmware Release v${{ steps.extract_version.outputs.version }}
       
