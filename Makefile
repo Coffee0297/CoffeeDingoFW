@@ -222,8 +222,7 @@ UINCDIR = ./boards/$(MCU) \
 				  ./functions/keypad/grayhill \
 				  ./functions/keypad \
 				  ./hardware \
-				  ./utils \
-				  ./devices
+				  ./utils
 
 # List the user directory to look for the libraries here
 ULIBDIR =
