@@ -5,7 +5,7 @@ import dingopdm_max
 def build_db(base_id):
     db = cantools.database.Database()
     db.name = "dingoPdm-Max"
-    db.version = "0.4.12"
+    db.version = "0.5.0"
     
     db.messages.append(dingopdm_max.build_msg_0(base_id))
     db.messages.append(dingopdm_max.build_msg_1(base_id))

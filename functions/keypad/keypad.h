@@ -25,7 +25,7 @@ public:
 
     void SetConfig(Config_Keypad* config);
 
-    static const uint16_t nBaseIndex = 0x2000;
+    static const uint16_t nBaseIndex = 0x3000;
 
     static msg_t InitThread(Keypad *keypads);
 
