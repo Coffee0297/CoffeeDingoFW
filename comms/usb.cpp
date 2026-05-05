@@ -471,7 +471,8 @@ void UsbRxThread(void *)
                     {
                         //Copy data to CAN for data pass through
                         //Don't send if it's a settings msg for this device
-                        if((msg.SID != stConfig.stDevConfig.nParamRxId) && (msg.SID != stConfig.stDevConfig.nParamTxId)) 
+                        if( (msg.SID != stConfig.stDevConfig.nBaseId + CONFIG_RX_OFFSET) && 
+                            (msg.SID != stConfig.stDevConfig.nBaseId + CONFIG_TX_OFFSET)) 
                         {
                             canTx.SID = msg.SID;
                             canTx.IDE = msg.IDE;

@@ -96,7 +96,8 @@ void CanRxThread(void *)
             {
                 //Copy data to USB for data pass through
                 //Don't send if it's a settings msg for this device
-                if((msg.SID != stConfig.stDevConfig.nParamRxId) && (msg.SID != stConfig.stDevConfig.nParamTxId)) 
+                if((msg.SID != stConfig.stDevConfig.nBaseId + CONFIG_RX_OFFSET) && 
+                   (msg.SID != stConfig.stDevConfig.nBaseId + CONFIG_TX_OFFSET)) 
                 {
                     //If USB not connected, mailbox will fill up and messages will be dropped
                     usbTx.SID = msg.SID;

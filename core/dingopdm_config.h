@@ -2,10 +2,7 @@
 
 #define MAJOR_VERSION 0
 #define MINOR_VERSION 5
-#define BUILD 0
-
-#define TX_SETTINGS_ID_OFFSET 30
-#define TX_MSG_ID_OFFSET 31
+#define BUILD 1
 
 #define CAN_TX_CYCLIC_MSG_DELAY 100 //ms
 #define CAN_TX_MSG_SPLIT 30 //us
@@ -22,3 +19,7 @@
 #define BOARD_TEMP_CRIT 80 //deg C
 
 #define MAX_COUNTER_VAL 8
+
+#define CONFIG_TX_OFFSET 0 //To dingoConfig
+#define CONFIG_RX_OFFSET 1 //From dingoConfig
+#define CYCLIC_TX_OFFSET 2

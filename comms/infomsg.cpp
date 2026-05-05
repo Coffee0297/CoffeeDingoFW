@@ -50,7 +50,7 @@ void SendInfoMsg(MsgType type, MsgSrc src, uint16_t nId, uint16_t nData0, uint16
     tx.data16[2] = nData1;
     tx.data16[3] = nData2;
 
-    tx.SID = nId + TX_MSG_ID_OFFSET;
+    tx.SID = nId + CONFIG_TX_OFFSET;
     tx.IDE = CAN_IDE_STD;
     PostTxFrame(&tx);
 }
