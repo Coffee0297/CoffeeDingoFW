@@ -24,17 +24,17 @@
 #define PDM_VAR_MAP_SYS_VARS 5
 #define PDM_VAR_MAP_WIPER_VARS 6
 
-#define PDM_VAR_MAP_SIZE ( \                                                                                                                                                                      
-    PDM_VAR_MAP_SYS_VARS + \                                                                                                                                                                   
-    (PDM_NUM_INPUTS * 1) + \                                                                                                                                                                      
-    (PDM_NUM_CAN_INPUTS * 2) + \                                                                                                                                                                  
-    (PDM_NUM_VIRT_INPUTS * 1) + \                                                                                                                                                                 
-    (PDM_NUM_OUTPUTS * 4) + \                                                                                                                                                                     
-    (PDM_NUM_FLASHERS * 1) + \                                                                                                                                                                    
-    (PDM_NUM_CONDITIONS * 1) + \                                                                                                                                                                  
-    (PDM_NUM_COUNTERS * 1) + \                                                                                                                                                                    
-    PDM_VAR_MAP_WIPER_VARS + \                                                                                                                                                                                        
-    (PDM_NUM_KEYPADS * (KEYPAD_MAX_BUTTONS + KEYPAD_MAX_DIALS + KEYPAD_MAX_ANALOG_INPUTS)) \                                                                                                      
+#define PDM_VAR_MAP_SIZE ( \
+    PDM_VAR_MAP_SYS_VARS + \
+    (PDM_NUM_INPUTS * 1) + \
+    (PDM_NUM_CAN_INPUTS * 2) + \
+    (PDM_NUM_VIRT_INPUTS * 1) + \
+    (PDM_NUM_OUTPUTS * 4) + \
+    (PDM_NUM_FLASHERS * 1) + \
+    (PDM_NUM_CONDITIONS * 1) + \
+    (PDM_NUM_COUNTERS * 1) + \
+    PDM_VAR_MAP_WIPER_VARS + \
+    (PDM_NUM_KEYPADS * (KEYPAD_MAX_BUTTONS + KEYPAD_MAX_DIALS + KEYPAD_MAX_ANALOG_INPUTS)) \
 )   
 
 #define PDM_NUM_TX_MSGS 27
