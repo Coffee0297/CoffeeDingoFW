@@ -12,7 +12,7 @@ static void KeypadThread(void *arg)
     chRegSetThreadName("Keypad");
 
     // Send start messages for all enabled keypads
-    for (uint8_t k = 0; k < PDM_NUM_KEYPADS; k++)
+    for (uint8_t k = 0; k < NUM_KEYPADS; k++)
     {
         if (!keypads[k].IsEnabled())
             continue;
@@ -23,7 +23,7 @@ static void KeypadThread(void *arg)
 
     while (1)
     {
-        for (uint8_t k = 0; k < PDM_NUM_KEYPADS; k++)
+        for (uint8_t k = 0; k < NUM_KEYPADS; k++)
         {
             if (!keypads[k].IsEnabled())
                 continue;

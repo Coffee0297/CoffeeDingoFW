@@ -76,8 +76,8 @@ struct Config_Wiper{
   uint16_t nSwipeInput;
   uint16_t nWashInput;
   uint8_t nWashWipeCycles;
-  WiperSpeed eSpeedMap[PDM_NUM_WIPER_SPEED_MAP];
-  uint16_t nIntermitTime[PDM_NUM_WIPER_INTER_DELAYS]; //ms
+  WiperSpeed eSpeedMap[NUM_WIPER_SPEED_MAP];
+  uint16_t nIntermitTime[NUM_WIPER_INTER_DELAYS]; //ms
 };
 
 struct Config_Flasher{
@@ -91,7 +91,7 @@ struct Config_Flasher{
 struct Config_Starter{
   bool bEnabled;
   uint16_t nInput;
-  bool bDisableOut[PDM_NUM_OUTPUTS];
+  bool bDisableOut[NUM_OUTPUTS];
 };
 
 struct Config_CanInput{
@@ -185,17 +185,17 @@ struct Config_Keypad{
 
 struct PdmConfig{
   Config_DeviceConfig stDevConfig;
-  Config_Input stInput[PDM_NUM_INPUTS];
-  Config_VirtualInput stVirtualInput[PDM_NUM_VIRT_INPUTS];
-  Config_Output stOutput[PDM_NUM_OUTPUTS];
+  Config_Input stInput[NUM_INPUTS];
+  Config_VirtualInput stVirtualInput[NUM_VIRT_INPUTS];
+  Config_Output stOutput[NUM_OUTPUTS];
   Config_Wiper stWiper;
-  Config_Flasher stFlasher[PDM_NUM_FLASHERS];
+  Config_Flasher stFlasher[NUM_FLASHERS];
   Config_Starter stStarter;
-  Config_CanInput stCanInput[PDM_NUM_CAN_INPUTS];
-  Config_CanOutput stCanOutput[PDM_NUM_CAN_OUTPUTS];
-  Config_Counter stCounter[PDM_NUM_COUNTERS];
-  Config_Condition stCondition[PDM_NUM_CONDITIONS];
-  Config_Keypad stKeypad[PDM_NUM_KEYPADS];
+  Config_CanInput stCanInput[NUM_CAN_INPUTS];
+  Config_CanOutput stCanOutput[NUM_CAN_OUTPUTS];
+  Config_Counter stCounter[NUM_COUNTERS];
+  Config_Condition stCondition[NUM_CONDITIONS];
+  Config_Keypad stKeypad[NUM_KEYPADS];
 };
 
 extern PdmConfig stConfig;

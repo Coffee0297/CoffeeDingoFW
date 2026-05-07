@@ -27,22 +27,22 @@
 #include "infomsg.h"
 #include "status.h"
 
-CanInput canIn[PDM_NUM_CAN_INPUTS];
+CanInput canIn[NUM_CAN_INPUTS];
 CanOutputs canOutputs;
-VirtualInput virtIn[PDM_NUM_VIRT_INPUTS];
+VirtualInput virtIn[NUM_VIRT_INPUTS];
 Wiper wiper;
 Starter starter;
-Flasher flasher[PDM_NUM_FLASHERS];
-Counter counter[PDM_NUM_COUNTERS];
-Condition condition[PDM_NUM_CONDITIONS];
-Keypad keypad[PDM_NUM_KEYPADS];
+Flasher flasher[NUM_FLASHERS];
+Counter counter[NUM_COUNTERS];
+Condition condition[NUM_CONDITIONS];
+Keypad keypad[NUM_KEYPADS];
 
 PdmState eState = PdmState::Run;
 float fState; //For var map
 FatalErrorType eError = FatalErrorType::NoError;
 PdmConfig stConfig;
 PdmConfig stConfigTemp; // Used for staging new config before applying
-float *pVarMap[PDM_VAR_MAP_SIZE];
+float *pVarMap[VAR_MAP_SIZE];
 
 float fBattVolt;
 float fTempSensor;
@@ -140,7 +140,7 @@ void States()
     if (bDeviceCriticalTemp)
     {
         //Turn off all outputs
-        for (uint8_t i = 0; i < PDM_NUM_OUTPUTS; i++)
+        for (uint8_t i = 0; i < NUM_OUTPUTS; i++)
             pf[i].Update(false);
             
         Error::SetFatalError(FatalErrorType::ErrTemp, MsgSrc::State_Overtemp);
@@ -198,7 +198,7 @@ void States()
         // Not required?
 
         //Turn off all outputs
-        for (uint8_t i = 0; i < PDM_NUM_OUTPUTS; i++)
+        for (uint8_t i = 0; i < NUM_OUTPUTS; i++)
             pf[i].Update(false);
 
         Error::SetFatalError(eError, MsgSrc::State_Error);
@@ -218,10 +218,10 @@ void CyclicUpdate()
         msg_t res = FetchRxFrame(&rxMsg);
         if (res == MSG_OK)
         {
-            for (uint8_t i = 0; i < PDM_NUM_CAN_INPUTS; i++)
+            for (uint8_t i = 0; i < NUM_CAN_INPUTS; i++)
                 canIn[i].CheckMsg(rxMsg);
 
-            for (uint8_t i = 0; i < PDM_NUM_KEYPADS; i++)
+            for (uint8_t i = 0; i < NUM_KEYPADS; i++)
                 keypad[i].CheckMsg(rxMsg);
 
             CheckRequestMsgs(&rxMsg);
@@ -239,34 +239,34 @@ void CyclicUpdate()
         }
     }
 
-    for (uint8_t i = 0; i < PDM_NUM_OUTPUTS; i++)
+    for (uint8_t i = 0; i < NUM_OUTPUTS; i++)
         pf[i].Update(starter.fVal[i]);
 
-    for (uint8_t i = 0; i < PDM_NUM_INPUTS; i++)
+    for (uint8_t i = 0; i < NUM_INPUTS; i++)
         in[i].Update();
 
-    for (uint8_t i = 0; i < PDM_NUM_CAN_INPUTS; i++)
+    for (uint8_t i = 0; i < NUM_CAN_INPUTS; i++)
         canIn[i].CheckTimeout();
 
     canOutputs.Update();
 
-    for (uint8_t i = 0; i < PDM_NUM_VIRT_INPUTS; i++)
+    for (uint8_t i = 0; i < NUM_VIRT_INPUTS; i++)
         virtIn[i].Update();
 
     wiper.Update();
 
     starter.Update();
 
-    for (uint8_t i = 0; i < PDM_NUM_FLASHERS; i++)
+    for (uint8_t i = 0; i < NUM_FLASHERS; i++)
         flasher[i].Update(SYS_TIME);
 
-    for (uint8_t i = 0; i < PDM_NUM_COUNTERS; i++)
+    for (uint8_t i = 0; i < NUM_COUNTERS; i++)
         counter[i].Update();
 
-    for (uint8_t i = 0; i < PDM_NUM_CONDITIONS; i++)
+    for (uint8_t i = 0; i < NUM_CONDITIONS; i++)
         condition[i].Update();
 
-    for (uint8_t i = 0; i < PDM_NUM_KEYPADS; i++)
+    for (uint8_t i = 0; i < NUM_KEYPADS; i++)
         keypad[i].Update();
 }
 
@@ -282,24 +282,24 @@ void InitVarMap()
     pVarMap[index++] = &fBattVolt;
 
     // Digital inputs
-    for (uint8_t i = 0; i < PDM_NUM_INPUTS; i++)
+    for (uint8_t i = 0; i < NUM_INPUTS; i++)
         pVarMap[index++] = &in[i].fVal;
 
     // CAN Inputs
-    for (uint8_t i = 0; i < PDM_NUM_CAN_INPUTS; i++)
+    for (uint8_t i = 0; i < NUM_CAN_INPUTS; i++)
     {
         pVarMap[index++] = &canIn[i].fOutput;
         pVarMap[index++] = &canIn[i].fVal;
     }
 
     // Virtual Inputs
-    for (uint8_t i = 0; i < PDM_NUM_VIRT_INPUTS; i++)
+    for (uint8_t i = 0; i < NUM_VIRT_INPUTS; i++)
     {
         pVarMap[index++] = &virtIn[i].fVal;
     }
 
     // Outputs
-    for (uint8_t i = 0; i < PDM_NUM_OUTPUTS; i++)
+    for (uint8_t i = 0; i < NUM_OUTPUTS; i++)
     {
         pVarMap[index++] = &pf[i].fOutput;
         pVarMap[index++] = &pf[i].fCurrent;
@@ -308,19 +308,19 @@ void InitVarMap()
     }
 
     // Flashers
-    for (uint8_t i = 0; i < PDM_NUM_FLASHERS; i++)
+    for (uint8_t i = 0; i < NUM_FLASHERS; i++)
     {
         pVarMap[index++] = &flasher[i].fVal;
     }
 
     // Conditions
-    for (uint8_t i = 0; i < PDM_NUM_CONDITIONS; i++)
+    for (uint8_t i = 0; i < NUM_CONDITIONS; i++)
     {
         pVarMap[index++] = &condition[i].fVal;
     }
 
     // Counters
-    for (uint8_t i = 0; i < PDM_NUM_COUNTERS; i++)
+    for (uint8_t i = 0; i < NUM_COUNTERS; i++)
     {
         pVarMap[index++] = &counter[i].fVal;
     }
@@ -334,7 +334,7 @@ void InitVarMap()
     pVarMap[index++] = &wiper.fSwipeOut;
 
     // Keypads
-    for (uint8_t i = 0; i < PDM_NUM_KEYPADS; i++)
+    for (uint8_t i = 0; i < NUM_KEYPADS; i++)
     {
         for (uint8_t j = 0; j < KEYPAD_MAX_BUTTONS; j++)
         {
@@ -353,7 +353,7 @@ void InitVarMap()
     }
 
     //VarMap size must match the expected size
-    if (index != PDM_VAR_MAP_SIZE)
+    if (index != VAR_MAP_SIZE)
         Error::SetFatalError(FatalErrorType::ErrVarMap, MsgSrc::Init);
 
 }

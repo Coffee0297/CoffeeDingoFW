@@ -9,7 +9,7 @@
 #include "wiper_intin.h"
 #include "wiper_mixin.h"
 
-extern float *pVarMap[PDM_VAR_MAP_SIZE];
+extern float *pVarMap[VAR_MAP_SIZE];
 
 class Wiper
 {
@@ -88,7 +88,7 @@ private:
     bool GetFastInput() { return *pFastInput; };
     bool GetWashInput() { return *pWashInput; };
     bool GetSwipeInput() { return *pSwipeInput; };
-    uint16_t GetSpeedInput() { return (*pSpeedInput < PDM_NUM_WIPER_SPEED_MAP) ? *pSpeedInput : 0; };
+    uint16_t GetSpeedInput() { return (*pSpeedInput < NUM_WIPER_SPEED_MAP) ? *pSpeedInput : 0; };
 
     Wiper_Mode *pMode;
     Wiper_DigIn digInMode;

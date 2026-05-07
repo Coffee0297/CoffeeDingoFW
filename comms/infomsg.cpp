@@ -13,14 +13,14 @@ static InfoMsg StateErrorMsg(MsgType::Error, MsgSrc::State_Error);
 static InfoMsg BattOvervoltageMsg(MsgType::Warning, MsgSrc::Voltage);
 static InfoMsg BattUndervoltageMsg(MsgType::Warning, MsgSrc::Voltage);
 
-static InfoMsg OutputOvercurrentMsg[PDM_NUM_OUTPUTS];
-static InfoMsg OutputFaultMsg[PDM_NUM_OUTPUTS];
+static InfoMsg OutputOvercurrentMsg[NUM_OUTPUTS];
+static InfoMsg OutputFaultMsg[NUM_OUTPUTS];
 
 // External variables from pdm.cpp that we need access to
 extern PdmConfig stConfig;
 extern PdmState eState;
 extern float fBattVolt;
-extern Profet pf[PDM_NUM_OUTPUTS];
+extern Profet pf[NUM_OUTPUTS];
 
 void CheckInfoMsgs()
 {
@@ -32,7 +32,7 @@ void CheckInfoMsgs()
     BattOvervoltageMsg.Check(fBattVolt > BATT_HIGH_VOLT, stConfig.stDevConfig.nBaseId, fBattVolt * 10, 0, 0);
     BattUndervoltageMsg.Check(fBattVolt < BATT_LOW_VOLT, stConfig.stDevConfig.nBaseId, fBattVolt * 10, 0, 0);
 
-    for (uint8_t i = 0; i < PDM_NUM_OUTPUTS; i++)
+    for (uint8_t i = 0; i < NUM_OUTPUTS; i++)
     {
         OutputOvercurrentMsg[i].Check(GetOutputState(i) == ProfetState::Overcurrent, stConfig.stDevConfig.nBaseId, i, GetOutputCurrent(i), 0);
         OutputFaultMsg[i].Check(GetOutputState(i) == ProfetState::Fault, stConfig.stDevConfig.nBaseId, i, GetOutputCurrent(i), 0);
@@ -57,7 +57,7 @@ void SendInfoMsg(MsgType type, MsgSrc src, uint16_t nId, uint16_t nData0, uint16
 
 void InitInfoMsgs()
 {
-    for (uint8_t i = 0; i < PDM_NUM_OUTPUTS; i++)
+    for (uint8_t i = 0; i < NUM_OUTPUTS; i++)
     {
         OutputOvercurrentMsg[i] = InfoMsg(MsgType::Warning, MsgSrc::Overcurrent);
         OutputFaultMsg[i] = InfoMsg(MsgType::Error, MsgSrc::Overcurrent);

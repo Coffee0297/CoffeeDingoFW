@@ -6,7 +6,7 @@
 #include "enums.h"
 #include "pwm.h"
 
-extern float *pVarMap[PDM_VAR_MAP_SIZE];
+extern float *pVarMap[VAR_MAP_SIZE];
 
 //=============================================================================
 // PWM read delay = timer count from PWM going high till ready to read ADC

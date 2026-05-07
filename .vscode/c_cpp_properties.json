@@ -42,7 +42,9 @@
                 "${workspaceFolder}/ChibiOS/os/oslib/include",
                 "${workspaceFolder}/ChibiOS/os/rt/include",
                 "${workspaceFolder}/ChibiOS/os/various/cpp_wrappers",
-                "${workspaceFolder}/cfg",
+                "${workspaceFolder}/boards/dingopdm_v7/cfg",
+                "${workspaceFolder}/boards/dingopdmmax_v1/cfg",
+                "${workspaceFolder}/boards/canboard_v2/cfg",
                 "${workspaceFolder}/core",
                 "${workspaceFolder}/comms",
                 "${workspaceFolder}/functions",
@@ -52,6 +54,7 @@
                 "${workspaceFolder}/hardware",
                 "${workspaceFolder}/boards/dingopdm_v7",
                 "${workspaceFolder}/boards/dingopdmmax_v1",
+                "${workspaceFolder}/boards/canboard_v2",
                 "${workspaceFolder}/boards/cortex-m4",
                 "${workspaceFolder}"
             ]
@@ -98,7 +101,9 @@
                 "${workspaceFolder}/ChibiOS/os/oslib/include",
                 "${workspaceFolder}/ChibiOS/os/rt/include",
                 "${workspaceFolder}/ChibiOS/os/various/cpp_wrappers",
-                "${workspaceFolder}/cfg",
+                "${workspaceFolder}/boards/dingopdm_v7/cfg",
+                "${workspaceFolder}/boards/dingopdmmax_v1/cfg",
+                "${workspaceFolder}/boards/canboard_v2/cfg",
                 "${workspaceFolder}/core",
                 "${workspaceFolder}/comms",
                 "${workspaceFolder}/functions",
@@ -110,6 +115,7 @@
                 "${workspaceFolder}/hardware",
                 "${workspaceFolder}/boards/dingopdm_v7",
                 "${workspaceFolder}/boards/dingopdmmax_v1",
+                "${workspaceFolder}/boards/canboard_v2",
                 "${workspaceFolder}/boards/cortex-m4",
                 "${workspaceFolder}"
             ]

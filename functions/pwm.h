@@ -6,7 +6,7 @@
 
 #define PWM_UPDATE_TIME 2.0 //ms
 
-extern float *pVarMap[PDM_VAR_MAP_SIZE];
+extern float *pVarMap[VAR_MAP_SIZE];
 
 class Pwm
 {

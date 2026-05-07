@@ -21,7 +21,7 @@
 //=============================================================================
 #define OUTPUT_PARAMS(i) \
     {0x1000 + (i), 0,  &stConfig.stOutput[i].bEnabled,                   &stConfigTemp.stOutput[i].bEnabled,                   ParamType::Bool,   0, 0, 1}, \
-    {0x1000 + (i), 1,  &stConfig.stOutput[i].nInput,                     &stConfigTemp.stOutput[i].nInput,                     ParamType::UInt16, 0, 0, PDM_VAR_MAP_SIZE - 1}, \
+    {0x1000 + (i), 1,  &stConfig.stOutput[i].nInput,                     &stConfigTemp.stOutput[i].nInput,                     ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
     {0x1000 + (i), 2,  &stConfig.stOutput[i].fCurrentLimit,              &stConfigTemp.stOutput[i].fCurrentLimit,              ParamType::Float,  F(20.0f), F(0.0f), F(100.0f)}, \
     {0x1000 + (i), 3,  &stConfig.stOutput[i].fInrushLimit,               &stConfigTemp.stOutput[i].fInrushLimit,               ParamType::Float,  F(50.0f), F(0.0f), F(100.0f)}, \
     {0x1000 + (i), 4,  &stConfig.stOutput[i].nInrushTime,                &stConfigTemp.stOutput[i].nInrushTime,                ParamType::UInt16, 1000, 0, 10000}, \
@@ -31,12 +31,12 @@
     {0x1000 + (i), 8,  &stConfig.stOutput[i].stPwm.bEnabled,             &stConfigTemp.stOutput[i].stPwm.bEnabled,             ParamType::Bool,   0, 0, 1}, \
     {0x1000 + (i), 9,  &stConfig.stOutput[i].stPwm.bSoftStart,           &stConfigTemp.stOutput[i].stPwm.bSoftStart,           ParamType::Bool,   0, 0, 1}, \
     {0x1000 + (i), 10, &stConfig.stOutput[i].stPwm.bVariableDutyCycle,   &stConfigTemp.stOutput[i].stPwm.bVariableDutyCycle,   ParamType::Bool, 0, 0, 1}, \
-    {0x1000 + (i), 11, &stConfig.stOutput[i].stPwm.nDutyCycleInput,      &stConfigTemp.stOutput[i].stPwm.nDutyCycleInput,      ParamType::UInt16, 0, 0, PDM_VAR_MAP_SIZE - 1}, \
+    {0x1000 + (i), 11, &stConfig.stOutput[i].stPwm.nDutyCycleInput,      &stConfigTemp.stOutput[i].stPwm.nDutyCycleInput,      ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
     {0x1000 + (i), 12, &stConfig.stOutput[i].stPwm.nFixedDutyCycle,      &stConfigTemp.stOutput[i].stPwm.nFixedDutyCycle,      ParamType::UInt8,  100, 0, 100}, \
     {0x1000 + (i), 13, &stConfig.stOutput[i].stPwm.nFreq,                &stConfigTemp.stOutput[i].stPwm.nFreq,                ParamType::UInt16, 100, 0, 400}, \
     {0x1000 + (i), 14, &stConfig.stOutput[i].stPwm.nSoftStartRampTime,   &stConfigTemp.stOutput[i].stPwm.nSoftStartRampTime,   ParamType::UInt16, 0, 0, 10000}, \
     {0x1000 + (i), 15, &stConfig.stOutput[i].stPwm.nDutyCycleInputDenom, &stConfigTemp.stOutput[i].stPwm.nDutyCycleInputDenom, ParamType::UInt16, 100, 1, 5000}, \
-    {0x1000 + (i), 16, &stConfig.stOutput[i].nPrimaryOutput,             &stConfigTemp.stOutput[i].nPrimaryOutput,             ParamType::Int8,  I8(-1), I8(-1), PDM_NUM_OUTPUTS - 1}
+    {0x1000 + (i), 16, &stConfig.stOutput[i].nPrimaryOutput,             &stConfigTemp.stOutput[i].nPrimaryOutput,             ParamType::Int8,  I8(-1), I8(-1), VAR_MAP_SIZE - 1}
 
 //=============================================================================
 // Digital Input Parameters - Base 0x1200
@@ -72,13 +72,13 @@
 #define VIRTUAL_INPUT_PARAMS(i) \
     {0x1400 + (i), 0,  &stConfig.stVirtualInput[i].bEnabled, &stConfigTemp.stVirtualInput[i].bEnabled, ParamType::Bool,   0, 0, 1}, \
     {0x1400 + (i), 1,  &stConfig.stVirtualInput[i].bNot0,    &stConfigTemp.stVirtualInput[i].bNot0,    ParamType::Bool,   0, 0, 1}, \
-    {0x1400 + (i), 2,  &stConfig.stVirtualInput[i].nVar0,    &stConfigTemp.stVirtualInput[i].nVar0,    ParamType::UInt16, 0, 0, PDM_VAR_MAP_SIZE - 1}, \
+    {0x1400 + (i), 2,  &stConfig.stVirtualInput[i].nVar0,    &stConfigTemp.stVirtualInput[i].nVar0,    ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
     {0x1400 + (i), 3,  &stConfig.stVirtualInput[i].eCond0,   &stConfigTemp.stVirtualInput[i].eCond0,   ParamType::Enum,   static_cast<uint32_t>(BoolOperator::And), 0, 2}, \
     {0x1400 + (i), 4,  &stConfig.stVirtualInput[i].bNot1,    &stConfigTemp.stVirtualInput[i].bNot1,    ParamType::Bool,   0, 0, 1}, \
-    {0x1400 + (i), 5,  &stConfig.stVirtualInput[i].nVar1,    &stConfigTemp.stVirtualInput[i].nVar1,    ParamType::UInt16, 0, 0, PDM_VAR_MAP_SIZE - 1}, \
+    {0x1400 + (i), 5,  &stConfig.stVirtualInput[i].nVar1,    &stConfigTemp.stVirtualInput[i].nVar1,    ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
     {0x1400 + (i), 6,  &stConfig.stVirtualInput[i].eCond1,   &stConfigTemp.stVirtualInput[i].eCond1,   ParamType::Enum,   static_cast<uint32_t>(BoolOperator::And), 0, 2}, \
     {0x1400 + (i), 7,  &stConfig.stVirtualInput[i].bNot2,    &stConfigTemp.stVirtualInput[i].bNot2,    ParamType::Bool,   0, 0, 1}, \
-    {0x1400 + (i), 8,  &stConfig.stVirtualInput[i].nVar2,    &stConfigTemp.stVirtualInput[i].nVar2,    ParamType::UInt16, 0, 0, PDM_VAR_MAP_SIZE - 1}, \
+    {0x1400 + (i), 8,  &stConfig.stVirtualInput[i].nVar2,    &stConfigTemp.stVirtualInput[i].nVar2,    ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
     {0x1400 + (i), 9,  &stConfig.stVirtualInput[i].eMode,    &stConfigTemp.stVirtualInput[i].eMode,    ParamType::Enum,   static_cast<uint32_t>(InputMode::Momentary), 0, 1}
 
 //=============================================================================
@@ -86,7 +86,7 @@
 //=============================================================================
 #define CONDITION_PARAMS(i) \
     {0x1500 + (i), 0, &stConfig.stCondition[i].bEnabled,  &stConfigTemp.stCondition[i].bEnabled,  ParamType::Bool,   0, 0, 1}, \
-    {0x1500 + (i), 1, &stConfig.stCondition[i].nInput,    &stConfigTemp.stCondition[i].nInput,    ParamType::UInt16, 0, 0, PDM_VAR_MAP_SIZE - 1}, \
+    {0x1500 + (i), 1, &stConfig.stCondition[i].nInput,    &stConfigTemp.stCondition[i].nInput,    ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
     {0x1500 + (i), 2, &stConfig.stCondition[i].eOperator, &stConfigTemp.stCondition[i].eOperator, ParamType::Enum,   static_cast<uint32_t>(Operator::Equal), 0, 7}, \
     {0x1500 + (i), 3, &stConfig.stCondition[i].fArg,      &stConfigTemp.stCondition[i].fArg,      ParamType::Float,  F(0.0f), F(-1e9f), F(1e9f)}
 
@@ -95,9 +95,9 @@
 //=============================================================================
 #define COUNTER_PARAMS(i) \
     {0x1600 + (i), 0,  &stConfig.stCounter[i].bEnabled,    &stConfigTemp.stCounter[i].bEnabled,    ParamType::Bool,   0, 0, 1}, \
-    {0x1600 + (i), 1,  &stConfig.stCounter[i].nIncInput,   &stConfigTemp.stCounter[i].nIncInput,   ParamType::UInt16, 0, 0, PDM_VAR_MAP_SIZE - 1}, \
-    {0x1600 + (i), 2,  &stConfig.stCounter[i].nDecInput,   &stConfigTemp.stCounter[i].nDecInput,   ParamType::UInt16, 0, 0, PDM_VAR_MAP_SIZE - 1}, \
-    {0x1600 + (i), 3,  &stConfig.stCounter[i].nResetInput, &stConfigTemp.stCounter[i].nResetInput, ParamType::UInt16, 0, 0, PDM_VAR_MAP_SIZE - 1}, \
+    {0x1600 + (i), 1,  &stConfig.stCounter[i].nIncInput,   &stConfigTemp.stCounter[i].nIncInput,   ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
+    {0x1600 + (i), 2,  &stConfig.stCounter[i].nDecInput,   &stConfigTemp.stCounter[i].nDecInput,   ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
+    {0x1600 + (i), 3,  &stConfig.stCounter[i].nResetInput, &stConfigTemp.stCounter[i].nResetInput, ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
     {0x1600 + (i), 4,  &stConfig.stCounter[i].nMinCount,   &stConfigTemp.stCounter[i].nMinCount,   ParamType::UInt8,  0, 0, 255}, \
     {0x1600 + (i), 5,  &stConfig.stCounter[i].nMaxCount,   &stConfigTemp.stCounter[i].nMaxCount,   ParamType::UInt8,  10, 0, 255}, \
     {0x1600 + (i), 6,  &stConfig.stCounter[i].eIncEdge,    &stConfigTemp.stCounter[i].eIncEdge,    ParamType::Enum,   static_cast<uint32_t>(InputEdge::Rising), 0, 2}, \
@@ -112,7 +112,7 @@
 //=============================================================================
 #define FLASHER_PARAMS(i) \
     {0x1700 + (i), 0, &stConfig.stFlasher[i].bEnabled,      &stConfigTemp.stFlasher[i].bEnabled,      ParamType::Bool,   0, 0, 1}, \
-    {0x1700 + (i), 1, &stConfig.stFlasher[i].nInput,        &stConfigTemp.stFlasher[i].nInput,        ParamType::UInt16, 0, 0, PDM_VAR_MAP_SIZE - 1}, \
+    {0x1700 + (i), 1, &stConfig.stFlasher[i].nInput,        &stConfigTemp.stFlasher[i].nInput,        ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
     {0x1700 + (i), 2, &stConfig.stFlasher[i].nFlashOnTime,  &stConfigTemp.stFlasher[i].nFlashOnTime,  ParamType::UInt16, 500, 0, 5000}, \
     {0x1700 + (i), 3, &stConfig.stFlasher[i].nFlashOffTime, &stConfigTemp.stFlasher[i].nFlashOffTime, ParamType::UInt16, 500, 0, 5000}, \
     {0x1700 + (i), 4, &stConfig.stFlasher[i].bSingleCycle,  &stConfigTemp.stFlasher[i].bSingleCycle,  ParamType::Bool,   0, 0, 1}
@@ -122,7 +122,7 @@
 //=============================================================================
 #define STARTER_PARAMS() \
     {0x1800, 0, &stConfig.stStarter.bEnabled, &stConfigTemp.stStarter.bEnabled, ParamType::Bool,   0, 0, 1}, \
-    {0x1800, 1, &stConfig.stStarter.nInput,   &stConfigTemp.stStarter.nInput,   ParamType::UInt16, 0, 0, PDM_VAR_MAP_SIZE - 1}
+    {0x1800, 1, &stConfig.stStarter.nInput,   &stConfigTemp.stStarter.nInput,   ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}
 
 // Starter disable output param - subindex starts at 2
 #define STARTER_DISABLE_PARAM(i) \
@@ -134,15 +134,15 @@
 #define WIPER_PARAMS() \
     {0x1900, 0,  &stConfig.stWiper.bEnabled,       &stConfigTemp.stWiper.bEnabled,       ParamType::Bool,   0, 0, 1}, \
     {0x1900, 1,  &stConfig.stWiper.eMode,          &stConfigTemp.stWiper.eMode,          ParamType::Enum,   static_cast<uint32_t>(WiperMode::DigIn), 0, 2}, \
-    {0x1900, 2,  &stConfig.stWiper.nSlowInput,     &stConfigTemp.stWiper.nSlowInput,     ParamType::UInt16, 0, 0, PDM_VAR_MAP_SIZE - 1}, \
-    {0x1900, 3,  &stConfig.stWiper.nFastInput,     &stConfigTemp.stWiper.nFastInput,     ParamType::UInt16, 0, 0, PDM_VAR_MAP_SIZE - 1}, \
-    {0x1900, 4,  &stConfig.stWiper.nInterInput,    &stConfigTemp.stWiper.nInterInput,    ParamType::UInt16, 0, 0, PDM_VAR_MAP_SIZE - 1}, \
-    {0x1900, 5,  &stConfig.stWiper.nOnInput,       &stConfigTemp.stWiper.nOnInput,       ParamType::UInt16, 0, 0, PDM_VAR_MAP_SIZE - 1}, \
-    {0x1900, 6,  &stConfig.stWiper.nSpeedInput,    &stConfigTemp.stWiper.nSpeedInput,    ParamType::UInt16, 0, 0, PDM_VAR_MAP_SIZE - 1}, \
-    {0x1900, 7,  &stConfig.stWiper.nParkInput,     &stConfigTemp.stWiper.nParkInput,     ParamType::UInt16, 0, 0, PDM_VAR_MAP_SIZE - 1}, \
+    {0x1900, 2,  &stConfig.stWiper.nSlowInput,     &stConfigTemp.stWiper.nSlowInput,     ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
+    {0x1900, 3,  &stConfig.stWiper.nFastInput,     &stConfigTemp.stWiper.nFastInput,     ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
+    {0x1900, 4,  &stConfig.stWiper.nInterInput,    &stConfigTemp.stWiper.nInterInput,    ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
+    {0x1900, 5,  &stConfig.stWiper.nOnInput,       &stConfigTemp.stWiper.nOnInput,       ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
+    {0x1900, 6,  &stConfig.stWiper.nSpeedInput,    &stConfigTemp.stWiper.nSpeedInput,    ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
+    {0x1900, 7,  &stConfig.stWiper.nParkInput,     &stConfigTemp.stWiper.nParkInput,     ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
     {0x1900, 8,  &stConfig.stWiper.bParkStopLevel, &stConfigTemp.stWiper.bParkStopLevel, ParamType::Bool,   0, 0, 1}, \
-    {0x1900, 9,  &stConfig.stWiper.nSwipeInput,    &stConfigTemp.stWiper.nSwipeInput,    ParamType::UInt16, 0, 0, PDM_VAR_MAP_SIZE - 1}, \
-    {0x1900, 10, &stConfig.stWiper.nWashInput,     &stConfigTemp.stWiper.nWashInput,     ParamType::UInt16, 0, 0, PDM_VAR_MAP_SIZE - 1}, \
+    {0x1900, 9,  &stConfig.stWiper.nSwipeInput,    &stConfigTemp.stWiper.nSwipeInput,    ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
+    {0x1900, 10, &stConfig.stWiper.nWashInput,     &stConfigTemp.stWiper.nWashInput,     ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
     {0x1900, 11, &stConfig.stWiper.nWashWipeCycles,&stConfigTemp.stWiper.nWashWipeCycles, ParamType::UInt8, 3, 0, 10}
 
 // Wiper speed map array
@@ -170,7 +170,7 @@
 //=============================================================================
 #define CAN_OUTPUT_PARAMS(i) \
     {0x2000 + (i), 0,  &stConfig.stCanOutput[i].bEnabled,   &stConfigTemp.stCanOutput[i].bEnabled,   ParamType::Bool,   0, 0, 1}, \
-    {0x2000 + (i), 1,  &stConfig.stCanOutput[i].nInput,     &stConfigTemp.stCanOutput[i].nInput,     ParamType::UInt16, 0, 0, PDM_VAR_MAP_SIZE - 1}, \
+    {0x2000 + (i), 1,  &stConfig.stCanOutput[i].nInput,     &stConfigTemp.stCanOutput[i].nInput,     ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
     {0x2000 + (i), 2,  &stConfig.stCanOutput[i].nIDE,       &stConfigTemp.stCanOutput[i].nIDE,       ParamType::UInt8,  0, 0, 1}, \
     {0x2000 + (i), 3,  &stConfig.stCanOutput[i].nID,        &stConfigTemp.stCanOutput[i].nID,        ParamType::UInt32, 0, 0, 536870911}, \
     {0x2000 + (i), 4,  &stConfig.stCanOutput[i].nStartBit,  &stConfigTemp.stCanOutput[i].nStartBit,  ParamType::UInt8,  0, 0, 63}, \
@@ -193,7 +193,7 @@
     {0x3000 + (i), 5,  &stConfig.stKeypad[i].nBacklightBrightness,    &stConfigTemp.stKeypad[i].nBacklightBrightness,     ParamType::UInt8,  63, 0, 63}, \
     {0x3000 + (i), 6,  &stConfig.stKeypad[i].nDimBacklightBrightness, &stConfigTemp.stKeypad[i].nDimBacklightBrightness,  ParamType::UInt8,  32, 0, 63}, \
     {0x3000 + (i), 7,  &stConfig.stKeypad[i].nBacklightColor,         &stConfigTemp.stKeypad[i].nBacklightColor,          ParamType::UInt8,  0, 0, 9}, \
-    {0x3000 + (i), 8,  &stConfig.stKeypad[i].nDimmingVar,             &stConfigTemp.stKeypad[i].nDimmingVar,              ParamType::UInt16, 0, 0, PDM_VAR_MAP_SIZE - 1}, \
+    {0x3000 + (i), 8,  &stConfig.stKeypad[i].nDimmingVar,             &stConfigTemp.stKeypad[i].nDimmingVar,              ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
     {0x3000 + (i), 9,  &stConfig.stKeypad[i].nButtonBrightness,       &stConfigTemp.stKeypad[i].nButtonBrightness,        ParamType::UInt8,  63, 0, 63}, \
     {0x3000 + (i), 10, &stConfig.stKeypad[i].nDimButtonBrightness,    &stConfigTemp.stKeypad[i].nDimButtonBrightness,     ParamType::UInt8,  32, 0, 63}
 
@@ -208,11 +208,11 @@
     {0x3100 + (k) * 32 + (b), 4,  &stConfig.stKeypad[k].stButton[b].nColors[2],            &stConfigTemp.stKeypad[k].stButton[b].nColors[2],      ParamType::UInt8,  0, 0, 7}, \
     {0x3100 + (k) * 32 + (b), 5,  &stConfig.stKeypad[k].stButton[b].nColors[3],            &stConfigTemp.stKeypad[k].stButton[b].nColors[3],      ParamType::UInt8,  0, 0, 7}, \
     {0x3100 + (k) * 32 + (b), 6,  &stConfig.stKeypad[k].stButton[b].nFaultColor,           &stConfigTemp.stKeypad[k].stButton[b].nFaultColor,     ParamType::UInt8,  0, 0, 7}, \
-    {0x3100 + (k) * 32 + (b), 7,  &stConfig.stKeypad[k].stButton[b].nVars[0],              &stConfigTemp.stKeypad[k].stButton[b].nVars[0],        ParamType::UInt16, 0, 0, PDM_VAR_MAP_SIZE - 1}, \
-    {0x3100 + (k) * 32 + (b), 8,  &stConfig.stKeypad[k].stButton[b].nVars[1],              &stConfigTemp.stKeypad[k].stButton[b].nVars[1],        ParamType::UInt16, 0, 0, PDM_VAR_MAP_SIZE - 1}, \
-    {0x3100 + (k) * 32 + (b), 9,  &stConfig.stKeypad[k].stButton[b].nVars[2],              &stConfigTemp.stKeypad[k].stButton[b].nVars[2],        ParamType::UInt16, 0, 0, PDM_VAR_MAP_SIZE - 1}, \
-    {0x3100 + (k) * 32 + (b), 10, &stConfig.stKeypad[k].stButton[b].nVars[3],              &stConfigTemp.stKeypad[k].stButton[b].nVars[3],        ParamType::UInt16, 0, 0, PDM_VAR_MAP_SIZE - 1}, \
-    {0x3100 + (k) * 32 + (b), 11, &stConfig.stKeypad[k].stButton[b].nFaultVar,             &stConfigTemp.stKeypad[k].stButton[b].nFaultVar,       ParamType::UInt16, 0, 0, PDM_VAR_MAP_SIZE - 1}, \
+    {0x3100 + (k) * 32 + (b), 7,  &stConfig.stKeypad[k].stButton[b].nVars[0],              &stConfigTemp.stKeypad[k].stButton[b].nVars[0],        ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
+    {0x3100 + (k) * 32 + (b), 8,  &stConfig.stKeypad[k].stButton[b].nVars[1],              &stConfigTemp.stKeypad[k].stButton[b].nVars[1],        ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
+    {0x3100 + (k) * 32 + (b), 9,  &stConfig.stKeypad[k].stButton[b].nVars[2],              &stConfigTemp.stKeypad[k].stButton[b].nVars[2],        ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
+    {0x3100 + (k) * 32 + (b), 10, &stConfig.stKeypad[k].stButton[b].nVars[3],              &stConfigTemp.stKeypad[k].stButton[b].nVars[3],        ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
+    {0x3100 + (k) * 32 + (b), 11, &stConfig.stKeypad[k].stButton[b].nFaultVar,             &stConfigTemp.stKeypad[k].stButton[b].nFaultVar,       ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
     {0x3100 + (k) * 32 + (b), 12, &stConfig.stKeypad[k].stButton[b].bBlink[0],             &stConfigTemp.stKeypad[k].stButton[b].bBlink[0],       ParamType::Bool,   0, 0, 1}, \
     {0x3100 + (k) * 32 + (b), 13, &stConfig.stKeypad[k].stButton[b].bBlink[1],             &stConfigTemp.stKeypad[k].stButton[b].bBlink[1],       ParamType::Bool,   0, 0, 1}, \
     {0x3100 + (k) * 32 + (b), 14, &stConfig.stKeypad[k].stButton[b].bBlink[2],             &stConfigTemp.stKeypad[k].stButton[b].bBlink[2],       ParamType::Bool,   0, 0, 1}, \

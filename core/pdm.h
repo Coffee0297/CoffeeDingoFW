@@ -16,21 +16,21 @@ class Counter;
 class Condition;
 class Keypad;
 
-extern Digital in[PDM_NUM_INPUTS];
-extern CanInput canIn[PDM_NUM_CAN_INPUTS];
+extern Digital in[NUM_INPUTS];
+extern CanInput canIn[NUM_CAN_INPUTS];
 extern CanOutputs canOutputs;
-extern VirtualInput virtIn[PDM_NUM_VIRT_INPUTS];
-extern Profet pf[PDM_NUM_OUTPUTS];
+extern VirtualInput virtIn[NUM_VIRT_INPUTS];
+extern Profet pf[NUM_OUTPUTS];
 extern Wiper wiper;
 extern Starter starter;
-extern Flasher flasher[PDM_NUM_FLASHERS];
-extern Counter counter[PDM_NUM_COUNTERS];
-extern Condition condition[PDM_NUM_CONDITIONS];
-extern Keypad keypad[PDM_NUM_KEYPADS];
+extern Flasher flasher[NUM_FLASHERS];
+extern Counter counter[NUM_COUNTERS];
+extern Condition condition[NUM_CONDITIONS];
+extern Keypad keypad[NUM_KEYPADS];
 
 extern PdmConfig stConfig;
 extern PdmConfig stConfigTemp; // Used for staging new config before applying
-extern float *pVarMap[PDM_VAR_MAP_SIZE];
+extern float *pVarMap[VAR_MAP_SIZE];
 extern PdmState eState;
 extern float fTempSensor;
 extern float fBattVolt;

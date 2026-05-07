@@ -27,7 +27,7 @@ float GetTotalCurrent()
 {
     float fTotalCurrent = 0.0;
 
-    for (uint8_t i = 0; i < PDM_NUM_OUTPUTS; i++)
+    for (uint8_t i = 0; i < NUM_OUTPUTS; i++)
     {
         if (pf[i].pPrimary != nullptr)
             continue; // Skip followers since their current is included in the primary
@@ -39,7 +39,7 @@ float GetTotalCurrent()
 
 bool GetAnyOvercurrent()
 {
-    for (uint8_t i = 0; i < PDM_NUM_OUTPUTS; i++)
+    for (uint8_t i = 0; i < NUM_OUTPUTS; i++)
     {
         if (pf[i].GetState() == ProfetState::Overcurrent)
         {
@@ -52,7 +52,7 @@ bool GetAnyOvercurrent()
 
 bool GetAnyFault()
 {
-    for (uint8_t i = 0; i < PDM_NUM_OUTPUTS; i++)
+    for (uint8_t i = 0; i < NUM_OUTPUTS; i++)
     {
         if (pf[i].GetState() == ProfetState::Fault)
         {
@@ -65,7 +65,7 @@ bool GetAnyFault()
 
 bool GetInputVal(uint8_t nInput)
 {
-    if (nInput >= PDM_NUM_INPUTS)
+    if (nInput >= NUM_INPUTS)
         return false;
 
     return in[nInput].fVal;
@@ -73,7 +73,7 @@ bool GetInputVal(uint8_t nInput)
 
 float GetOutputCurrent(uint8_t nOutput)
 {
-    if (nOutput >= PDM_NUM_OUTPUTS)
+    if (nOutput >= NUM_OUTPUTS)
         return 0;
 
     return pf[nOutput].GetCurrent();
@@ -81,7 +81,7 @@ float GetOutputCurrent(uint8_t nOutput)
 
 ProfetState GetOutputState(uint8_t nOutput)
 {
-    if (nOutput >= PDM_NUM_OUTPUTS)
+    if (nOutput >= NUM_OUTPUTS)
         return ProfetState::Off;
 
     return pf[nOutput].GetState();
@@ -89,7 +89,7 @@ ProfetState GetOutputState(uint8_t nOutput)
 
 uint8_t GetOutputOcCount(uint8_t nOutput)
 {
-    if (nOutput >= PDM_NUM_OUTPUTS)
+    if (nOutput >= NUM_OUTPUTS)
         return 0;
 
     return pf[nOutput].GetOcCount();
@@ -97,7 +97,7 @@ uint8_t GetOutputOcCount(uint8_t nOutput)
 
 uint8_t GetOutputDC(uint8_t nOutput)
 {
-    if (nOutput >= PDM_NUM_OUTPUTS)
+    if (nOutput >= NUM_OUTPUTS)
         return 0;
 
     return pf[nOutput].GetDutyCycle();
@@ -105,7 +105,7 @@ uint8_t GetOutputDC(uint8_t nOutput)
 
 bool GetAnyPwmEnable()
 {
-    for (uint8_t i = 0; i < PDM_NUM_OUTPUTS; i++)
+    for (uint8_t i = 0; i < NUM_OUTPUTS; i++)
     {
         if (stConfig.stOutput[i].stPwm.bEnabled)
             return true;
@@ -115,7 +115,7 @@ bool GetAnyPwmEnable()
 
 bool GetAnyCanInEnable()
 {
-    for (uint8_t i = 0; i < PDM_NUM_CAN_INPUTS; i++)
+    for (uint8_t i = 0; i < NUM_CAN_INPUTS; i++)
     {
         if (stConfig.stCanInput[i].bEnabled)
             return true;
@@ -125,7 +125,7 @@ bool GetAnyCanInEnable()
 
 bool GetCanInEnable(uint8_t nInput)
 {
-    if (nInput >= PDM_NUM_CAN_INPUTS)
+    if (nInput >= NUM_CAN_INPUTS)
         return false;
 
     return stConfig.stCanInput[nInput].bEnabled;
@@ -133,7 +133,7 @@ bool GetCanInEnable(uint8_t nInput)
 
 bool GetCanInOutput(uint8_t nInput)
 {
-    if (nInput >= PDM_NUM_CAN_INPUTS)
+    if (nInput >= NUM_CAN_INPUTS)
         return false;
 
     return canIn[nInput].fOutput;
@@ -141,7 +141,7 @@ bool GetCanInOutput(uint8_t nInput)
 
 float GetCanInVal(uint8_t nInput)
 {
-    if (nInput >= PDM_NUM_CAN_INPUTS)
+    if (nInput >= NUM_CAN_INPUTS)
         return false;
 
     return canIn[nInput].fVal;
@@ -149,7 +149,7 @@ float GetCanInVal(uint8_t nInput)
 
 float GetCanInFactor(uint8_t nInput)
 {
-    if (nInput >= PDM_NUM_CAN_INPUTS)
+    if (nInput >= NUM_CAN_INPUTS)
         return 0;
 
     return stConfig.stCanInput[nInput].fFactor;
@@ -157,7 +157,7 @@ float GetCanInFactor(uint8_t nInput)
 
 float GetCanInOffset(uint8_t nInput)
 {
-    if (nInput >= PDM_NUM_CAN_INPUTS)
+    if (nInput >= NUM_CAN_INPUTS)
         return 0;
 
     return stConfig.stCanInput[nInput].fOffset;
@@ -165,7 +165,7 @@ float GetCanInOffset(uint8_t nInput)
 
 ByteOrder GetCanInByteOrder(uint8_t nInput)
 {
-    if (nInput >= PDM_NUM_CAN_INPUTS)
+    if (nInput >= NUM_CAN_INPUTS)
         return ByteOrder::LittleEndian;
 
     return stConfig.stCanInput[nInput].eByteOrder;
@@ -175,7 +175,7 @@ uint32_t GetCanInOutputs()
 {
     uint32_t result = 0;
     
-    for (uint8_t i = 0; i < PDM_NUM_CAN_INPUTS; i++) {
+    for (uint8_t i = 0; i < NUM_CAN_INPUTS; i++) {
         result |= (((uint32_t)canIn[i].fVal & 0x01) << i);
     }
     
@@ -184,7 +184,7 @@ uint32_t GetCanInOutputs()
 
 bool GetAnyVirtInEnable()
 {
-    for (uint8_t i = 0; i < PDM_NUM_VIRT_INPUTS; i++)
+    for (uint8_t i = 0; i < NUM_VIRT_INPUTS; i++)
     {
         if (stConfig.stVirtualInput[i].bEnabled)
             return true;
@@ -194,7 +194,7 @@ bool GetAnyVirtInEnable()
 
 bool GetVirtInVal(uint8_t nInput)
 {
-    if (nInput >= PDM_NUM_VIRT_INPUTS)
+    if (nInput >= NUM_VIRT_INPUTS)
         return false;
 
     return virtIn[nInput].fVal;
@@ -204,7 +204,7 @@ uint32_t GetVirtIns()
 {
     uint32_t result = 0;
     
-    for (uint8_t i = 0; i < PDM_NUM_VIRT_INPUTS; i++) {
+    for (uint8_t i = 0; i < NUM_VIRT_INPUTS; i++) {
         result |= (((uint32_t)virtIn[i].fVal & 0x01) << i);
     }
     
@@ -238,7 +238,7 @@ WiperSpeed GetWiperSpeed()
 
 bool GetAnyFlasherEnable()
 {
-    for (uint8_t i = 0; i < PDM_NUM_FLASHERS; i++)
+    for (uint8_t i = 0; i < NUM_FLASHERS; i++)
     {
         if (stConfig.stFlasher[i].bEnabled)
             return true;
@@ -248,7 +248,7 @@ bool GetAnyFlasherEnable()
 
 bool GetFlasherVal(uint8_t nFlasher)
 {
-    if (nFlasher >= PDM_NUM_FLASHERS)
+    if (nFlasher >= NUM_FLASHERS)
         return false;
 
     return flasher[nFlasher].fVal;
@@ -256,7 +256,7 @@ bool GetFlasherVal(uint8_t nFlasher)
 
 bool GetAnyCounterEnable()
 {
-    for (uint8_t i = 0; i < PDM_NUM_COUNTERS; i++)
+    for (uint8_t i = 0; i < NUM_COUNTERS; i++)
     {
         if (stConfig.stCounter[i].bEnabled)
             return true;
@@ -266,7 +266,7 @@ bool GetAnyCounterEnable()
 
 float GetCounterVal(uint8_t nCounter)
 {
-    if (nCounter >= PDM_NUM_COUNTERS)
+    if (nCounter >= NUM_COUNTERS)
         return 0;
 
     return counter[nCounter].fVal;
@@ -274,7 +274,7 @@ float GetCounterVal(uint8_t nCounter)
 
 bool GetAnyConditionEnable()
 {
-    for (uint8_t i = 0; i < PDM_NUM_CONDITIONS; i++)
+    for (uint8_t i = 0; i < NUM_CONDITIONS; i++)
     {
         if (stConfig.stCondition[i].bEnabled)
             return true;
@@ -286,7 +286,7 @@ uint32_t GetConditions()
 {
     uint32_t result = 0;
     
-    for (uint8_t i = 0; i < PDM_NUM_CONDITIONS; i++) {
+    for (uint8_t i = 0; i < NUM_CONDITIONS; i++) {
         result |= (((uint32_t)condition[i].fVal & 0x01) << i);
     }
     
@@ -295,7 +295,7 @@ uint32_t GetConditions()
 
 bool GetAnyKeypadEnable()
 {
-    for (uint8_t i = 0; i < PDM_NUM_KEYPADS; i++)
+    for (uint8_t i = 0; i < NUM_KEYPADS; i++)
     {
         if (stConfig.stKeypad[i].bEnabled)
             return true;
@@ -305,7 +305,7 @@ bool GetAnyKeypadEnable()
 
 bool GetKeypadEnable(uint8_t nKeypad)
 {
-    if (nKeypad >= PDM_NUM_KEYPADS)
+    if (nKeypad >= NUM_KEYPADS)
         return false;
 
     return stConfig.stKeypad[nKeypad].bEnabled;
@@ -313,7 +313,7 @@ bool GetKeypadEnable(uint8_t nKeypad)
 
 uint32_t GetKeypadButtons(uint8_t nKeypad)
 {
-    if (nKeypad >= PDM_NUM_KEYPADS)
+    if (nKeypad >= NUM_KEYPADS)
         return 0;
 
     uint32_t result = 0;
@@ -327,7 +327,7 @@ uint32_t GetKeypadButtons(uint8_t nKeypad)
 
 float GetKeypadDialVal(uint8_t nKeypad, uint8_t nDial)
 {
-    if (nKeypad >= PDM_NUM_KEYPADS)
+    if (nKeypad >= NUM_KEYPADS)
         return 0;
 
     if (nDial >= KEYPAD_MAX_DIALS)
