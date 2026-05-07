@@ -13,7 +13,7 @@
 #include "condition.h"
 #include "keypad/keypad.h"
 
-PdmState GetPdmState()
+DeviceState GetPdmState()
 {
     return eState;
 }

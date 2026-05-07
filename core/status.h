@@ -4,7 +4,7 @@
 #include "enums.h"
 #include "dbc.h"
 
-PdmState GetPdmState();
+DeviceState GetPdmState();
 float GetBoardTemp();
 float GetTotalCurrent();
 

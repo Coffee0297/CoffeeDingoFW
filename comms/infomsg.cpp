@@ -18,16 +18,16 @@ static InfoMsg OutputFaultMsg[NUM_OUTPUTS];
 
 // External variables from pdm.cpp that we need access to
 extern PdmConfig stConfig;
-extern PdmState eState;
+extern DeviceState eState;
 extern float fBattVolt;
 extern Profet pf[NUM_OUTPUTS];
 
 void CheckInfoMsgs()
 {
-    StateRunMsg.Check(eState == PdmState::Run, stConfig.stDevConfig.nBaseId, 0, 0, 0);
-    StateSleepMsg.Check(eState == PdmState::Sleep, stConfig.stDevConfig.nBaseId, 0, 0, 0);
-    StateOvertempMsg.Check(eState == PdmState::OverTemp, stConfig.stDevConfig.nBaseId, GetBoardTemp() * 10, 0, 0);
-    StateErrorMsg.Check(eState == PdmState::Error, stConfig.stDevConfig.nBaseId, GetBoardTemp() * 10, GetTotalCurrent() * 10, 0);
+    StateRunMsg.Check(eState == DeviceState::Run, stConfig.stDevConfig.nBaseId, 0, 0, 0);
+    StateSleepMsg.Check(eState == DeviceState::Sleep, stConfig.stDevConfig.nBaseId, 0, 0, 0);
+    StateOvertempMsg.Check(eState == DeviceState::OverTemp, stConfig.stDevConfig.nBaseId, GetBoardTemp() * 10, 0, 0);
+    StateErrorMsg.Check(eState == DeviceState::Error, stConfig.stDevConfig.nBaseId, GetBoardTemp() * 10, GetTotalCurrent() * 10, 0);
 
     BattOvervoltageMsg.Check(fBattVolt > BATT_HIGH_VOLT, stConfig.stDevConfig.nBaseId, fBattVolt * 10, 0, 0);
     BattUndervoltageMsg.Check(fBattVolt < BATT_LOW_VOLT, stConfig.stDevConfig.nBaseId, fBattVolt * 10, 0, 0);

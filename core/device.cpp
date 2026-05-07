@@ -37,7 +37,7 @@ Counter counter[NUM_COUNTERS];
 Condition condition[NUM_CONDITIONS];
 Keypad keypad[NUM_KEYPADS];
 
-PdmState eState = PdmState::Run;
+DeviceState eState = DeviceState::Run;
 float fState; //For var map
 FatalErrorType eError = FatalErrorType::NoError;
 PdmConfig stConfig;
@@ -146,10 +146,10 @@ void States()
         Error::SetFatalError(FatalErrorType::ErrTemp, MsgSrc::State_Overtemp);
     }
 
-    if (eState == PdmState::Run)
+    if (eState == DeviceState::Run)
     {
         if (bDeviceOverTemp)
-            eState = PdmState::OverTemp;
+            eState = DeviceState::OverTemp;
 
         if (GetAnyOvercurrent() && !GetAnyFault())
         {
@@ -170,30 +170,30 @@ void States()
         }
     }
 
-    if (eState == PdmState::OverTemp)
+    if (eState == DeviceState::OverTemp)
     {
         statusLed.Blink();
         errorLed.Blink();
 
         if (!bDeviceOverTemp)
-            eState = PdmState::Run;
+            eState = DeviceState::Run;
     }
 
     if (CheckEnterSleep())
     {
         statusLed.Solid(false);
         errorLed.Solid(false);
-        eState = PdmState::Sleep;
+        eState = DeviceState::Sleep;
     }
 
-    if (eState == PdmState::Sleep)
+    if (eState == DeviceState::Sleep)
     {
         bSleepRequest = false;
         palSetLine(LINE_CAN_STANDBY); // CAN disabled
         EnterSleep();
     }
 
-    if (eState == PdmState::Error)
+    if (eState == DeviceState::Error)
     {
         // Not required?
 

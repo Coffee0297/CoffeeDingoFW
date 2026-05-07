@@ -31,7 +31,7 @@ extern Keypad keypad[NUM_KEYPADS];
 extern PdmConfig stConfig;
 extern PdmConfig stConfigTemp; // Used for staging new config before applying
 extern float *pVarMap[VAR_MAP_SIZE];
-extern PdmState eState;
+extern DeviceState eState;
 extern float fTempSensor;
 extern float fBattVolt;
 extern bool bSleepRequest;
