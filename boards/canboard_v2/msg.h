@@ -4,7 +4,7 @@
 #include "port.h"
 #include "enums.h"
 #include "mailbox.h"
-#include "canboard_config.h"    
+#include "device_config.h"    
 
 struct CANTxMsg
 {

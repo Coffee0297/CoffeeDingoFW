@@ -19,6 +19,12 @@ Digital in[NUM_INPUTS] = {
 Led statusLed = Led(LINE_LED_STATUS);
 Led errorLed = Led(LINE_LED_ERROR);
 
+Digital_Input digIn[NUM_DIG_INPUTS];   
+
+Digital_Output digOut[NUM_DIG_OUTPUTS];
+
+Analog_Input analogIn[NUM_ANALOG_INPUTS];
+
 MCP9808 tempSensor(I2CD1, MCP9808_I2CADDR_DEFAULT);
 
 #endif

@@ -1,7 +1,7 @@
 #include "msg.h"
 #include "config.h"
 #include "status.h"
-#include "canboard.h"
+#include "device.h"
 
 uint8_t nHeartbeat = 0;
 

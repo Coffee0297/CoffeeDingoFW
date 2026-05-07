@@ -6,6 +6,7 @@
 ifeq ($(BOARD),)
 	BOARD = dingopdm_v7
 	#BOARD = dingopdmmax_v1
+	#BOARD = canboard_v2
 endif
 
 $(info BOARD is set to: $(BOARD))
@@ -66,7 +67,7 @@ endif
 # Stack size to be allocated to the Cortex-M process stack. This stack is
 # the stack used by the main() thread.
 ifeq ($(USE_PROCESS_STACKSIZE),)
-	USE_PROCESS_STACKSIZE = 0x1000
+	USE_PROCESS_STACKSIZE =  $(PROCESS_STACK)
 endif
 
 # Stack size to the allocated to the Cortex-M main/exceptions stack. This

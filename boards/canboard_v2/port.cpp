@@ -1,6 +1,5 @@
 #include "port.h"
-#include "device_config.h"
-
+#include "mcu_utils.h"
 
 static const CANConfig canConfig1000 =
 {

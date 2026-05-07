@@ -3,9 +3,17 @@
 #include "hal.h"
 #include "enums.h"
 
-#define STM32_TEMP_3V3_30C  *((uint16_t*)0x1FFFF7B8)
-#define STM32_TEMP_3V3_110C *((uint16_t*)0x1FFFF7C2)
+#define PROCESS_STACK 0x0400
 
+#define HAS_USB FALSE
+#define HAS_I2C FALSE
+#define HAS_EXT_TEMP_SENSOR FALSE
+#define HAS_EXT_MEMORY FALSE
+#define HAS_BATT_VOLT_SENSE FALSE
+#define CAN_SLEEP FALSE
+
+#define NUM_OUTPUTS 8
+#define NUM_INPUTS 2
 #define NUM_DIG_OUTPUTS 4
 #define NUM_DIG_INPUTS 8
 #define NUM_ANALOG_INPUTS 5
@@ -13,21 +21,35 @@
 #define NUM_CAN_INPUTS 8
 #define NUM_CAN_OUTPUTS 8
 #define NUM_FLASHERS 4
+#define NUM_WIPER_INTER_DELAYS 0
+#define NUM_WIPER_SPEED_MAP 0
 #define NUM_COUNTERS 4
 #define NUM_CONDITIONS 8
+#define NUM_KEYPADS 0
+#define WIPERS 0
+#define STARTER_DISABLE 0
+
+#define KEYPAD_MAX_BUTTONS 0
+#define KEYPAD_MAX_ANALOG_INPUTS 0
+#define KEYPAD_MAX_DIALS 0
 
 #define VAR_MAP_SYS_VARS 2
+#define VAR_MAP_WIPER_VARS 0
 
 #define VAR_MAP_SIZE ( \
     VAR_MAP_SYS_VARS + \
     (NUM_DIG_INPUTS * 1) + \
     (NUM_ANALOG_INPUTS * 4) + \
+    (NUM_DIG_OUTPUTS * 1) + \
+    (NUM_INPUTS * 1) + \
     (NUM_CAN_INPUTS * 2) + \
     (NUM_VIRT_INPUTS * 1) + \
-    (NUM_DIG_OUTPUTS * 1) + \
+    (NUM_OUTPUTS * 4) + \
     (NUM_FLASHERS * 1) + \
     (NUM_CONDITIONS * 1) + \
-    (NUM_COUNTERS * 1)\
+    (NUM_COUNTERS * 1) + \
+    VAR_MAP_WIPER_VARS + \
+    (NUM_KEYPADS * (KEYPAD_MAX_BUTTONS + KEYPAD_MAX_DIALS + KEYPAD_MAX_ANALOG_INPUTS)) \
 )
 
 #define NUM_TX_MSGS 3

@@ -25,6 +25,40 @@ struct Config_Input{
   InputPull ePull;
 };
 
+struct Config_DigInput{
+  bool bEnabled;
+  InputMode eMode;
+  bool bInvert;
+  uint16_t nDebounceTime; //ms
+  InputPull ePull;
+};
+
+struct Config_AnalogSwitch{
+  bool bEnabled;
+  InputMode eMode;
+  bool bInvert;
+  uint16_t nThreshold;
+};
+
+struct Config_RotarySwitch{
+  bool bEnabled;
+  bool bInvert;
+  float fOffset;
+  float fStep;
+  float fMaxPos;
+};
+
+struct Config_AnalogInput{
+  bool bEnabled;
+  Config_AnalogSwitch stSwitch;
+  Config_RotarySwitch stRotary;
+};
+
+struct Config_DigOutput{
+  bool bEnabled;
+  uint16_t nInput;
+};
+
 struct Config_VirtualInput{
   bool bEnabled;
   bool bNot0;

@@ -1,9 +1,13 @@
 #pragma once
 
 #include "port.h"
+#include "profet.h"
+#include "digital.h"
 #include "digital_input.h"
 #include "digital_output.h"
 #include "analog_input.h"
+#include "led.h"
+#include "hardware/mcp9808.h"
 
 extern Digital_Input digIn[NUM_DIG_INPUTS];
 extern Digital_Output digOut[NUM_DIG_OUTPUTS];

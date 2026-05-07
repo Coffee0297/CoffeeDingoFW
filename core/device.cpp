@@ -84,13 +84,17 @@ struct SlowThread : chibios_rt::BaseStaticThread<256>
             // Perform tasks that don't need to be done every cycle here
             //=================================================================
 
+            #if HAS_BATT_VOLT_SENSE
             fBattVolt = GetBattVolt();
+            #endif
 
+            #if HAS_EXT_TEMP_SENSOR
             // Temp sensor is I2C, takes a while to read
             // Don't want to slow down main thread
             fTempSensor = tempSensor.GetTemp();
             bDeviceOverTemp = tempSensor.OverTempLimit();
             bDeviceCriticalTemp = tempSensor.CritTempLimit();
+            #endif
 
             // palToggleLine(LINE_E2);
             chThdSleepMilliseconds(250);
@@ -106,10 +110,12 @@ void InitDevice()
 
     InitVarMap(); // Set val pointers
 
+    #if HAS_I2C
     if (!i2cStart(&I2CD1, &i2cConfig) == HAL_RET_SUCCESS)
         Error::SetFatalError(FatalErrorType::ErrI2C, MsgSrc::Init);
+    #endif
 
-    InitConfig(); // Read config from FRAM
+    InitConfig();
 
     ApplyAllConfig();
 
@@ -119,19 +125,28 @@ void InitDevice()
     if(!InitCan(&stConfig.stDevConfig) == HAL_RET_SUCCESS) // Starts CAN threads
         Error::SetFatalError(FatalErrorType::ErrCAN, MsgSrc::Init);
 
+    #if HAS_USB
     if (!InitUsb() == HAL_RET_SUCCESS) // Starts USB threads
         Error::SetFatalError(FatalErrorType::ErrUSB, MsgSrc::Init);
+    #endif
 
+    #if HAS_EXT_TEMP_SENSOR
     if (!tempSensor.Init(BOARD_TEMP_WARN, BOARD_TEMP_CRIT))
         Error::SetFatalError(FatalErrorType::ErrTempSensor, MsgSrc::Init);
+    #endif
 
+    #if NUM_KEYPADS > 0
     Keypad::InitThread(keypad);
+    #endif
 
     InitInfoMsgs();
 
-    palClearLine(LINE_CAN_STANDBY); // CAN enabled
+    palClearLine(LINE_CAN_STANDBY);
 
+    #if (HAS_BATT_VOLT_SENSE || HAS_EXT_TEMP_SENSOR)
     slowThreadRef = slowThread.start(NORMALPRIO);
+    #endif
+
     deviceThread.start(NORMALPRIO);
 }
 
@@ -179,6 +194,7 @@ void States()
             eState = DeviceState::Run;
     }
 
+    #if CAN_SLEEP
     if (CheckEnterSleep())
     {
         statusLed.Solid(false);
@@ -192,6 +208,7 @@ void States()
         palSetLine(LINE_CAN_STANDBY); // CAN disabled
         EnterSleep();
     }
+    #endif
 
     if (eState == DeviceState::Error)
     {
@@ -221,8 +238,10 @@ void CyclicUpdate()
             for (uint8_t i = 0; i < NUM_CAN_INPUTS; i++)
                 canIn[i].CheckMsg(rxMsg);
 
+            #if NUM_KEYPADS > 0
             for (uint8_t i = 0; i < NUM_KEYPADS; i++)
                 keypad[i].CheckMsg(rxMsg);
+            #endif
 
             CheckRequestMsgs(&rxMsg);
             
@@ -239,35 +258,72 @@ void CyclicUpdate()
         }
     }
 
+    #if NUM_OUTPUTS > 0
     for (uint8_t i = 0; i < NUM_OUTPUTS; i++)
         pf[i].Update(starter.fVal[i]);
+    #endif
 
+    #if NUM_INPUTS > 0
     for (uint8_t i = 0; i < NUM_INPUTS; i++)
         in[i].Update();
+    #endif
 
+    #if NUM_DIG_INPUTS > 0
+    for (uint8_t i = 0; i < NUM_DIG_INPUTS; i++)
+        digIn[i].Update();
+    #endif
+
+    #if NUM_DIG_OUTPUTS > 0
+    for (uint8_t i = 0; i < NUM_DIG_OUTPUTS; i++)
+        digOut[i].Update();
+    #endif
+
+    #if NUM_ANALOG_INPUTS > 0
+    for (uint8_t i = 0; i < NUM_ANALOG_INPUTS; i++)
+        analogIn[i].Update();
+    #endif
+
+    #if NUM_CAN_INPUTS > 0
     for (uint8_t i = 0; i < NUM_CAN_INPUTS; i++)
         canIn[i].CheckTimeout();
+    #endif
 
+    #if NUM_CAN_OUTPUTS > 0
     canOutputs.Update();
+    #endif
 
+    #if NUM_VIRT_INPUTS > 0
     for (uint8_t i = 0; i < NUM_VIRT_INPUTS; i++)
         virtIn[i].Update();
+    #endif
 
+    #if WIPERS
     wiper.Update();
+    #endif
 
+    #if STARTER_DISABLE
     starter.Update();
+    #endif
 
+    #if NUM_FLASHERS > 0
     for (uint8_t i = 0; i < NUM_FLASHERS; i++)
         flasher[i].Update(SYS_TIME);
+    #endif
 
+    #if NUM_COUNTERS > 0
     for (uint8_t i = 0; i < NUM_COUNTERS; i++)
         counter[i].Update();
+    #endif
 
+    #if NUM_CONDITIONS > 0    
     for (uint8_t i = 0; i < NUM_CONDITIONS; i++)
         condition[i].Update();
+    #endif
 
+    #if NUM_KEYPADS > 0
     for (uint8_t i = 0; i < NUM_KEYPADS; i++)
         keypad[i].Update();
+    #endif
 }
 
 void InitVarMap()
@@ -278,26 +334,54 @@ void InitVarMap()
     pVarMap[index++] = const_cast<float*>(&ALWAYS_FALSE);
     pVarMap[index++] = const_cast<float*>(&ALWAYS_TRUE);
     pVarMap[index++] = &fState; 
+    #if HAS_EXT_TEMP_SENSOR
     pVarMap[index++] = &fTempSensor;
+    #endif
+    #if HAS_BATT_VOLT_SENSE
     pVarMap[index++] = &fBattVolt;
+    #endif
 
-    // Digital inputs
+    #if NUM_INPUTS > 0
     for (uint8_t i = 0; i < NUM_INPUTS; i++)
         pVarMap[index++] = &in[i].fVal;
+    #endif
 
-    // CAN Inputs
+    #if NUM_DIG_INPUTS > 0
+    for (uint8_t i = 0; i < NUM_DIG_INPUTS; i++)
+        pVarMap[index++] = &digIn[i].fVal;
+    #endif
+
+    #if NUM_DIG_OUTPUTS > 0
+    for (uint8_t i = 0; i < NUM_DIG_OUTPUTS; i++)
+        pVarMap[index++] = &digOut[i].fVal;
+    #endif
+
+    #if NUM_ANALOG_INPUTS > 0
+    for (uint8_t i = 0; i < NUM_ANALOG_INPUTS; i++)
+    {
+        pVarMap[index++] = &analogIn[i].fVal;
+        pVarMap[index++] = &analogIn[i].fValMillivolts;
+        pVarMap[index++] = &analogIn[i].fRotaryPos;
+        pVarMap[index++] = &analogIn[i].fSwitchVal;
+    }
+    #endif
+
+    #if NUM_CAN_INPUTS > 0
     for (uint8_t i = 0; i < NUM_CAN_INPUTS; i++)
     {
         pVarMap[index++] = &canIn[i].fOutput;
         pVarMap[index++] = &canIn[i].fVal;
     }
+    #endif
 
-    // Virtual Inputs
+    #if NUM_VIRT_INPUTS > 0
     for (uint8_t i = 0; i < NUM_VIRT_INPUTS; i++)
     {
         pVarMap[index++] = &virtIn[i].fVal;
     }
+    #endif
 
+    #if NUM_OUTPUTS > 0
     // Outputs
     for (uint8_t i = 0; i < NUM_OUTPUTS; i++)
     {
@@ -306,25 +390,33 @@ void InitVarMap()
         pVarMap[index++] = &pf[i].fOvercurrent;
         pVarMap[index++] = &pf[i].fFault;
     }
+    #endif
 
+    #if NUM_FLASHERS > 0
     // Flashers
     for (uint8_t i = 0; i < NUM_FLASHERS; i++)
     {
         pVarMap[index++] = &flasher[i].fVal;
     }
+    #endif
 
+    #if NUM_CONDITIONS > 0
     // Conditions
     for (uint8_t i = 0; i < NUM_CONDITIONS; i++)
     {
         pVarMap[index++] = &condition[i].fVal;
     }
+    #endif
 
+    #if NUM_COUNTERS > 0
     // Counters
     for (uint8_t i = 0; i < NUM_COUNTERS; i++)
     {
         pVarMap[index++] = &counter[i].fVal;
     }
+    #endif
 
+    #if WIPERS > 0
     // Wiper
     pVarMap[index++] = &wiper.fSlowOut;
     pVarMap[index++] = &wiper.fFastOut;
@@ -332,7 +424,9 @@ void InitVarMap()
     pVarMap[index++] = &wiper.fInterOut;
     pVarMap[index++] = &wiper.fWashOut;
     pVarMap[index++] = &wiper.fSwipeOut;
+    #endif
 
+    #if NUM_KEYPADS > 0
     // Keypads
     for (uint8_t i = 0; i < NUM_KEYPADS; i++)
     {
@@ -351,6 +445,7 @@ void InitVarMap()
             pVarMap[index++] = &keypad[i].fAnalogVal[j];
         }
     }
+    #endif
 
     //VarMap size must match the expected size
     if (index != VAR_MAP_SIZE)
