@@ -5,7 +5,7 @@
 #include "usb.h"
 #include "status.h"
 #include "mcu_utils.h"
-#include "dingopdm_config.h"
+#include "device_config.h"
 
 // Static variables that were in pdm.cpp
 static uint8_t nNumOutputsOn;

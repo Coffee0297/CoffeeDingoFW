@@ -1,7 +1,7 @@
 #include "usb.h"
 #include "hal.h"
 #include "port.h"
-#include "dingopdm_config.h"
+#include "device_config.h"
 #include "mailbox.h"
 #include "msg.h"
 #include "config.h"

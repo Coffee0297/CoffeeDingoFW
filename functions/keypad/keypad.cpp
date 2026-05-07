@@ -1,7 +1,6 @@
 #include "keypad.h"
 #include "blink_keypad.h"
 #include "grayhill_keypad.h"
-#include "dingopdm_config.h"
 
 static THD_WORKING_AREA(waKeypadThread, 256);
 

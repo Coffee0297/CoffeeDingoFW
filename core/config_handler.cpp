@@ -1,6 +1,6 @@
 #include "config_handler.h"
 #include "msg.h"
-#include "dingopdm_config.h"
+#include "device_config.h"
 #include "can.h"
 #include "can_input.h"
 #include "can_outputs.h"

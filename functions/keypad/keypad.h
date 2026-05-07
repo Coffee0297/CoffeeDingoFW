@@ -3,7 +3,7 @@
 #include <cstdint>
 #include "config.h"
 #include "mailbox.h"
-#include "dingopdm_config.h"
+#include "device_config.h"
 #include "keypad_button.h"
 #include "keypad_dial.h"
 

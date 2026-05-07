@@ -1,7 +1,7 @@
 #include "infomsg.h"
 #include "pdm.h"
 #include "config.h"
-#include "dingopdm_config.h"
+#include "device_config.h"
 #include "status.h"
 
 // Static message objects that were in pdm.cpp

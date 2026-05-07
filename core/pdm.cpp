@@ -3,7 +3,7 @@
 #include "hal.h"
 #include "port.h"
 #include "mcu_utils.h"
-#include "dingopdm_config.h"
+#include "device_config.h"
 #include "config.h"
 #include "param_protocol.h"
 #include "config_handler.h"

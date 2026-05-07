@@ -4,7 +4,7 @@
 #include "config.h"
 #include "config_handler.h"
 #include "mcu_utils.h"
-#include "dingopdm_config.h"
+#include "device_config.h"
 #include "mailbox.h"
 #include "enums.h"
 

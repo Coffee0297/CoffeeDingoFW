@@ -1,5 +1,5 @@
 #include "param_protocol.h"
-#include "dingopdm_config.h"
+#include "device_config.h"
 #include "config.h"
 #include "mailbox.h"
 #include "config_handler.h"

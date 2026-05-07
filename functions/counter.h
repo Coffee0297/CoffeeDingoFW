@@ -2,7 +2,7 @@
 
 #include <cstdint>
 #include "config.h"
-#include "dingopdm_config.h"
+#include "device_config.h"
 
 extern float *pVarMap[VAR_MAP_SIZE];
 

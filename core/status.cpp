@@ -1,7 +1,7 @@
 #include "status.h"
 #include "pdm.h"
 #include "config.h"
-#include "dingopdm_config.h"
+#include "device_config.h"
 #include "profet.h"
 #include "digital.h"
 #include "can_input.h"
