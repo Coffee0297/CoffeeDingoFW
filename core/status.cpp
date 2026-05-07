@@ -1,5 +1,5 @@
 #include "status.h"
-#include "pdm.h"
+#include "device.h"
 #include "config.h"
 #include "device_config.h"
 #include "profet.h"

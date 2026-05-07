@@ -1,4 +1,4 @@
-#include "pdm.h"
+#include "device.h"
 #include "ch.hpp"
 #include "hal.h"
 #include "port.h"
@@ -55,11 +55,11 @@ void InitVarMap();
 void CyclicUpdate();
 void States();
 
-struct PdmThread : chibios_rt::BaseStaticThread<2048>
+struct DeviceThread : chibios_rt::BaseStaticThread<2048>
 {
     void main()
     {
-        setName("PdmThread");
+        setName("DeviceThread");
 
         while (true)
         {
@@ -70,7 +70,7 @@ struct PdmThread : chibios_rt::BaseStaticThread<2048>
         }
     }
 };
-static PdmThread pdmThread;
+static DeviceThread deviceThread;
 
 struct SlowThread : chibios_rt::BaseStaticThread<256>
 {
@@ -100,7 +100,7 @@ struct SlowThread : chibios_rt::BaseStaticThread<256>
 static SlowThread slowThread;
 static chibios_rt::ThreadReference slowThreadRef;
 
-void InitPdm()
+void InitDevice()
 {
     Error::Initialize(&statusLed, &errorLed);
 
@@ -132,7 +132,7 @@ void InitPdm()
     palClearLine(LINE_CAN_STANDBY); // CAN enabled
 
     slowThreadRef = slowThread.start(NORMALPRIO);
-    pdmThread.start(NORMALPRIO);
+    deviceThread.start(NORMALPRIO);
 }
 
 void States()

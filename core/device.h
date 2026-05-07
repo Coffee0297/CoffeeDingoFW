@@ -37,4 +37,4 @@ extern float fBattVolt;
 extern bool bSleepRequest;
 
 void CheckBootloaderRequest();
-void InitPdm();
+void InitDevice();

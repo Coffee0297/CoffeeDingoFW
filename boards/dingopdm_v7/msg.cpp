@@ -2,7 +2,7 @@
 #include "config.h"
 #include "profet.h"
 #include "digital.h"
-#include "pdm.h"
+#include "device.h"
 #include "status.h"
 
 

@@ -1,5 +1,5 @@
 #include "sleep.h"
-#include "pdm.h"
+#include "device.h"
 #include "port.h"
 #include "can.h"
 #include "usb.h"

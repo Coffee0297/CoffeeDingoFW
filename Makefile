@@ -151,9 +151,9 @@ CPPSRC = $(ALLCPPSRC) \
 				 core/led.cpp \
 				 core/param_protocol.cpp \
 				 core/param_registry.cpp \
-				 core/pdm.cpp \
 				 core/sleep.cpp \
 				 core/status.cpp \
+				 core/device.cpp \
 				 functions/can_input.cpp \
 				 functions/can_outputs.cpp \
 				 functions/condition.cpp \

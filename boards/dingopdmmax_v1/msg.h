@@ -40,7 +40,7 @@ CANTxMsg TxMsg24();
 CANTxMsg TxMsg25();
 CANTxMsg TxMsg26();
 
-[[maybe_unused]] static CANTxMsg (*TxMsgs[PDM_NUM_TX_MSGS])() = {
+[[maybe_unused]] static CANTxMsg (*TxMsgs[NUM_TX_MSGS])() = {
     TxMsg0,
     TxMsg1,
     TxMsg2,

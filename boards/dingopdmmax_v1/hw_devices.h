@@ -6,8 +6,8 @@
 #include "led.h"
 #include "hardware/mcp9808.h"
 
-extern Profet pf[PDM_NUM_OUTPUTS];
-extern Digital in[PDM_NUM_INPUTS];
+extern Profet pf[NUM_OUTPUTS];
+extern Digital in[NUM_INPUTS];
 extern Led statusLed;
 extern Led errorLed;
 extern MCP9808 tempSensor;
