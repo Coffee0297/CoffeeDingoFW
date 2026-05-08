@@ -12,8 +12,8 @@
 #define HAS_BATT_VOLT_SENSE FALSE
 #define CAN_SLEEP FALSE
 
-#define NUM_OUTPUTS 8
-#define NUM_INPUTS 2
+#define NUM_OUTPUTS 0
+#define NUM_INPUTS 0
 #define NUM_DIG_OUTPUTS 4
 #define NUM_DIG_INPUTS 8
 #define NUM_ANALOG_INPUTS 5

@@ -108,8 +108,6 @@ void CanRxThread(void *)
                     res = PostTxUsbFrame(&usbTx);
                 }
             }
-
-            palToggleLine(LINE_E2);
         }
 
         if (chThdShouldTerminateX())

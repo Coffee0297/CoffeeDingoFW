@@ -1,5 +1,6 @@
 #include "mb85rc.h"
 
+#if HAS_I2C
 bool MB85RC::CheckId()
 {
     //Skip checking IDs
@@ -127,3 +128,4 @@ bool MB85RC::Write(uint16_t nMemAddr, uint8_t *nMemVals, uint16_t nByteLen)
     }
     return true;
 }
+#endif

@@ -6,6 +6,8 @@
 #include "enums.h"
 #include "pwm.h"
 
+#if NUM_OUTPUTS > 0
+
 extern float *pVarMap[VAR_MAP_SIZE];
 
 //=============================================================================
@@ -135,3 +137,4 @@ private:
     void MeasureCurrent();
     void CalculateCurrent();
 };
+#endif

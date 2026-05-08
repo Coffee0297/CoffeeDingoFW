@@ -1,6 +1,7 @@
 #include "pwm.h"
 #include "dbc.h"
 
+#if NUM_OUTPUTS > 0
 void Pwm::Update()
 {
     bChannelEnabled = (bool)(m_pwm->enabled & (1 << 0));
@@ -110,3 +111,4 @@ void Pwm::Off()
     pwmDisablePeriodicNotification(m_pwm);
     pwmDisableChannel(m_pwm, static_cast<uint8_t>(m_pwmCh));
 }
+#endif

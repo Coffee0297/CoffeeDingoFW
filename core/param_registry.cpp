@@ -14,10 +14,14 @@ const ParamInfo stParams[] = {
     ALL_CAN_OUTPUT_PARAMS,
 
     // Outputs (0x1000+)
+    #if NUM_OUTPUTS > 0
     ALL_OUTPUT_PARAMS,
+    #endif
 
+    #if NUM_DIG_INPUTS > 0
     // Digital Inputs (0x1200+)
     ALL_DIGITAL_INPUT_PARAMS,
+    #endif
 
     // CAN Inputs (0x1300+)
     ALL_CAN_INPUT_PARAMS,
@@ -34,15 +38,20 @@ const ParamInfo stParams[] = {
     // Flashers (0x1700+)
     ALL_FLASHER_PARAMS,
 
+    #if STARTER_DISABLE > 0
     // Starter (0x1800)
     STARTER_PARAMS(),
     ALL_STARTER_DISABLE_PARAMS,
+    #endif
 
+    #if WIPERS > 0
     // Wiper (0x1900)
     WIPER_PARAMS(),
     WIPER_SPEED_MAP_PARAMS(),
     WIPER_INTERMIT_PARAMS(),
+    #endif
 
+    #if NUM_KEYPADS > 0
     // Keypads (0x3000+)
     ALL_KEYPAD_PARAMS,
 
@@ -51,6 +60,7 @@ const ParamInfo stParams[] = {
 
     // Keypad Dials (0x2200+)
     ALL_KEYPAD_DIAL_PARAMS,
+    #endif
 };
 
 const uint16_t NUM_PARAMS = sizeof(stParams) / sizeof(stParams[0]);

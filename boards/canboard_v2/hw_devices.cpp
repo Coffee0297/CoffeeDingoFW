@@ -1,12 +1,5 @@
 #include "hw_devices.h"
 
-Profet pf[NUM_OUTPUTS];
-
-Digital in[NUM_INPUTS];    
-
-Led statusLed;
-Led errorLed;
-
 Digital_Input digIn[NUM_DIG_INPUTS] = {
     Digital_Input(LINE_DI1),
     Digital_Input(LINE_DI2),

@@ -6,6 +6,8 @@
 #include "msg.h"
 #include "config.h"
 
+#if HAS_USB
+
 /* Virtual serial port over USB.*/
 SerialUSBDriver SDU1;
 
@@ -533,3 +535,5 @@ bool GetUsbConnected()
 {
     return usbGetDriverStateI(&USBD1) == USB_ACTIVE;
 }
+
+#endif

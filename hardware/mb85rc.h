@@ -11,6 +11,7 @@
 #define MB85RC_MANUF_ID 0x00A
 #define MB85RC_PROD_ID 0x510
 
+#if HAS_I2C
 class MB85RC
 {
     public:
@@ -31,3 +32,4 @@ class MB85RC
 
         i2cflags_t lastErrors;
 };
+#endif

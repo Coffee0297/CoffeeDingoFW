@@ -7,6 +7,7 @@
 #include "mcu_utils.h"
 #include "device_config.h"
 
+#if CAN_SLEEP
 // Static variables that were in pdm.cpp
 static uint8_t nNumOutputsOn;
 static uint8_t nLastNumOutputsOn;
@@ -113,3 +114,5 @@ void EnterSleep()
 
     EnterStopMode();
 }
+
+#endif

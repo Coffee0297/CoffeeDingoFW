@@ -6,6 +6,8 @@
 
 #define PWM_UPDATE_TIME 2.0 //ms
 
+#if NUM_OUTPUTS > 0
+
 extern float *pVarMap[VAR_MAP_SIZE];
 
 class Pwm
@@ -79,3 +81,4 @@ private:
     uint32_t nSoftStartTime;
     uint32_t nSoftStartEndTime;
 };
+#endif

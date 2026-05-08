@@ -1,6 +1,7 @@
 #include "profet.h"
 #include "dbc.h"
 
+#if NUM_OUTPUTS > 0
 void Profet::Update(bool bOutEnabled)
 {
     eLastState = eState;
@@ -278,3 +279,5 @@ void Profet::CalculateCurrent()
         break;
     }
 }
+
+#endif

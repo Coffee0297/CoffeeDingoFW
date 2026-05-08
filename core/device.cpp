@@ -12,20 +12,30 @@
 #include "can_input.h"
 #include "can_outputs.h"
 #include "virtual_input.h"
-#include "wiper/wiper.h"
-#include "starter.h"
 #include "flasher.h"
 #include "counter.h"
 #include "condition.h"
 #include "mailbox.h"
 #include "msg.h"
 #include "error.h"
-#include "usb.h"
-#include "keypad/keypad.h"
-#include "sleep.h"
 #include "request_msg.h"
 #include "infomsg.h"
 #include "status.h"
+#if WIPERS > 0
+#include "wiper/wiper.h"
+#endif
+#if STARTER_DISABLE > 0
+#include "starter.h"
+#endif
+#if HAS_USB
+#include "usb.h"
+#endif
+#if NUM_KEYPADS > 0
+#include "keypad/keypad.h"
+#endif
+#if CAN_SLEEP
+#include "sleep.h"
+#endif
 
 CanInput canIn[NUM_CAN_INPUTS];
 CanOutputs canOutputs;
