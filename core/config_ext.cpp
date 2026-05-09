@@ -75,14 +75,14 @@ void InitConfigExt()
     if(!fram.CheckId())
         Error::SetFatalError(FatalErrorType::ErrFRAM, MsgSrc::Config);
 
-    if(!ReadConfig())
+    if(!ReadConfigExt())
     {
         if(fram.GetErrors() != 0)
             Error::SetFatalError(FatalErrorType::ErrFRAM, MsgSrc::Config);
         
         //Write default for next power cycle
         SetAllDefaultParams();
-        if(!WriteConfig()){
+        if(!WriteConfigExt()){
             //Couldn't write default config
             //FRAM issue 
             Error::SetFatalError(FatalErrorType::ErrFRAM, MsgSrc::Config);

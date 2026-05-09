@@ -8,6 +8,13 @@
 //If it fails, try external memory
 //If that fails, return false
 bool ReadConfig(){
+
+    if(HAS_EXT_MEMORY)
+    {
+        return ReadConfigExt();
+    }
+
+    #if !HAS_EXT_MEMORY
     DeviceConfig tempConfig;
 
     flash_error_t err = flashRead(CONFIG_FLASH, CONFIG_FLASH_OFFSET,
@@ -37,12 +44,22 @@ bool ReadConfig(){
 
     stConfig = tempConfig;
     return true;
+    #else
+    return false;
+    #endif
 }
 
 //Try to write config from internal flash first
 //If it fails, try external memory
 //If that fails, return false
 bool WriteConfig(){
+
+    if(HAS_EXT_MEMORY)
+    {
+        return WriteConfigExt();
+    }
+
+    #if !HAS_EXT_MEMORY
     stConfig.stDevConfig.nConfigVersion = CONFIG_VERSION;
 
     flash_error_t err = flashStartEraseSector(CONFIG_FLASH, CONFIG_SECTOR);
@@ -69,11 +86,16 @@ bool WriteConfig(){
                        sizeof(uint32_t), (const uint8_t*)&crc);
 
     return (err == FLASH_NO_ERROR);
+    #else
+    return false;
+    #endif
 }
 
 void InitConfig()
 {
+    #if !HAS_EXT_MEMORY
     eflStart(&EFLD1, NULL);
+    #endif
 
     if (!ReadConfig())
     {

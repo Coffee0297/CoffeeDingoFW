@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include "hal.h"
+#include "port.h"
 
 #define MB85RC_I2CADDR_DEFAULT 0x50
 

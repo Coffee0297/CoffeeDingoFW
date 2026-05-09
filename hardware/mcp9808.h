@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include "hal.h"
+#include "port.h"
 
 #if HAS_EXT_TEMP_SENSOR
 

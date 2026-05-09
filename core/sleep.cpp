@@ -16,7 +16,7 @@ static bool bLastUsbConnected;
 static uint32_t nUsbDisconnectedTime;
 
 // External variables from pdm.cpp that we need access to
-extern PdmConfig stConfig;
+extern DeviceConfig stConfig;
 extern bool bSleepRequest;
 extern Profet pf[NUM_OUTPUTS];
 
