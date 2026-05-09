@@ -20,9 +20,9 @@ ASMXRC += $(BOOTLOADERASM)
 
 CPPSRC_BOARD += comms/usb.cpp \
 				core/sleep.cpp \
-				functions/profet.cpp \                                                                                                                                                              
-				functions/pwm.cpp \             
-				functions/starter.cpp \                                                                                                                                                    
+				functions/profet.cpp \
+				functions/pwm.cpp \
+				functions/starter.cpp \
 				functions/wiper/wiper_digin.cpp \
 				functions/wiper/wiper_intin.cpp \
 				functions/wiper/wiper_mixin.cpp \
@@ -36,9 +36,9 @@ CPPSRC_BOARD += comms/usb.cpp \
 				functions/keypad/keypad_button.cpp \
 				functions/keypad/keypad.cpp \
 				hardware/mcp9808.cpp \
-				hardware/mb85rc.cpp \
+				hardware/mb85rc.cpp
 
 UINC_BOARD += 	./functions/wiper \
 				./functions/keypad/blink \
 				./functions/keypad/grayhill \
-				./functions/keypad \ 
+				./functions/keypad

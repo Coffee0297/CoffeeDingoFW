@@ -142,6 +142,7 @@ CPPSRC = $(ALLCPPSRC) \
 				 comms/mailbox.cpp \
 				 comms/request_msg.cpp \
 				 core/config.cpp \
+				 core/config_ext.cpp \
 				 core/config_handler.cpp \
 				 core/error.cpp \
 				 core/led.cpp \

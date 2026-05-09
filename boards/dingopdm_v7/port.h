@@ -56,6 +56,14 @@
 )
 
 #define MAILBOX_SIZE 128
+#define DEVICE_THREAD_STACK 2048
+
+// Last 2KB sector of flash (sector 31, 0x0800F800)
+// Max program flash size goes to the end of sector 30 (0x0800F000) to leave config space at the end of flash
+// !!! Flash must be smaller thank 63488 bytes !!!
+#define CONFIG_SECTOR       31U
+#define CONFIG_FLASH_OFFSET (CONFIG_SECTOR * 2048U)
+#define CONFIG_FLASH        getBaseFlash(&EFLD1)
 
 #define NUM_TX_MSGS 27
 

@@ -43,13 +43,22 @@
 //=============================================================================
 // Digital Input Parameters - Base 0x1200
 //=============================================================================
-#if (NUM_DIG_INPUTS > 0 || NUM_INPUTS > 0)
+#if NUM_INPUTS > 0
 #define DIGITAL_INPUT_PARAMS(i) \
     {0x1200 + (i), 0, &stConfig.stInput[i].bEnabled,      &stConfigTemp.stInput[i].bEnabled,     ParamType::Bool,   0, 0, 1}, \
     {0x1200 + (i), 1, &stConfig.stInput[i].eMode,         &stConfigTemp.stInput[i].eMode,        ParamType::Enum,   static_cast<uint32_t>(InputMode::Momentary), 0, 1}, \
     {0x1200 + (i), 2, &stConfig.stInput[i].bInvert,       &stConfigTemp.stInput[i].bInvert,      ParamType::Bool,   0, 0, 1}, \
     {0x1200 + (i), 3, &stConfig.stInput[i].nDebounceTime, &stConfigTemp.stInput[i].nDebounceTime,ParamType::UInt16, 20, 0, 1000}, \
     {0x1200 + (i), 4, &stConfig.stInput[i].ePull,         &stConfigTemp.stInput[i].ePull,        ParamType::Enum,   static_cast<uint32_t>(InputPull::None), 0, 2}
+#endif
+
+#if NUM_DIG_INPUTS > 0
+#define DIGITAL_INPUT_PARAMS(i) \
+    {0x1200 + (i), 0, &stConfig.stDigInput[i].bEnabled,      &stConfigTemp.stDigInput[i].bEnabled,     ParamType::Bool,   0, 0, 1}, \
+    {0x1200 + (i), 1, &stConfig.stDigInput[i].eMode,         &stConfigTemp.stDigInput[i].eMode,        ParamType::Enum,   static_cast<uint32_t>(InputMode::Momentary), 0, 1}, \
+    {0x1200 + (i), 2, &stConfig.stDigInput[i].bInvert,       &stConfigTemp.stDigInput[i].bInvert,      ParamType::Bool,   0, 0, 1}, \
+    {0x1200 + (i), 3, &stConfig.stDigInput[i].nDebounceTime, &stConfigTemp.stDigInput[i].nDebounceTime,ParamType::UInt16, 20, 0, 1000}, \
+    {0x1200 + (i), 4, &stConfig.stDigInput[i].ePull,         &stConfigTemp.stDigInput[i].ePull,        ParamType::Enum,   static_cast<uint32_t>(InputPull::None), 0, 2}
 #endif
 
 //=============================================================================

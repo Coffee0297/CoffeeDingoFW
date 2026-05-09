@@ -71,7 +71,7 @@ void InitVarMap();
 void CyclicUpdate();
 void States();
 
-struct DeviceThread : chibios_rt::BaseStaticThread<2048>
+struct DeviceThread : chibios_rt::BaseStaticThread<DEVICE_THREAD_STACK>
 {
     void main()
     {
@@ -87,6 +87,7 @@ struct DeviceThread : chibios_rt::BaseStaticThread<2048>
 };
 static DeviceThread deviceThread;
 
+#if (HAS_BATT_VOLT_SENSE || HAS_EXT_TEMP_SENSOR)
 struct SlowThread : chibios_rt::BaseStaticThread<256>
 {
     void main()
@@ -98,18 +99,13 @@ struct SlowThread : chibios_rt::BaseStaticThread<256>
             //=================================================================
             // Perform tasks that don't need to be done every cycle here
             //=================================================================
-
-            #if HAS_BATT_VOLT_SENSE
             fBattVolt = GetBattVolt();
-            #endif
 
-            #if HAS_EXT_TEMP_SENSOR
             // Temp sensor is I2C, takes a while to read
             // Don't want to slow down main thread
             fTempSensor = tempSensor.GetTemp();
             bDeviceOverTemp = tempSensor.OverTempLimit();
             bDeviceCriticalTemp = tempSensor.CritTempLimit();
-            #endif
 
             // palToggleLine(LINE_E2);
             chThdSleepMilliseconds(250);
@@ -118,13 +114,14 @@ struct SlowThread : chibios_rt::BaseStaticThread<256>
 };
 static SlowThread slowThread;
 static chibios_rt::ThreadReference slowThreadRef;
+#endif
 
 void InitDevice()
 {
     #if HAS_SE_LEDS
     Error::Initialize(&statusLed, &errorLed);
     #endif
-    
+
     InitVarMap(); // Set val pointers
 
     #if HAS_I2C

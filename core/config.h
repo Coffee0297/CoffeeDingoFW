@@ -218,20 +218,37 @@ struct Config_Keypad{
 
 struct DeviceConfig{
   Config_DeviceConfig stDevConfig;
-  Config_Input stInput[NUM_INPUTS];
   Config_VirtualInput stVirtualInput[NUM_VIRT_INPUTS];
-  Config_Output stOutput[NUM_OUTPUTS];
-  Config_Wiper stWiper;
   Config_Flasher stFlasher[NUM_FLASHERS];
-  Config_Starter stStarter;
   Config_CanInput stCanInput[NUM_CAN_INPUTS];
   Config_CanOutput stCanOutput[NUM_CAN_OUTPUTS];
   Config_Counter stCounter[NUM_COUNTERS];
   Config_Condition stCondition[NUM_CONDITIONS];
+
+  #if NUM_INPUTS > 0
+  Config_Input stInput[NUM_INPUTS];
+  #endif
+  #if NUM_OUTPUTS > 0
+  Config_Output stOutput[NUM_OUTPUTS];
+  #endif
+  #if HAS_WIPERS 
+  Config_Wiper stWiper;
+  #endif
+  #if HAS_STARTER_DISABLE
+  Config_Starter stStarter;
+  #endif
+  #if NUM_KEYPADS > 0
   Config_Keypad stKeypad[NUM_KEYPADS];
+  #endif
+  #if NUM_DIG_INPUTS > 0
   Config_DigInput stDigInput[NUM_DIG_INPUTS];
+  #endif
+  #if NUM_DIG_OUTPUTS > 0
   Config_DigOutput stDigOutput[NUM_DIG_OUTPUTS];
+  #endif
+  #if NUM_ANALOG_INPUTS > 0
   Config_AnalogInput stAnalogInput[NUM_ANALOG_INPUTS];
+  #endif
 };
 
 extern DeviceConfig stConfig;
