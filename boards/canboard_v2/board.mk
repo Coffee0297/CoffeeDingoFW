@@ -1,3 +1,8 @@
+MCU = cortex-m3
+MCUDIR = boards/cortex-m3
+USE_FPU = no
+USE_FPU_OPT =
+
 # List of all the board related files.
 BOARDSRC = ./boards/canboard_v2/board.c
 

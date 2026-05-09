@@ -9,7 +9,7 @@
 #include "enums.h"
 
 // External variables from pdm.cpp that we need access to
-extern PdmConfig stConfig;
+extern DeviceConfig stConfig;
 extern bool bSleepRequest;
 
 void CheckRequestMsgs(CANRxFrame *frame)
@@ -18,6 +18,7 @@ void CheckRequestMsgs(CANRxFrame *frame)
     if(frame->SID != stConfig.stDevConfig.nBaseId + CONFIG_RX_OFFSET)
         return;
 
+    #if CAN_SLEEP
     // Check for sleep request
     if ((frame->DLC == 8) && 
         (frame->data8[0] == static_cast<uint8_t>(MsgCmd::Sleep)) &&
@@ -41,6 +42,7 @@ void CheckRequestMsgs(CANRxFrame *frame)
 
         bSleepRequest = true;
     }
+    #endif
 
     // Check for burn request
     if ((frame->DLC == 8) && 
@@ -64,6 +66,7 @@ void CheckRequestMsgs(CANRxFrame *frame)
         PostTxFrame(&txMsg);
     }
 
+    #if HAS_USB
     // Check for bootloader request
     if ((frame->DLC == 8) &&
         (frame->data8[0] == static_cast<uint8_t>(MsgCmd::Bootloader)) && 
@@ -72,6 +75,7 @@ void CheckRequestMsgs(CANRxFrame *frame)
     {
         RequestBootloader();
     }
+    #endif
 
     // Check for version request
     if ((frame->DLC == 8) &&

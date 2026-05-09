@@ -3,6 +3,8 @@
 #include <cstdint>
 #include "hal.h"
 
+#if HAS_EXT_TEMP_SENSOR
+
 #define MCP9808_TIMEOUT 100 //ms
 
 #define MCP9808_MANUF_ID 0x0054
@@ -83,3 +85,5 @@ class MCP9808
 };
 
 float DegCToF(float degC);
+
+#endif

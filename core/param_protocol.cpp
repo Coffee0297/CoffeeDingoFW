@@ -6,7 +6,7 @@
 #include "crc.h"
 #include <cstring>
 
-extern PdmConfig stConfig;
+extern DeviceConfig stConfig;
 
 uint16_t nNumWriteParams = 0;
 uint16_t nNumReadParams = 0;

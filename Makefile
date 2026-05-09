@@ -97,8 +97,7 @@ endif
 # Define project name here
 PROJECT = $(BOARD)
 
-# Target settings.
-MCU  = cortex-m4
+# Target settings. MCU is set in boards/*/board.mk
 
 # Imported source files and paths.
 CHIBIOS  := ./ChibiOS
@@ -106,10 +105,6 @@ CONFDIR  := $(BOARDDIR)/cfg
 BUILDDIR := ./build
 DEPDIR   := ./.dep
 
-MCUDIR := boards/$(MCU)
-
-BOOTLOADERASM := $(MCUDIR)/enter_bootloader.S
-	
 # Licensing files.
 include $(CHIBIOS)/os/license/license.mk
 
@@ -141,18 +136,17 @@ CPPSRC = $(ALLCPPSRC) \
 				 $(MCUDIR)/mcu_utils.cpp \
 				 $(BOARDDIR)/msg.cpp \
 				 $(BOARDDIR)/hw_devices.cpp \
+				 $(CPPSRC_BOARD) \
 				 comms/can.cpp \
 				 comms/infomsg.cpp \
 				 comms/mailbox.cpp \
 				 comms/request_msg.cpp \
-				 comms/usb.cpp \
 				 core/config.cpp \
 				 core/config_handler.cpp \
 				 core/error.cpp \
 				 core/led.cpp \
 				 core/param_protocol.cpp \
 				 core/param_registry.cpp \
-				 core/sleep.cpp \
 				 core/status.cpp \
 				 core/device.cpp \
 				 functions/can_input.cpp \
@@ -162,24 +156,7 @@ CPPSRC = $(ALLCPPSRC) \
 				 functions/digital.cpp \
 				 functions/flasher.cpp \
 				 functions/input.cpp \
-				 functions/profet.cpp \
-				 functions/pwm.cpp \
-				 functions/starter.cpp \
 				 functions/virtual_input.cpp \
-				 functions/wiper/wiper_digin.cpp \
-				 functions/wiper/wiper_intin.cpp \
-				 functions/wiper/wiper_mixin.cpp \
-				 functions/wiper/wiper.cpp \
-				 functions/keypad/blink/blink_button.cpp \
-				 functions/keypad/blink/blink_dial.cpp \
-				 functions/keypad/blink/blink_analog_input.cpp \
-				 functions/keypad/blink/blink_keypad.cpp \
-				 functions/keypad/grayhill/grayhill_button.cpp \
-				 functions/keypad/grayhill/grayhill_keypad.cpp \
-				 functions/keypad/keypad_button.cpp \
-				 functions/keypad/keypad.cpp \
-				 hardware/mcp9808.cpp \
-				 hardware/mb85rc.cpp \
 				 utils/crc.cpp \
 				 utils/dbc.cpp \
 				 main.cpp
@@ -188,7 +165,7 @@ CPPSRC = $(ALLCPPSRC) \
 ASMSRC = $(ALLASMSRC)
 
 # List ASM with preprocessor source files here.
-ASMXSRC = $(ALLXASMSRC) $(BOOTLOADERASM)
+ASMXSRC = $(ALLXASMSRC)
 
 # Inclusion directories.
 INCDIR = $(CONFDIR) $(ALLINC) $(TESTINC)
@@ -214,14 +191,11 @@ UDEFS =
 UADEFS = 
 
 # List all user directories here
-UINCDIR = ./boards/$(MCU) \
+UINCDIR = $(MCUDIR) \
 				  ./comms \
 				  ./core \
 				  ./functions \
-				  ./functions/wiper \
-				  ./functions/keypad/blink \
-				  ./functions/keypad/grayhill \
-				  ./functions/keypad \
+				  $(UINC_BOARD) \
 				  ./hardware \
 				  ./utils
 

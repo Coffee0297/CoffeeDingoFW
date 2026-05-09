@@ -1,5 +1,6 @@
 #include "mailbox.h"
 #include "ch.hpp"
+#include "port.h"
 
 static chibios_rt::Mailbox<CANRxFrame*, MAILBOX_SIZE> rxMb;
 static chibios_rt::Mailbox<CANTxFrame*, MAILBOX_SIZE> txMb;

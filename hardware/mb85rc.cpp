@@ -1,6 +1,6 @@
 #include "mb85rc.h"
 
-#if HAS_I2C
+#if (HAS_I2C && HAS_EXT_MEMORY)
 bool MB85RC::CheckId()
 {
     //Skip checking IDs

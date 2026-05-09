@@ -5,6 +5,7 @@
 
 #define PROCESS_STACK 0x0400
 
+#define HAS_SE_LEDS FALSE
 #define HAS_USB FALSE
 #define HAS_I2C FALSE
 #define HAS_EXT_TEMP_SENSOR FALSE
@@ -26,14 +27,14 @@
 #define NUM_COUNTERS 4
 #define NUM_CONDITIONS 8
 #define NUM_KEYPADS 0
-#define WIPERS 0
-#define STARTER_DISABLE 0
+#define HAS_WIPERS FALSE
+#define HAS_STARTER_DISABLE FALSE
 
 #define KEYPAD_MAX_BUTTONS 0
 #define KEYPAD_MAX_ANALOG_INPUTS 0
 #define KEYPAD_MAX_DIALS 0
 
-#define VAR_MAP_SYS_VARS 2
+#define VAR_MAP_SYS_VARS 5
 #define VAR_MAP_WIPER_VARS 0
 
 #define VAR_MAP_SIZE ( \
@@ -51,6 +52,13 @@
     VAR_MAP_WIPER_VARS + \
     (NUM_KEYPADS * (KEYPAD_MAX_BUTTONS + KEYPAD_MAX_DIALS + KEYPAD_MAX_ANALOG_INPUTS)) \
 )
+
+// Last 2KB sector of flash (sector 31, 0x0800F800)
+#define CONFIG_SECTOR       31U
+#define CONFIG_FLASH_OFFSET (CONFIG_SECTOR * 2048U)
+#define CONFIG_FLASH        getBaseFlash(&EFLD1)
+
+#define MAILBOX_SIZE 16
 
 #define NUM_TX_MSGS 3
 

@@ -23,6 +23,16 @@ const ParamInfo stParams[] = {
     ALL_DIGITAL_INPUT_PARAMS,
     #endif
 
+    #if NUM_DIG_OUTPUTS > 0
+    // Digital Outputs (0x1250+)
+    ALL_DIGITAL_OUTPUT_PARAMS,
+    #endif
+
+    #if NUM_ANALOG_INPUTS > 0
+    // Analog Inputs (0x1280+)
+    ALL_ANALOG_INPUT_PARAMS,
+    #endif
+
     // CAN Inputs (0x1300+)
     ALL_CAN_INPUT_PARAMS,
 
@@ -38,13 +48,13 @@ const ParamInfo stParams[] = {
     // Flashers (0x1700+)
     ALL_FLASHER_PARAMS,
 
-    #if STARTER_DISABLE > 0
+    #if HAS_STARTER_DISABLE > 0
     // Starter (0x1800)
     STARTER_PARAMS(),
     ALL_STARTER_DISABLE_PARAMS,
     #endif
 
-    #if WIPERS > 0
+    #if HAS_WIPERS > 0
     // Wiper (0x1900)
     WIPER_PARAMS(),
     WIPER_SPEED_MAP_PARAMS(),

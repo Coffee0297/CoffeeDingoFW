@@ -21,10 +21,10 @@
 #include "request_msg.h"
 #include "infomsg.h"
 #include "status.h"
-#if WIPERS > 0
+#if HAS_WIPERS > 0
 #include "wiper/wiper.h"
 #endif
-#if STARTER_DISABLE > 0
+#if HAS_STARTER_DISABLE > 0
 #include "starter.h"
 #endif
 #if HAS_USB
@@ -40,18 +40,24 @@
 CanInput canIn[NUM_CAN_INPUTS];
 CanOutputs canOutputs;
 VirtualInput virtIn[NUM_VIRT_INPUTS];
-Wiper wiper;
-Starter starter;
 Flasher flasher[NUM_FLASHERS];
 Counter counter[NUM_COUNTERS];
 Condition condition[NUM_CONDITIONS];
+#if HAS_WIPERS > 0
+Wiper wiper;
+#endif
+#if HAS_STARTER_DISABLE > 0
+Starter starter;
+#endif
+#if NUM_KEYPADS > 0
 Keypad keypad[NUM_KEYPADS];
+#endif
 
 DeviceState eState = DeviceState::Run;
 float fState; //For var map
 FatalErrorType eError = FatalErrorType::NoError;
-PdmConfig stConfig;
-PdmConfig stConfigTemp; // Used for staging new config before applying
+DeviceConfig stConfig;
+DeviceConfig stConfigTemp; // Used for staging new config before applying
 float *pVarMap[VAR_MAP_SIZE];
 
 float fBattVolt;
@@ -75,7 +81,6 @@ struct DeviceThread : chibios_rt::BaseStaticThread<2048>
         {
             CyclicUpdate();
             States();
-            palToggleLine(LINE_E1);
             chThdSleepMilliseconds(2);
         }
     }
@@ -116,8 +121,10 @@ static chibios_rt::ThreadReference slowThreadRef;
 
 void InitDevice()
 {
+    #if HAS_SE_LEDS
     Error::Initialize(&statusLed, &errorLed);
-
+    #endif
+    
     InitVarMap(); // Set val pointers
 
     #if HAS_I2C
@@ -151,7 +158,9 @@ void InitDevice()
 
     InitInfoMsgs();
 
+    #if CAN_SLEEP
     palClearLine(LINE_CAN_STANDBY);
+    #endif
 
     #if (HAS_BATT_VOLT_SENSE || HAS_EXT_TEMP_SENSOR)
     slowThreadRef = slowThread.start(NORMALPRIO);
@@ -162,20 +171,27 @@ void InitDevice()
 
 void States()
 {
+    #if HAS_EXT_TEMP_SENSOR
     if (bDeviceCriticalTemp)
     {
+        #if NUM_OUTPUTS > 0
         //Turn off all outputs
         for (uint8_t i = 0; i < NUM_OUTPUTS; i++)
             pf[i].Update(false);
-            
+        #endif
+
         Error::SetFatalError(FatalErrorType::ErrTemp, MsgSrc::State_Overtemp);
     }
+    #endif
 
     if (eState == DeviceState::Run)
     {
+        #if HAS_EXT_TEMP_SENSOR
         if (bDeviceOverTemp)
             eState = DeviceState::OverTemp;
+        #endif
 
+        #if NUM_OUTPUTS > 0
         if (GetAnyOvercurrent() && !GetAnyFault())
         {
             statusLed.Blink();
@@ -193,8 +209,10 @@ void States()
             statusLed.Solid(true);
             errorLed.Solid(false);
         }
+        #endif
     }
 
+    #if HAS_EXT_TEMP_SENSOR
     if (eState == DeviceState::OverTemp)
     {
         statusLed.Blink();
@@ -203,6 +221,7 @@ void States()
         if (!bDeviceOverTemp)
             eState = DeviceState::Run;
     }
+    #endif
 
     #if CAN_SLEEP
     if (CheckEnterSleep())
@@ -224,9 +243,11 @@ void States()
     {
         // Not required?
 
+        #if NUM_OUTPUTS > 0
         //Turn off all outputs
         for (uint8_t i = 0; i < NUM_OUTPUTS; i++)
             pf[i].Update(false);
+        #endif
 
         Error::SetFatalError(eError, MsgSrc::State_Error);
     }
@@ -307,11 +328,11 @@ void CyclicUpdate()
         virtIn[i].Update();
     #endif
 
-    #if WIPERS
+    #if HAS_WIPERS
     wiper.Update();
     #endif
 
-    #if STARTER_DISABLE
+    #if HAS_STARTER_DISABLE
     starter.Update();
     #endif
 
@@ -426,7 +447,7 @@ void InitVarMap()
     }
     #endif
 
-    #if WIPERS > 0
+    #if HAS_WIPERS > 0
     // Wiper
     pVarMap[index++] = &wiper.fSlowOut;
     pVarMap[index++] = &wiper.fFastOut;

@@ -3,7 +3,6 @@
 #include <cstdint>
 #include "port.h"
 #include "enums.h"
-#include "hardware/mb85rc.h"
 #include "dbc.h"
 
 #define CONFIG_VERSION 0x0006 //Increment when config structure changes
@@ -217,7 +216,7 @@ struct Config_Keypad{
   Config_KeypadDial stDial[KEYPAD_MAX_DIALS];
 };
 
-struct PdmConfig{
+struct DeviceConfig{
   Config_DeviceConfig stDevConfig;
   Config_Input stInput[NUM_INPUTS];
   Config_VirtualInput stVirtualInput[NUM_VIRT_INPUTS];
@@ -230,10 +229,13 @@ struct PdmConfig{
   Config_Counter stCounter[NUM_COUNTERS];
   Config_Condition stCondition[NUM_CONDITIONS];
   Config_Keypad stKeypad[NUM_KEYPADS];
+  Config_DigInput stDigInput[NUM_DIG_INPUTS];
+  Config_DigOutput stDigOutput[NUM_DIG_OUTPUTS];
+  Config_AnalogInput stAnalogInput[NUM_ANALOG_INPUTS];
 };
 
-extern PdmConfig stConfig;
-extern PdmConfig stConfigTemp; // Used for staging new config before applying
+extern DeviceConfig stConfig;
+extern DeviceConfig stConfigTemp; // Used for staging new config before applying
 
 void InitConfig();
 bool WriteConfig();

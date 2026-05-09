@@ -2,27 +2,49 @@
 #include "device.h"
 #include "config.h"
 #include "device_config.h"
-#include "profet.h"
-#include "digital.h"
 #include "can_input.h"
 #include "virtual_input.h"
-#include "wiper/wiper.h"
-#include "starter.h"
 #include "flasher.h"
 #include "counter.h"
 #include "condition.h"
+#if NUM_INPUTS > 0
+#include "digital.h"
+#endif
+#if NUM_OUTPUTS > 0
+#include "profet.h"
+#endif
+#if HAS_WIPERS > 0
+#include "wiper/wiper.h"
+#endif
+#if HAS_STARTER_DISABLE > 0
+#include "starter.h"
+#endif
+#if NUM_KEYPADS > 0
 #include "keypad/keypad.h"
+#endif
+#if NUM_DIG_INPUTS > 0
+#include "digital_input.h"
+#endif
+#if NUM_DIG_OUTPUTS > 0
+#include "digital_output.h"
+#endif
+#if NUM_ANALOG_INPUTS > 0
+#include "analog_input.h"
+#endif
 
-DeviceState GetPdmState()
+DeviceState GetDeviceState()
 {
     return eState;
 }
 
+#if HAS_EXT_TEMP_SENSOR
 float GetBoardTemp()
 {
     return fTempSensor;
 }
+#endif
 
+#if NUM_OUTPUTS > 0
 float GetTotalCurrent()
 {
     float fTotalCurrent = 0.0;
@@ -61,14 +83,6 @@ bool GetAnyFault()
     }
 
     return false;
-}
-
-bool GetInputVal(uint8_t nInput)
-{
-    if (nInput >= NUM_INPUTS)
-        return false;
-
-    return in[nInput].fVal;
 }
 
 float GetOutputCurrent(uint8_t nOutput)
@@ -112,6 +126,17 @@ bool GetAnyPwmEnable()
     }
     return false;
 }
+#endif
+
+#if NUM_INPUTS > 0
+bool GetInputVal(uint8_t nInput)
+{
+    if (nInput >= NUM_INPUTS)
+        return false;
+
+    return in[nInput].fVal;
+}
+#endif
 
 bool GetAnyCanInEnable()
 {
@@ -211,6 +236,7 @@ uint32_t GetVirtIns()
     return result;
 }
 
+#if HAS_WIPERS
 bool GetWiperEnable()
 {
     return stConfig.stWiper.bEnabled;
@@ -235,6 +261,7 @@ WiperSpeed GetWiperSpeed()
 {
     return wiper.GetSpeed();
 }
+#endif
 
 bool GetAnyFlasherEnable()
 {
@@ -293,13 +320,16 @@ uint32_t GetConditions()
     return result;
 }
 
+#if NUM_KEYPADS > 0
 bool GetAnyKeypadEnable()
 {
+    #if NUM_KEYPADS > 0
     for (uint8_t i = 0; i < NUM_KEYPADS; i++)
     {
         if (stConfig.stKeypad[i].bEnabled)
             return true;
     }
+    #endif
     return false;
 }
 
@@ -308,7 +338,11 @@ bool GetKeypadEnable(uint8_t nKeypad)
     if (nKeypad >= NUM_KEYPADS)
         return false;
 
+    #if NUM_KEYPADS > 0
     return stConfig.stKeypad[nKeypad].bEnabled;
+    #else
+    return false;
+    #endif
 }
 
 uint32_t GetKeypadButtons(uint8_t nKeypad)
@@ -316,13 +350,17 @@ uint32_t GetKeypadButtons(uint8_t nKeypad)
     if (nKeypad >= NUM_KEYPADS)
         return 0;
 
+    #if NUM_KEYPADS > 0
     uint32_t result = 0;
-    
+
     for (uint8_t i = 0; i < KEYPAD_MAX_BUTTONS; i++) {
         result |= (((uint32_t)keypad[nKeypad].fButtonVal[i] & 0x01) << i);
     }
-    
+
     return result;
+    #else
+    return 0;
+    #endif
 }
 
 float GetKeypadDialVal(uint8_t nKeypad, uint8_t nDial)
@@ -333,5 +371,64 @@ float GetKeypadDialVal(uint8_t nKeypad, uint8_t nDial)
     if (nDial >= KEYPAD_MAX_DIALS)
         return 0;
 
+    #if NUM_KEYPADS > 0
     return keypad[nKeypad].fDialVal[nDial];
+    #else
+    return 0;
+    #endif
 }
+#endif
+
+#if NUM_DIG_INPUTS > 0
+bool GetDigInputVal(uint8_t nInput)
+{
+    if (nInput >= NUM_DIG_INPUTS)
+        return false;
+
+    return digIn[nInput].fVal;
+}
+#endif
+
+#if NUM_DIG_OUTPUTS > 0
+bool GetDigOutputState(uint8_t nOutput)
+{
+    if (nOutput >= NUM_DIG_OUTPUTS)
+        return false;
+
+    return static_cast<bool>(digOut[nOutput].fVal);
+}
+#endif
+
+#if NUM_ANALOG_INPUTS > 0
+uint16_t GetAnalogInputVal(uint8_t nInput)
+{
+    if (nInput >= NUM_ANALOG_INPUTS)
+        return 0;
+
+    return static_cast<uint16_t>(analogIn[nInput].fVal);
+}
+
+float GetAnalogInputMv(uint8_t nInput)
+{
+    if (nInput >= NUM_ANALOG_INPUTS)
+        return 0;
+
+    return analogIn[nInput].fValMillivolts;
+}
+
+uint8_t GetRotarySwitchPos(uint8_t nInput)
+{
+    if (nInput >= NUM_ANALOG_INPUTS)
+        return 0;
+
+    return static_cast<uint8_t>(analogIn[nInput].fRotaryPos);
+}
+
+bool GetAnalogSwitchVal(uint8_t nInput)
+{
+    if (nInput >= NUM_ANALOG_INPUTS)
+        return false;
+
+    return static_cast<bool>(analogIn[nInput].fSwitchVal);
+}
+#endif
