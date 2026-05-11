@@ -97,9 +97,9 @@ void EnterSleep()
     // Set wakeup sources
 
     // Digital inputs change detection, with configured pullup or pulldown
-    for(uint8_t i = 0; i < NUM_INPUTS; i++)
+    for(uint8_t i = 0; i < NUM_DIG_INPUTS; i++)
     {
-        EnableLineEventWithPull(LINE_DI1, stConfig.stInput[i].ePull);
+        EnableLineEventWithPull(LINE_DI1, stConfig.stDigInput[i].ePull);
     }
 
     // CAN receive detection

@@ -1,6 +1,6 @@
 #include "hw_devices.h"
 
-Digital_Input digIn[NUM_DIG_INPUTS] = {
+Digital_Input in[NUM_DIG_INPUTS] = {
     Digital_Input(LINE_DI1),
     Digital_Input(LINE_DI2),
     Digital_Input(LINE_DI3),

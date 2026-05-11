@@ -1,7 +1,6 @@
 #include "msg.h"
 #include "config.h"
 #include "profet.h"
-#include "digital.h"
 #include "device.h"
 #include "status.h"
 

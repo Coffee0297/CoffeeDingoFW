@@ -8,9 +8,6 @@
 #include "condition.h"
 #include "flasher.h"
 #include "virtual_input.h"
-#if NUM_INPUTS > 0
-#include "digital.h"
-#endif
 #if NUM_OUTPUTS > 0
 #include "profet.h"
 #endif
@@ -40,9 +37,6 @@ extern VirtualInput virtIn[NUM_VIRT_INPUTS];
 extern Flasher flasher[NUM_FLASHERS];
 extern Counter counter[NUM_COUNTERS];
 extern Condition condition[NUM_CONDITIONS];
-#if NUM_INPUTS > 0
-extern Digital in[NUM_INPUTS];
-#endif
 #if NUM_OUTPUTS > 0
 extern Profet pf[NUM_OUTPUTS];
 #endif
@@ -56,7 +50,7 @@ extern Starter starter;
 extern Keypad keypad[NUM_KEYPADS];
 #endif
 #if NUM_DIG_INPUTS > 0
-extern Digital_Input digIn[NUM_DIG_INPUTS];
+extern Digital_Input in[NUM_DIG_INPUTS];
 #endif
 #if NUM_DIG_OUTPUTS > 0
 extern Digital_Output digOut[NUM_DIG_OUTPUTS];
@@ -73,9 +67,6 @@ void ApplyAllConfig()
     ApplyConfig(Flasher::nBaseIndex);
     ApplyConfig(Counter::nBaseIndex);
     ApplyConfig(Condition::nBaseIndex);
-    #if NUM_INPUTS > 0
-    ApplyConfig(Digital::nBaseIndex);
-    #endif
     #if NUM_OUTPUTS > 0
     ApplyConfig(Profet::nBaseIndex);
     #endif
@@ -165,14 +156,6 @@ void ApplyConfig(uint16_t nIndex)
             condition[i].SetConfig(&stConfig.stCondition[i]);
     }
 
-    #if NUM_INPUTS > 0
-    if (nBaseIndex == Digital::nBaseIndex)
-    {
-        for (uint8_t i = 0; i < NUM_INPUTS; i++)
-            in[i].SetConfig(&stConfig.stInput[i]);
-    }
-    #endif
-
     #if NUM_OUTPUTS > 0
     if (nBaseIndex == Profet::nBaseIndex)
     {
@@ -229,7 +212,7 @@ void ApplyConfig(uint16_t nIndex)
     if (nBaseIndex == Digital_Input::nBaseIndex)
     {
         for (uint8_t i = 0; i < NUM_DIG_INPUTS; i++)
-            digIn[i].SetConfig(&stConfig.stDigInput[i]);
+            in[i].SetConfig(&stConfig.stDigInput[i]);
     }
     #endif
 

@@ -14,7 +14,6 @@
 #define CAN_SLEEP FALSE
 
 #define NUM_OUTPUTS 0
-#define NUM_INPUTS 0
 #define NUM_DIG_OUTPUTS 4
 #define NUM_DIG_INPUTS 8
 #define NUM_ANALOG_INPUTS 5
@@ -42,7 +41,6 @@
     (NUM_DIG_INPUTS * 1) + \
     (NUM_ANALOG_INPUTS * 4) + \
     (NUM_DIG_OUTPUTS * 1) + \
-    (NUM_INPUTS * 1) + \
     (NUM_CAN_INPUTS * 2) + \
     (NUM_VIRT_INPUTS * 1) + \
     (NUM_OUTPUTS * 4) + \

@@ -22,6 +22,7 @@ CPPSRC_BOARD += comms/usb.cpp \
 				core/sleep.cpp \
 				functions/profet.cpp \
 				functions/pwm.cpp \
+				functions/digital_input.cpp \
 				functions/starter.cpp \
 				functions/wiper/wiper_digin.cpp \
 				functions/wiper/wiper_intin.cpp \

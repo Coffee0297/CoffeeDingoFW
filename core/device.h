@@ -11,8 +11,8 @@ class Flasher;
 class Counter;
 class Condition;
 
-#if NUM_INPUTS > 0
-class Digital;
+#if NUM_DIG_INPUTS > 0
+class Digital_Input;
 #endif
 #if NUM_OUTPUTS > 0
 class Profet;
@@ -25,9 +25,6 @@ class Starter;
 #endif
 #if NUM_KEYPADS > 0
 class Keypad;
-#endif
-#if NUM_DIG_INPUTS > 0
-class Digital_Input;
 #endif
 #if NUM_DIG_OUTPUTS > 0
 class Digital_Output;
@@ -44,8 +41,8 @@ extern Flasher flasher[NUM_FLASHERS];
 extern Counter counter[NUM_COUNTERS];
 extern Condition condition[NUM_CONDITIONS];
 
-#if NUM_INPUTS > 0
-extern Digital in[NUM_INPUTS];
+#if NUM_DIG_INPUTS > 0
+extern Digital_Input in[NUM_DIG_INPUTS];
 #endif
 #if NUM_OUTPUTS > 0
 extern Profet pf[NUM_OUTPUTS];
@@ -58,9 +55,6 @@ extern Starter starter;
 #endif
 #if NUM_KEYPADS > 0
 extern Keypad keypad[NUM_KEYPADS];
-#endif
-#if NUM_DIG_INPUTS > 0
-extern Digital_Input digIn[NUM_DIG_INPUTS];
 #endif
 #if NUM_DIG_OUTPUTS > 0
 extern Digital_Output digOut[NUM_DIG_OUTPUTS];

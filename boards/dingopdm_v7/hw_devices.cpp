@@ -12,18 +12,12 @@ Profet pf[NUM_OUTPUTS] = {
     Profet(7, ProfetModel::BTS7008_2EPA_CH1, LINE_PF7_IN, LINE_PF7_8_DEN, LINE_PF7_8_DSEL, AnalogChannel::IS7_8, &PWMD12, &pwm12Cfg, PwmChannel::Ch1),
     Profet(8, ProfetModel::BTS7008_2EPA_CH2, LINE_PF8_IN, LINE_PF7_8_DEN, LINE_PF7_8_DSEL, AnalogChannel::IS7_8, &PWMD13, &pwm13Cfg, PwmChannel::Ch1)};
 
-Digital in[NUM_INPUTS] = {
-    Digital(LINE_DI1),
-    Digital(LINE_DI2)};    
+Digital_Input in[NUM_DIG_INPUTS] = {
+    Digital_Input(LINE_DI1),
+    Digital_Input(LINE_DI2)};    
 
 Led statusLed = Led(LINE_LED_STATUS);
 Led errorLed = Led(LINE_LED_ERROR);
-
-Digital_Input digIn[NUM_DIG_INPUTS];   
-
-Digital_Output digOut[NUM_DIG_OUTPUTS];
-
-Analog_Input analogIn[NUM_ANALOG_INPUTS];
 
 MCP9808 tempSensor(I2CD1, MCP9808_I2CADDR_DEFAULT);
 

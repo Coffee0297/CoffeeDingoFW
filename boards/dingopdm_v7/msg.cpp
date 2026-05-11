@@ -1,7 +1,6 @@
 #include "msg.h"
 #include "config.h"
 #include "profet.h"
-#include "digital.h"
 #include "device.h"
 #include "status.h"
 
@@ -14,7 +13,7 @@ CANTxMsg TxMsg0()
     //=======================================================
     stMsg.frame.SID = stConfig.stDevConfig.nBaseId + 0;
     stMsg.frame.DLC = 8; // Bytes to send
-    stMsg.frame.data8[0] = (GetInputVal(1) << 1) + GetInputVal(0);
+    stMsg.frame.data8[0] = (GetDigInputVal(1) << 1) + GetDigInputVal(0);
     stMsg.frame.data8[1] = static_cast<uint8_t>(GetDeviceState()) + (PDM_TYPE << 4);
     stMsg.frame.data16[1] = (uint16_t)GetTotalCurrent();
     stMsg.frame.data16[2] = (uint16_t)(GetBattVolt() * 10.0);

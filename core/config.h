@@ -225,8 +225,8 @@ struct DeviceConfig{
   Config_Counter stCounter[NUM_COUNTERS];
   Config_Condition stCondition[NUM_CONDITIONS];
 
-  #if NUM_INPUTS > 0
-  Config_Input stInput[NUM_INPUTS];
+  #if NUM_DIG_INPUTS > 0
+  Config_DigInput stDigInput[NUM_DIG_INPUTS];
   #endif
   #if NUM_OUTPUTS > 0
   Config_Output stOutput[NUM_OUTPUTS];
@@ -239,9 +239,6 @@ struct DeviceConfig{
   #endif
   #if NUM_KEYPADS > 0
   Config_Keypad stKeypad[NUM_KEYPADS];
-  #endif
-  #if NUM_DIG_INPUTS > 0
-  Config_DigInput stDigInput[NUM_DIG_INPUTS];
   #endif
   #if NUM_DIG_OUTPUTS > 0
   Config_DigOutput stDigOutput[NUM_DIG_OUTPUTS];

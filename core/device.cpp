@@ -291,14 +291,9 @@ void CyclicUpdate()
         pf[i].Update(starter.fVal[i]);
     #endif
 
-    #if NUM_INPUTS > 0
-    for (uint8_t i = 0; i < NUM_INPUTS; i++)
-        in[i].Update();
-    #endif
-
     #if NUM_DIG_INPUTS > 0
     for (uint8_t i = 0; i < NUM_DIG_INPUTS; i++)
-        digIn[i].Update();
+        in[i].Update();
     #endif
 
     #if NUM_DIG_OUTPUTS > 0
@@ -369,14 +364,9 @@ void InitVarMap()
     pVarMap[index++] = &fBattVolt;
     #endif
 
-    #if NUM_INPUTS > 0
-    for (uint8_t i = 0; i < NUM_INPUTS; i++)
-        pVarMap[index++] = &in[i].fVal;
-    #endif
-
     #if NUM_DIG_INPUTS > 0
     for (uint8_t i = 0; i < NUM_DIG_INPUTS; i++)
-        pVarMap[index++] = &digIn[i].fVal;
+        pVarMap[index++] = &in[i].fVal;
     #endif
 
     #if NUM_DIG_OUTPUTS > 0

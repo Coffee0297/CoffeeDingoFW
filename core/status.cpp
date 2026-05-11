@@ -7,9 +7,6 @@
 #include "flasher.h"
 #include "counter.h"
 #include "condition.h"
-#if NUM_INPUTS > 0
-#include "digital.h"
-#endif
 #if NUM_OUTPUTS > 0
 #include "profet.h"
 #endif
@@ -128,10 +125,10 @@ bool GetAnyPwmEnable()
 }
 #endif
 
-#if NUM_INPUTS > 0
-bool GetInputVal(uint8_t nInput)
+#if NUM_DIG_INPUTS > 0
+bool GetDigInputVal(uint8_t nInput)
 {
-    if (nInput >= NUM_INPUTS)
+    if (nInput >= NUM_DIG_INPUTS)
         return false;
 
     return in[nInput].fVal;
@@ -376,16 +373,6 @@ float GetKeypadDialVal(uint8_t nKeypad, uint8_t nDial)
     #else
     return 0;
     #endif
-}
-#endif
-
-#if NUM_DIG_INPUTS > 0
-bool GetDigInputVal(uint8_t nInput)
-{
-    if (nInput >= NUM_DIG_INPUTS)
-        return false;
-
-    return digIn[nInput].fVal;
 }
 #endif
 
