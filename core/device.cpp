@@ -293,7 +293,7 @@ void CyclicUpdate()
 
     #if NUM_DIG_INPUTS > 0
     for (uint8_t i = 0; i < NUM_DIG_INPUTS; i++)
-        in[i].Update();
+        digIn[i].Update();
     #endif
 
     #if NUM_DIG_OUTPUTS > 0
@@ -366,7 +366,7 @@ void InitVarMap()
 
     #if NUM_DIG_INPUTS > 0
     for (uint8_t i = 0; i < NUM_DIG_INPUTS; i++)
-        pVarMap[index++] = &in[i].fVal;
+        pVarMap[index++] = &digIn[i].fVal;
     #endif
 
     #if NUM_DIG_OUTPUTS > 0

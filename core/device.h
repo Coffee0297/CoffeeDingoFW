@@ -42,7 +42,7 @@ extern Counter counter[NUM_COUNTERS];
 extern Condition condition[NUM_CONDITIONS];
 
 #if NUM_DIG_INPUTS > 0
-extern Digital_Input in[NUM_DIG_INPUTS];
+extern Digital_Input digIn[NUM_DIG_INPUTS];
 #endif
 #if NUM_OUTPUTS > 0
 extern Profet pf[NUM_OUTPUTS];

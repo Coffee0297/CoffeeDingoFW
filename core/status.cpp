@@ -131,7 +131,7 @@ bool GetDigInputVal(uint8_t nInput)
     if (nInput >= NUM_DIG_INPUTS)
         return false;
 
-    return in[nInput].fVal;
+    return digIn[nInput].fVal;
 }
 #endif
 

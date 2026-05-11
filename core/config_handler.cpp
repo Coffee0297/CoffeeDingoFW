@@ -50,7 +50,7 @@ extern Starter starter;
 extern Keypad keypad[NUM_KEYPADS];
 #endif
 #if NUM_DIG_INPUTS > 0
-extern Digital_Input in[NUM_DIG_INPUTS];
+extern Digital_Input digIn[NUM_DIG_INPUTS];
 #endif
 #if NUM_DIG_OUTPUTS > 0
 extern Digital_Output digOut[NUM_DIG_OUTPUTS];
@@ -212,7 +212,7 @@ void ApplyConfig(uint16_t nIndex)
     if (nBaseIndex == Digital_Input::nBaseIndex)
     {
         for (uint8_t i = 0; i < NUM_DIG_INPUTS; i++)
-            in[i].SetConfig(&stConfig.stDigInput[i]);
+            digIn[i].SetConfig(&stConfig.stDigInput[i]);
     }
     #endif
 
