@@ -34,7 +34,7 @@
 #define KEYPAD_MAX_ANALOG_INPUTS 0
 #define KEYPAD_MAX_DIALS 0
 
-#define VAR_MAP_SYS_VARS 5
+#define VAR_MAP_SYS_VARS 3
 #define VAR_MAP_WIPER_VARS 0
 
 #define VAR_MAP_SIZE ( \
@@ -64,6 +64,7 @@
 #define DEVICE_THREAD_STACK 512
 
 #define NUM_TX_MSGS 3
+#define DEFAULT_BASE_ID 0x640
 
 #define ADC1_NUM_CHANNELS 5
 #define ADC1_BUF_DEPTH 1

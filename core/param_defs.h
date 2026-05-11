@@ -10,7 +10,7 @@
 // Device Config Parameters - Base 0x0000
 //=============================================================================
 #define DEVICE_CONFIG_PARAMS() \
-    {0x0000, 0, &stConfig.stDevConfig.nBaseId,            &stConfigTemp.stDevConfig.nBaseId,           ParamType::UInt16, 0x0DE, 0, 0x7FF}, \
+    {0x0000, 0, &stConfig.stDevConfig.nBaseId,            &stConfigTemp.stDevConfig.nBaseId,           ParamType::UInt16, DEFAULT_BASE_ID, 0, 0x7FF}, \
     {0x0000, 1, &stConfig.stDevConfig.eCanSpeed,          &stConfigTemp.stDevConfig.eCanSpeed,         ParamType::Enum,   static_cast<uint32_t>(CanBitrate::Bitrate_500K), 0, 4}, \
     {0x0000, 2, &stConfig.stDevConfig.bSleepEnabled,      &stConfigTemp.stDevConfig.bSleepEnabled,     ParamType::Bool,   0, 0, 1}, \
     {0x0000, 3, &stConfig.stDevConfig.bCanFilterEnabled,  &stConfigTemp.stDevConfig.bCanFilterEnabled, ParamType::Bool,   0, 0, 1}, \

@@ -66,6 +66,7 @@
 #define CONFIG_FLASH        getBaseFlash(&EFLD1)
 
 #define NUM_TX_MSGS 27
+#define DEFAULT_BASE_ID 0x0DE
 
 #define ADC1_NUM_CHANNELS 8
 #define ADC1_BUF_DEPTH 1
