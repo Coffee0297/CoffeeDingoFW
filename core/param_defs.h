@@ -195,7 +195,7 @@
 #if NUM_DIG_OUTPUTS > 0 
 #define DIGITAL_OUTPUT_PARAMS(i) \
     {0x2100 + (i), 0, &stConfig.stDigOutput[i].bEnabled,     &stConfigTemp.stDigOutput[i].bEnabled,    ParamType::Bool,   0, 0, 1}, \
-    {0x2100 + (i), 1, &stConfig.stDigOutput[i].nInput,       &stConfigTemp.stDigOutput[i].nInput,      ParamType::UInt16,   0, 0, 1}
+    {0x2100 + (i), 1, &stConfig.stDigOutput[i].nInput,       &stConfigTemp.stDigOutput[i].nInput,      ParamType::UInt16,   0, 0, VAR_MAP_SIZE - 1}
 #endif
 
 //=============================================================================

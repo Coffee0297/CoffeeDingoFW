@@ -9,14 +9,6 @@ void Digital_Output::Update()
         return;
     }
 
-    if(pConfig->nInput)
-    {
-        palWriteLine(m_line, 1);
-        fVal = 1;
-    }
-    else
-    {
-        palWriteLine(m_line, 0);
-        fVal = 0;
-    }
+    palWriteLine(m_line, *pInput);
+    fVal = *pInput;
 }
