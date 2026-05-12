@@ -4,7 +4,7 @@ on:
   push:
     branches: [ testing ]
     paths:
-      - "core/core/dingopdm_config.h"
+      - "core/core/device_config.h"
       - "**/*.c"
       - "**/*.h"
       - "Makefile"
@@ -24,9 +24,9 @@ jobs:
       - name: Extract version number
         id: extract_version
         run: |
-          MAJOR=$(grep '#define MAJOR_VERSION' core/dingopdm_config.h | awk '{print $3}')
-          MINOR=$(grep '#define MINOR_VERSION' core/dingopdm_config.h | awk '{print $3}')
-          BUILD=$(grep '#define BUILD' core/dingopdm_config.h | awk '{print $3}')
+          MAJOR=$(grep '#define MAJOR_VERSION' core/device_config.h | awk '{print $3}')
+          MINOR=$(grep '#define MINOR_VERSION' core/device_config.h | awk '{print $3}')
+          BUILD=$(grep '#define BUILD' core/device_config.h | awk '{print $3}')
           VERSION="${MAJOR}.${MINOR}.${BUILD}"
           VERSION_DASHED="${MAJOR}-${MINOR}-${BUILD}"
 
@@ -84,6 +84,13 @@ jobs:
           cp build/dingopdmmax_v1.bin build/dingopdmmax_v1_FW_v${VERSION_DASHED}.bin
           cp build/dingopdmmax_v1.elf build/dingopdmmax_v1_FW_v${VERSION_DASHED}.elf
 
+          # Build third variant, in build directory
+          make clean
+          make BOARD=canboard_v2
+          cp build/canboard_v2.hex build/canboard_v2_FW_v${VERSION_DASHED}.hex
+          cp build/canboard_v2.bin build/canboard_v2_FW_v${VERSION_DASHED}.bin
+          cp build/canboard_v2.elf build/canboard_v2_FW_v${VERSION_DASHED}.elf
+
           # Copy back to build for the release action
           cp firmware_artifacts/* build/
 
@@ -113,6 +120,11 @@ jobs:
             - [HEX](https://github.com/${{ github.repository }}/releases/download/testing-latest/dingopdmmax_v1_FW_v${{ steps.extract_version.outputs.version_dashed }}.hex)
             - [BIN](https://github.com/${{ github.repository }}/releases/download/testing-latest/dingopdmmax_v1_FW_v${{ steps.extract_version.outputs.version_dashed }}.bin)
             - [ELF](https://github.com/${{ github.repository }}/releases/download/testing-latest/dingopdmmax_v1_FW_v${{ steps.extract_version.outputs.version_dashed }}.elf)
+
+            **CANBoard:**
+            - [HEX](https://github.com/${{ github.repository }}/releases/download/testing-latest/canboard_v2_FW_v${{ steps.extract_version.outputs.version_dashed }}.hex)
+            - [BIN](https://github.com/${{ github.repository }}/releases/download/testing-latest/canboard_v2_FW_v${{ steps.extract_version.outputs.version_dashed }}.bin)
+            - [ELF](https://github.com/${{ github.repository }}/releases/download/testing-latest/canboard_v2_FW_v${{ steps.extract_version.outputs.version_dashed }}.elf)
           files: |
             build/dingopdm_v7_FW_v${{ steps.extract_version.outputs.version_dashed }}.hex
             build/dingopdm_v7_FW_v${{ steps.extract_version.outputs.version_dashed }}.bin
@@ -120,5 +132,8 @@ jobs:
             build/dingopdmmax_v1_FW_v${{ steps.extract_version.outputs.version_dashed }}.hex
             build/dingopdmmax_v1_FW_v${{ steps.extract_version.outputs.version_dashed }}.bin
             build/dingopdmmax_v1_FW_v${{ steps.extract_version.outputs.version_dashed }}.elf
+            build/canboard_v2_FW_v${{ steps.extract_version.outputs.version_dashed }}.hex
+            build/canboard_v2_FW_v${{ steps.extract_version.outputs.version_dashed }}.bin
+            build/canboard_v2_FW_v${{ steps.extract_version.outputs.version_dashed }}.elf
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
