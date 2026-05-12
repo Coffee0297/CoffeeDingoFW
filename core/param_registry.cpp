@@ -10,9 +10,6 @@ const ParamInfo stParams[] = {
     // Device Config (0x0000)
     DEVICE_CONFIG_PARAMS(),
 
-    // CAN Outputs (0x2000+)
-    ALL_CAN_OUTPUT_PARAMS,
-
     // Outputs (0x1000+)
     #if NUM_OUTPUTS > 0
     ALL_OUTPUT_PARAMS,
@@ -21,16 +18,6 @@ const ParamInfo stParams[] = {
     #if NUM_DIG_INPUTS > 0
     // Digital Inputs (0x1200+)
     ALL_DIGITAL_INPUT_PARAMS,
-    #endif
-
-    #if NUM_DIG_OUTPUTS > 0
-    // Digital Outputs (0x1250+)
-    ALL_DIGITAL_OUTPUT_PARAMS,
-    #endif
-
-    #if NUM_ANALOG_INPUTS > 0
-    // Analog Inputs (0x1280+)
-    ALL_ANALOG_INPUT_PARAMS,
     #endif
 
     // CAN Inputs (0x1300+)
@@ -61,14 +48,27 @@ const ParamInfo stParams[] = {
     WIPER_INTERMIT_PARAMS(),
     #endif
 
+    // CAN Outputs (0x2000+)
+    ALL_CAN_OUTPUT_PARAMS,
+
+    #if NUM_DIG_OUTPUTS > 0
+    // Digital Outputs (0x2100+)
+    ALL_DIGITAL_OUTPUT_PARAMS,
+    #endif
+
+    #if NUM_ANALOG_INPUTS > 0
+    // Analog Inputs (0x2200+)
+    ALL_ANALOG_INPUT_PARAMS,
+    #endif
+
     #if NUM_KEYPADS > 0
     // Keypads (0x3000+)
     ALL_KEYPAD_PARAMS,
 
-    // Keypad Buttons (0x2100+)
+    // Keypad Buttons (0x3100+)
     ALL_KEYPAD_BUTTON_PARAMS,
 
-    // Keypad Dials (0x2200+)
+    // Keypad Dials (0x3200+)
     ALL_KEYPAD_DIAL_PARAMS,
     #endif
 };

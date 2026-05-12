@@ -61,7 +61,7 @@
 #define MAILBOX_SIZE 16
 #define DEVICE_THREAD_STACK 512
 
-#define NUM_TX_MSGS 3
+#define NUM_TX_MSGS 9
 #define DEFAULT_BASE_ID 0x640
 
 #define ADC1_NUM_CHANNELS 5
