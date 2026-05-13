@@ -16,9 +16,8 @@
 #define CAN_SLEEP TRUE
 
 #define NUM_OUTPUTS 4
-#define NUM_INPUTS 2
 #define NUM_DIG_OUTPUTS 0
-#define NUM_DIG_INPUTS 0
+#define NUM_DIG_INPUTS 2
 #define NUM_ANALOG_INPUTS 0
 #define NUM_VIRT_INPUTS 16
 #define NUM_CAN_INPUTS 32
@@ -41,7 +40,7 @@
 
 #define VAR_MAP_SIZE ( \
     VAR_MAP_SYS_VARS + \
-    (NUM_INPUTS * 1) + \
+    (NUM_DIG_INPUTS * 1) + \
     (NUM_CAN_INPUTS * 2) + \
     (NUM_VIRT_INPUTS * 1) + \
     (NUM_OUTPUTS * 4) + \
