@@ -1,13 +1,14 @@
 import os
+import canboard
 import dingopdm
 import dingopdm_max
 
-base_id = 222 #0x0DE
-
 if __name__ == "__main__":
     dbs = []
-    dbs.append(dingopdm.build_db(base_id))
-    dbs.append(dingopdm_max.build_db(base_id))
+    
+    dbs.append(dingopdm.build_db(0x0DE))
+    dbs.append(dingopdm_max.build_db(0x0DE))
+    dbs.append(canboard.build_db(0x640))
     
     for db in dbs:
         script_dir = os.path.dirname(os.path.realpath(__file__)) #<-- absolute dir the script is in

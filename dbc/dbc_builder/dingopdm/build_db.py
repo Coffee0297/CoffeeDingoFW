@@ -23,5 +23,16 @@ def build_db(base_id):
     db.messages.append(dingopdm.build_msg_13(base_id + 2))
     db.messages.append(dingopdm.build_msg_14(base_id + 2))
     db.messages.append(dingopdm.build_msg_15(base_id + 2))
+    db.messages.append(dingopdm.build_msg_16(base_id + 2))
+    db.messages.append(dingopdm.build_msg_17(base_id + 2))
+    db.messages.append(dingopdm.build_msg_18(base_id + 2))
+    db.messages.append(dingopdm.build_msg_19(base_id + 2))
+    db.messages.append(dingopdm.build_msg_20(base_id + 2))
+    db.messages.append(dingopdm.build_msg_21(base_id + 2))
+    db.messages.append(dingopdm.build_msg_22(base_id + 2))
+    db.messages.append(dingopdm.build_msg_23(base_id + 2))
+    db.messages.append(dingopdm.build_msg_24(base_id + 2))
+    db.messages.append(dingopdm.build_msg_25(base_id + 2))
+    db.messages.append(dingopdm.build_msg_26(base_id + 2))
 
     return db
