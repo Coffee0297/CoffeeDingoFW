@@ -100,7 +100,7 @@ PROJECT = $(BOARD)
 # Target settings. MCU is set in boards/*/board.mk
 
 # Imported source files and paths.
-CHIBIOS  := ./chibios
+CHIBIOS  := ./ChibiOS
 CONFDIR  := $(BOARDDIR)/cfg
 BUILDDIR := ./build
 DEPDIR   := ./.dep
