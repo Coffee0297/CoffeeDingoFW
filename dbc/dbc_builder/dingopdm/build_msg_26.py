@@ -1,10 +1,10 @@
 import cantools
 from utils.signal_utils import create_duplicate_signals
 
-def build_msg_25(base_id):
+def build_msg_26(base_id):
     message = cantools.database.Message(
-        frame_id=base_id + 25,
-        name="dingoPdmMsg25",
+        frame_id=base_id + 26,
+        name="dingoPdmMsg26",
         length=8,
         is_extended_frame=False,
         signals=[]
