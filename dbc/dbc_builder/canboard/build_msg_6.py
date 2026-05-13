@@ -1,4 +1,5 @@
 import cantools
+from utils.signal_utils import create_duplicate_signals
 from cantools.database.conversion import LinearConversion
 
 def build_msg_6(base_id):
