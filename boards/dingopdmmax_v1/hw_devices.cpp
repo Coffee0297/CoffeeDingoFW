@@ -9,9 +9,9 @@ Profet pf[NUM_OUTPUTS] = {
     Profet(4, ProfetModel::BTS70012_1ESP, LINE_PF4_IN, LINE_PF4_DEN, LINE_UNUSED, AnalogChannel::IS4, &PWMD9, &pwm9Cfg, PwmChannel::Ch1)};
 
 
-Digital digIn[NUM_INPUTS] = {
-    Digital(LINE_DI1),
-    Digital(LINE_DI2)};    
+Digital_Input digIn[NUM_DIG_INPUTS] = {
+    Digital_Input(LINE_DI1),
+    Digital_Input(LINE_DI2)};    
 
 Led statusLed = Led(LINE_LED_STATUS);
 Led errorLed = Led(LINE_LED_ERROR);
