@@ -6,7 +6,9 @@
 [![Website](https://img.shields.io/website?url=https%3A%2F%2Fcorygrant.github.io%2FdingoPDM%2F&label=docs)](https://corygrant.github.io/dingoPDM/)
 ![Discord](https://img.shields.io/discord/1243358184266010667?label=discord)
 
-# dingoPDM_FW
+# dingoFW
+
+Firmware repo for dingoPDM, dingoPDM-Max, CANBoard and other dingoFW based devices. 
 
 dingoPDM is an Infineon Profet based Power Distribution Module. 
 
