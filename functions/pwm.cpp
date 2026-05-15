@@ -39,7 +39,10 @@ void Pwm::Update()
 
 uint8_t Pwm::GetTargetDutyCycle() {
     if (pConfig->bVariableDutyCycle && pConfig->nDutyCycleInputDenom > 0) {
-        return (uint8_t)((*pInput) / pConfig->nDutyCycleInputDenom);
+        uint8_t dc = (uint8_t)((*pInput) / pConfig->nDutyCycleInputDenom);
+        if (dc < pConfig->nMinDutyCycle)
+            dc = pConfig->nMinDutyCycle;
+        return dc;
     }
     return pConfig->nFixedDutyCycle;
 }
@@ -52,7 +55,7 @@ void Pwm::InitSoftStart() {
 
 void Pwm::UpdateSoftStart() {
     uint8_t targetDuty = GetTargetDutyCycle();
-    nDutyCycle = (uint8_t)(fSoftStartStep * (SYS_TIME - nSoftStartTime));
+    nDutyCycle = (uint8_t)((fSoftStartStep * (SYS_TIME - nSoftStartTime)) + pConfig->nMinDutyCycle);
     
     if (nDutyCycle >= targetDuty) {
         nDutyCycle = targetDuty;

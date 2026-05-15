@@ -19,6 +19,7 @@ struct Config_PwmOutput{
   uint16_t nFreq;
   uint16_t nSoftStartRampTime; //ms
   uint16_t nDutyCycleInputDenom;
+  uint16_t nMinDutyCycle;
 };
 
 class Pwm
@@ -56,6 +57,9 @@ public:
     {
         if (nDC > 100)
             nDC = 100;
+
+        if (nDC < pConfig->nMinDutyCycle)
+            nDC = pConfig->nMinDutyCycle;
 
         nDutyCycle = nDC;
     };

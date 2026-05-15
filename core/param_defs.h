@@ -37,7 +37,8 @@
     {0x1000 + (i), 13, &stConfig.stOutput[i].stPwm.nFreq,                &stConfigTemp.stOutput[i].stPwm.nFreq,                ParamType::UInt16, 100, 0, 400}, \
     {0x1000 + (i), 14, &stConfig.stOutput[i].stPwm.nSoftStartRampTime,   &stConfigTemp.stOutput[i].stPwm.nSoftStartRampTime,   ParamType::UInt16, 0, 0, 10000}, \
     {0x1000 + (i), 15, &stConfig.stOutput[i].stPwm.nDutyCycleInputDenom, &stConfigTemp.stOutput[i].stPwm.nDutyCycleInputDenom, ParamType::UInt16, 100, 1, 5000}, \
-    {0x1000 + (i), 16, &stConfig.stOutput[i].nPrimaryOutput,             &stConfigTemp.stOutput[i].nPrimaryOutput,             ParamType::Int8,  I8(-1), I8(-1), VAR_MAP_SIZE - 1}
+    {0x1000 + (i), 16, &stConfig.stOutput[i].stPwm.nMinDutyCycle,        &stConfigTemp.stOutput[i].stPwm.nMinDutyCycle,        ParamType::UInt16, 0, 0, 100}, \
+    {0x1000 + (i), 17, &stConfig.stOutput[i].nPrimaryOutput,             &stConfigTemp.stOutput[i].nPrimaryOutput,             ParamType::Int8,  I8(-1), I8(-1), VAR_MAP_SIZE - 1}
 #endif
 
 //=============================================================================
