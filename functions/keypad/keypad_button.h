@@ -2,8 +2,22 @@
 
 #include <cstdint>
 #include "input.h"
+#include "enums.h"
 
 extern float *pVarMap[VAR_MAP_SIZE];
+
+struct Config_KeypadButton{
+  bool bEnabled;
+  InputMode eMode;
+  uint8_t nColors[4];
+  uint8_t nFaultColor;
+  uint16_t nVars[4];
+  uint16_t nFaultVar;
+  bool bBlink[4];
+  bool bFaultBlink;
+  uint8_t nBlinkColors[4];
+  uint8_t nFaultBlinkColor;
+};
 
 class KeypadButton;
 

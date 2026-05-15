@@ -136,7 +136,7 @@ void InitDevice()
     if(!InitAdc() == HAL_RET_SUCCESS)
         Error::SetFatalError(FatalErrorType::ErrADC, MsgSrc::Init);
         
-    if(!InitCan(&stConfig.stDevConfig) == HAL_RET_SUCCESS) // Starts CAN threads
+    if(!InitCan(&stConfig.stDevice) == HAL_RET_SUCCESS) // Starts CAN threads
         Error::SetFatalError(FatalErrorType::ErrCAN, MsgSrc::Init);
 
     #if HAS_USB

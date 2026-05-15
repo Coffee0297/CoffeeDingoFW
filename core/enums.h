@@ -125,6 +125,12 @@ enum class CanBitrate : uint8_t
     Bitrate_125K
 };
 
+enum class ByteOrder : uint8_t
+{
+    LittleEndian = 0, // Intel byte order
+    BigEndian = 1     // Motorola byte order
+};
+
 //=============================================================================
 // Input
 //=============================================================================

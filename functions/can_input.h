@@ -1,9 +1,26 @@
 #pragma once
 
 #include "port.h"
-#include "config.h"
 #include "hal.h"
 #include "input.h"
+#include "enums.h"
+
+struct Config_CanInput{
+  bool bEnabled;
+  bool bTimeoutEnabled;
+  uint16_t nTimeout; //ms
+  uint8_t nIDE; //0=STD, 1=EXT
+  uint32_t nID;
+  uint8_t nStartBit;   
+  uint8_t nBitLength;  
+  float fFactor;       
+  float fOffset;       
+  ByteOrder eByteOrder;
+  bool bSigned;        
+  Operator eOperator;
+  float fOperand;       
+  InputMode eMode;
+};
 
 class CanInput
 {

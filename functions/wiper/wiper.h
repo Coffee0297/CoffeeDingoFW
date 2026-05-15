@@ -3,13 +3,29 @@
 #include <cstdint>
 #include "enums.h"
 #include "port.h"
-#include "config.h"
 #include "wiper_mode.h"
 #include "wiper_digin.h"
 #include "wiper_intin.h"
 #include "wiper_mixin.h"
 
 extern float *pVarMap[VAR_MAP_SIZE];
+
+struct Config_Wiper{
+  bool bEnabled;
+  WiperMode eMode;
+  uint16_t nSlowInput;   //WiperMode_DigIn
+  uint16_t nFastInput;   //WiperMode_DigIn
+  uint16_t nInterInput;  //WiperMode_DigIn
+  uint16_t nOnInput;     //WiperMode_MixIn
+  uint16_t nSpeedInput;  //WiperMode_IntIn and WiperMode_MixIn
+  uint16_t nParkInput;
+  bool bParkStopLevel;
+  uint16_t nSwipeInput;
+  uint16_t nWashInput;
+  uint8_t nWashWipeCycles;
+  WiperSpeed eSpeedMap[NUM_WIPER_SPEED_MAP];
+  uint16_t nIntermitTime[NUM_WIPER_INTER_DELAYS]; //ms
+};
 
 class Wiper
 {

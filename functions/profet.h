@@ -2,13 +2,26 @@
 
 #include <cstdint>
 #include "port.h"
-#include "config.h"
 #include "enums.h"
 #include "pwm.h"
 
 #if NUM_OUTPUTS > 0
 
 extern float *pVarMap[VAR_MAP_SIZE];
+
+struct Config_Output{
+  bool bEnabled;
+  uint16_t nInput;
+  float fCurrentLimit;
+  float fInrushLimit;
+  uint16_t nInrushTime; //ms
+  ProfetResetMode eResetMode;
+  uint16_t nResetTime; //ms
+  uint8_t nResetLimit;
+  int8_t nPrimaryOutput;  //index of primary to follow, -1 = unpaired
+
+  Config_PwmOutput stPwm;
+};
 
 //=============================================================================
 // PWM read delay = timer count from PWM going high till ready to read ADC

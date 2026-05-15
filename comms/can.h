@@ -4,7 +4,7 @@
 #include "enums.h"
 #include "config.h"
 
-msg_t InitCan(Config_DeviceConfig *conf);
+msg_t InitCan(Config_Device *conf);
 void StopCan();
 void ClearCanFilters();
 void SetCanFilterId(uint8_t nFilterNum, uint32_t nId, bool bExtended);

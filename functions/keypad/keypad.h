@@ -1,13 +1,28 @@
 #pragma once
 
 #include <cstdint>
-#include "config.h"
 #include "mailbox.h"
 #include "device_config.h"
 #include "keypad_button.h"
 #include "keypad_dial.h"
 
 extern float *pVarMap[VAR_MAP_SIZE];
+
+struct Config_Keypad{
+  bool bEnabled;
+  uint8_t nNodeId;
+  bool bTimeoutEnabled;
+  uint16_t nTimeout; //ms
+  KeypadModel eModel;
+  uint8_t nBacklightBrightness;
+  uint8_t nDimBacklightBrightness;
+  uint8_t nBacklightColor;
+  uint16_t nDimmingVar;
+  uint8_t nButtonBrightness;
+  uint8_t nDimButtonBrightness;
+  Config_KeypadButton stButton[KEYPAD_MAX_BUTTONS];
+  Config_KeypadDial stDial[KEYPAD_MAX_DIALS];
+};
 
 class Keypad;  // Forward declaration
 

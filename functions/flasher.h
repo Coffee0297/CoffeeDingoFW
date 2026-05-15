@@ -1,9 +1,17 @@
 #pragma once
 
 #include <cstdint>
-#include "config.h"
+#include "port.h"
 
 extern float *pVarMap[VAR_MAP_SIZE];
+
+struct Config_Flasher{
+  bool bEnabled;
+  uint16_t nInput;
+  uint16_t nFlashOnTime; //ms
+  uint16_t nFlashOffTime; //ms
+  bool bSingleCycle;
+};
 
 class Flasher
 {

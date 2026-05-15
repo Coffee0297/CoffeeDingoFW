@@ -2,13 +2,24 @@
 
 #include "hal.h"
 #include <cstdint>
-#include "config.h"
+#include "port.h"
 
 #define PWM_UPDATE_TIME 2.0 //ms
 
 #if NUM_OUTPUTS > 0
 
 extern float *pVarMap[VAR_MAP_SIZE];
+
+struct Config_PwmOutput{
+  bool bEnabled;
+  bool bSoftStart;
+  bool bVariableDutyCycle;
+  uint16_t nDutyCycleInput;
+  uint8_t nFixedDutyCycle;
+  uint16_t nFreq;
+  uint16_t nSoftStartRampTime; //ms
+  uint16_t nDutyCycleInputDenom;
+};
 
 class Pwm
 {

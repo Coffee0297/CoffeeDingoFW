@@ -57,7 +57,7 @@ bool CheckEnterSleep()
 
     // No outputs on, no CAN msgs received and no USB connected
     // Go to sleep after timeout
-    bEnterSleep = stConfig.stDevConfig.bSleepEnabled &&
+    bEnterSleep = stConfig.stDevice.bSleepEnabled &&
                   (nNumOutputsOn == 0) &&
                   (nLastNumOutputsOn == 0) &&
                   !GetUsbConnected() &&

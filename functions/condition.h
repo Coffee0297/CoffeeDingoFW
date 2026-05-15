@@ -1,9 +1,16 @@
 #pragma once
 
 #include <cstdint>
-#include "config.h"
+#include "port.h"
 
 extern float *pVarMap[VAR_MAP_SIZE];
+
+struct Config_Condition{
+  bool bEnabled;
+  uint16_t nInput;
+  Operator eOperator;
+  float fArg;
+};
 
 class Condition
 {

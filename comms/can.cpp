@@ -92,12 +92,12 @@ void CanRxThread(void *)
 
             res = PostRxFrame(&msg);
 
-            if(stConfig.stDevConfig.bConnectUsbToCan)
+            if(stConfig.stDevice.bConnectUsbToCan)
             {
                 //Copy data to USB for data pass through
                 //Don't send if it's a settings msg for this device
-                if((msg.SID != stConfig.stDevConfig.nBaseId + CONFIG_RX_OFFSET) && 
-                   (msg.SID != stConfig.stDevConfig.nBaseId + CONFIG_TX_OFFSET)) 
+                if((msg.SID != stConfig.stDevice.nBaseId + CONFIG_RX_OFFSET) && 
+                   (msg.SID != stConfig.stDevice.nBaseId + CONFIG_TX_OFFSET)) 
                 {
                     //If USB not connected, mailbox will fill up and messages will be dropped
                     usbTx.SID = msg.SID;
@@ -121,7 +121,7 @@ static thread_t *canCyclicTxThreadRef;
 static thread_t *canTxThreadRef;
 static thread_t *canRxThreadRef;
 
-msg_t InitCan(Config_DeviceConfig *conf)
+msg_t InitCan(Config_Device *conf)
 {
     if (canCyclicTxThreadRef || canTxThreadRef || canRxThreadRef)
     {

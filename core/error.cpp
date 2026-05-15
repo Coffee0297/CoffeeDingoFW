@@ -14,7 +14,7 @@ void Error::Initialize(Led *status, Led *error)
 void Error::SetFatalError(FatalErrorType err, MsgSrc src)
 {
     static InfoMsg FatalErrorMsg(MsgType::Error, src);
-    FatalErrorMsg.Check(true, stConfig.stDevConfig.nBaseId, static_cast<uint8_t>(err), 0, 0);
+    FatalErrorMsg.Check(true, stConfig.stDevice.nBaseId, static_cast<uint8_t>(err), 0, 0);
     statusLed->Solid(false);
     while (true)
     {

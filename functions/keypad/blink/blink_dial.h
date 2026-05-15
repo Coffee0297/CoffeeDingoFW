@@ -3,7 +3,13 @@
 #include <cstdint>
 #include "port.h"
 #include "enums.h"
-#include "config.h"
+
+struct Config_KeypadDial{
+  bool bEnabled;
+  uint8_t nMinCount;
+  uint8_t nMaxCount;
+  uint8_t nLedOffset;
+};
 
 class BlinkDial
 {

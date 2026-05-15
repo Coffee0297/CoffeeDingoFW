@@ -1,9 +1,15 @@
 #pragma once
 
 #include <cstdint>
-#include "config.h"
+#include "port.h"
 
 extern float *pVarMap[VAR_MAP_SIZE];
+
+struct Config_Starter{
+  bool bEnabled;
+  uint16_t nInput;
+  bool bDisableOut[NUM_OUTPUTS];
+};
 
 class Starter
 {

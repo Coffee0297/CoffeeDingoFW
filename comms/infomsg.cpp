@@ -35,30 +35,30 @@ extern Profet pf[NUM_OUTPUTS];
 
 void CheckInfoMsgs()
 {
-    StateRunMsg.Check(eState == DeviceState::Run, stConfig.stDevConfig.nBaseId, 0, 0, 0);
+    StateRunMsg.Check(eState == DeviceState::Run, stConfig.stDevice.nBaseId, 0, 0, 0);
 
     #if CAN_SLEEP
-    StateSleepMsg.Check(eState == DeviceState::Sleep, stConfig.stDevConfig.nBaseId, 0, 0, 0);
+    StateSleepMsg.Check(eState == DeviceState::Sleep, stConfig.stDevice.nBaseId, 0, 0, 0);
     #endif
     #if HAS_EXT_TEMP_SENSOR
-    StateOvertempMsg.Check(eState == DeviceState::OverTemp, stConfig.stDevConfig.nBaseId, GetBoardTemp() * 10, 0, 0);
+    StateOvertempMsg.Check(eState == DeviceState::OverTemp, stConfig.stDevice.nBaseId, GetBoardTemp() * 10, 0, 0);
     #endif
     #if (NUM_OUTPUTS > 0 && HAS_EXT_TEMP_SENSOR)
-    StateErrorMsg.Check(eState == DeviceState::Error, stConfig.stDevConfig.nBaseId, GetBoardTemp() * 10, GetTotalCurrent() * 10, 0);
+    StateErrorMsg.Check(eState == DeviceState::Error, stConfig.stDevice.nBaseId, GetBoardTemp() * 10, GetTotalCurrent() * 10, 0);
     #else
-    StateErrorMsg.Check(eState == DeviceState::Error, stConfig.stDevConfig.nBaseId, 0, 0, 0);
+    StateErrorMsg.Check(eState == DeviceState::Error, stConfig.stDevice.nBaseId, 0, 0, 0);
     #endif
 
     #if HAS_BATT_VOLT_SENSE
-    BattOvervoltageMsg.Check(fBattVolt > BATT_HIGH_VOLT, stConfig.stDevConfig.nBaseId, fBattVolt * 10, 0, 0);
-    BattUndervoltageMsg.Check(fBattVolt < BATT_LOW_VOLT, stConfig.stDevConfig.nBaseId, fBattVolt * 10, 0, 0);
+    BattOvervoltageMsg.Check(fBattVolt > BATT_HIGH_VOLT, stConfig.stDevice.nBaseId, fBattVolt * 10, 0, 0);
+    BattUndervoltageMsg.Check(fBattVolt < BATT_LOW_VOLT, stConfig.stDevice.nBaseId, fBattVolt * 10, 0, 0);
     #endif
 
     #if NUM_OUTPUTS > 0
     for (uint8_t i = 0; i < NUM_OUTPUTS; i++)
     {
-        OutputOvercurrentMsg[i].Check(GetOutputState(i) == ProfetState::Overcurrent, stConfig.stDevConfig.nBaseId, i, GetOutputCurrent(i), 0);
-        OutputFaultMsg[i].Check(GetOutputState(i) == ProfetState::Fault, stConfig.stDevConfig.nBaseId, i, GetOutputCurrent(i), 0);
+        OutputOvercurrentMsg[i].Check(GetOutputState(i) == ProfetState::Overcurrent, stConfig.stDevice.nBaseId, i, GetOutputCurrent(i), 0);
+        OutputFaultMsg[i].Check(GetOutputState(i) == ProfetState::Fault, stConfig.stDevice.nBaseId, i, GetOutputCurrent(i), 0);
     }
     #endif
 }

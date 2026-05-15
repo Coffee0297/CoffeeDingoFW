@@ -74,7 +74,7 @@
 
 static const float ALWAYS_FALSE = 0.0f;
 static const float ALWAYS_TRUE = 1.0f;
- 
+
 enum class AnalogChannel
 {
     AnIn1 = 0,

@@ -1,10 +1,23 @@
 #pragma once
 
 #include "port.h"
-#include "config.h"
+#include "enums.h"
 #include "input.h"
 
 extern float *pVarMap[VAR_MAP_SIZE];
+
+struct Config_VirtualInput{
+  bool bEnabled;
+  bool bNot0;
+  uint16_t nVar0;
+  BoolOperator eCond0;
+  bool bNot1;
+  uint16_t nVar1;
+  BoolOperator eCond1;
+  bool bNot2;
+  uint16_t nVar2;
+  InputMode eMode;
+};
 
 class VirtualInput
 {

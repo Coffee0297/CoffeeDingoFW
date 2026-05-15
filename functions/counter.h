@@ -1,10 +1,24 @@
 #pragma once
 
 #include <cstdint>
-#include "config.h"
-#include "device_config.h"
+#include "port.h"
 
 extern float *pVarMap[VAR_MAP_SIZE];
+
+struct Config_Counter{
+  bool bEnabled;
+  uint16_t nIncInput;
+  uint16_t nDecInput;
+  uint16_t nResetInput;
+  uint8_t nMinCount;
+  uint8_t nMaxCount;
+  InputEdge eIncEdge;
+  InputEdge eDecEdge;
+  InputEdge eResetEdge;
+  bool bWrapAround;
+  bool bHoldToReset;
+  uint16_t nResetTime; //ms
+};
 
 class Counter
 {

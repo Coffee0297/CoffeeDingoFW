@@ -17,7 +17,7 @@ bool ReadConfigExt()
     }
     
     // Check version number
-    if(stConfig.stDevConfig.nConfigVersion != CONFIG_VERSION) {
+    if(stConfig.stDevice.nConfigVersion != CONFIG_VERSION) {
         return false;
     }
     
@@ -48,7 +48,7 @@ bool WriteConfigExt(){
     }
     
     // Make sure the version is current
-    stConfig.stDevConfig.nConfigVersion = CONFIG_VERSION;
+    stConfig.stDevice.nConfigVersion = CONFIG_VERSION;
     
     // Write config
     if(!fram.Write(0x0, (uint8_t*)&stConfig, sizeof(stConfig))) {

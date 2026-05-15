@@ -2,7 +2,6 @@
 
 #include "port.h"
 #include "enums.h"
-#include "config.h"
 
 class Input
 {

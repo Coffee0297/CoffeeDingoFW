@@ -1,12 +1,7 @@
 #pragma once
 
 #include <cstdint>
-
-enum class ByteOrder : uint8_t
-{
-    LittleEndian = 0, // Intel byte order
-    BigEndian = 1     // Motorola byte order
-};
+#include "enums.h"
 
 class Dbc
 {

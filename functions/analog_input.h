@@ -1,8 +1,28 @@
 #pragma once
 
 #include "port.h"
-#include "config.h"
 #include "input.h"
+
+struct Config_AnalogSwitch{
+  bool bEnabled;
+  InputMode eMode;
+  bool bInvert;
+  uint16_t nThreshold;
+};
+
+struct Config_RotarySwitch{
+  bool bEnabled;
+  bool bInvert;
+  float fOffset;
+  float fStep;
+  float fMaxPos;
+};
+
+struct Config_AnalogInput{
+  bool bEnabled;
+  Config_AnalogSwitch stSwitch;
+  Config_RotarySwitch stRotary;
+};
 
 class Analog_Input
 {

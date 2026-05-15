@@ -2,8 +2,15 @@
 
 #include "port.h"
 #include "enums.h"
-#include "config.h"
 #include "input.h"
+
+struct Config_DigInput{
+  bool bEnabled;
+  InputMode eMode;
+  bool bInvert;
+  uint16_t nDebounceTime; //ms
+  InputPull ePull;
+};
 
 class Digital_Input
 {

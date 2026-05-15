@@ -1,9 +1,13 @@
 #pragma once
 
 #include "port.h"
-#include "config.h"
 
 extern float *pVarMap[VAR_MAP_SIZE];
+
+struct Config_DigOutput{
+  bool bEnabled;
+  uint16_t nInput;
+};
 
 class Digital_Output
 {

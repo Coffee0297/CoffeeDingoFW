@@ -99,7 +99,7 @@ void ApplyConfig(uint16_t nIndex)
     {
         // TODO: Change CAN speed and filters without requiring reset
         
-        SetCanFilterEnabled(stConfig.stDevConfig.bCanFilterEnabled);
+        SetCanFilterEnabled(stConfig.stDevice.bCanFilterEnabled);
     }
 
     if (nBaseIndex == CanInput::nBaseIndex)
@@ -108,7 +108,7 @@ void ApplyConfig(uint16_t nIndex)
 
         // Set filter for CAN settings request message, (Base ID - 1)
         // Use filter 0, it is always enabled to allow all messages by hal so it must be used
-        SetCanFilterId(0, stConfig.stDevConfig.nBaseId - 1, false);
+        SetCanFilterId(0, stConfig.stDevice.nBaseId - 1, false);
 
         for (uint8_t i = 0; i < NUM_CAN_INPUTS; i++)
         {
