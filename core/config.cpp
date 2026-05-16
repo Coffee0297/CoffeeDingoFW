@@ -24,7 +24,7 @@ bool ReadConfig(){
         return ReadConfigExt();
     }
 
-    if (tempConfig.stDevConfig.nConfigVersion != CONFIG_VERSION)
+    if (tempConfig.stDevice.nConfigVersion != CONFIG_VERSION)
     {
         return ReadConfigExt();
     }
@@ -51,7 +51,7 @@ bool ReadConfig(){
 
 //Try to write config from internal flash first
 //If it fails, try external memory
-//If that fails, return false
+//If that fails, return false 
 bool WriteConfig(){
 
     if(HAS_EXT_MEMORY)
@@ -60,7 +60,7 @@ bool WriteConfig(){
     }
 
     #if !HAS_EXT_MEMORY
-    stConfig.stDevConfig.nConfigVersion = CONFIG_VERSION;
+    stConfig.stDevice.nConfigVersion = CONFIG_VERSION;
 
     flash_error_t err = flashStartEraseSector(CONFIG_FLASH, CONFIG_SECTOR);
     if (err != FLASH_NO_ERROR)
