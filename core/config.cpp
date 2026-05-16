@@ -51,7 +51,7 @@ bool ReadConfig(){
 
 //Try to write config from internal flash first
 //If it fails, try external memory
-//If that fails, return false
+//If that fails, return false 
 bool WriteConfig(){
 
     if(HAS_EXT_MEMORY)
