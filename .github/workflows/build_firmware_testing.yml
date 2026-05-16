@@ -4,7 +4,7 @@ on:
   push:
     branches: [ testing ]
     paths:
-      - "core/core/device_config.h"
+      - "core/device_config.h"
       - "**/*.c"
       - "**/*.h"
       - "Makefile"
