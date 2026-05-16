@@ -18,7 +18,7 @@
 #define NUM_OUTPUTS 4
 #define NUM_DIG_OUTPUTS 0
 #define NUM_DIG_INPUTS 4
-#define NUM_ANALOG_INPUTS 0
+#define NUM_ANALOG_INPUTS 2
 #define NUM_VIRT_INPUTS 16
 #define NUM_CAN_INPUTS 32
 #define NUM_CAN_OUTPUTS 32
@@ -42,6 +42,8 @@
     VAR_MAP_SYS_VARS + \
     (NUM_DIG_INPUTS * 1) + \
     (NUM_CAN_INPUTS * 2) + \
+    (NUM_ANALOG_INPUTS * 4) + \
+    (NUM_DIG_OUTPUTS * 1) + \
     (NUM_VIRT_INPUTS * 1) + \
     (NUM_OUTPUTS * 4) + \
     (NUM_FLASHERS * 1) + \
@@ -63,7 +65,7 @@
 #define NUM_TX_MSGS 27
 #define DEFAULT_BASE_ID 0x0DE
 
-#define ADC1_NUM_CHANNELS 7
+#define ADC1_NUM_CHANNELS 9
 #define ADC1_BUF_DEPTH 1
 
 #define BTS7002_1EPP_KILIS 22950
@@ -85,7 +87,9 @@ enum class AnalogChannel
     IS4,
     BattVolt,
     TempSensor,
-    VRefInt
+    VRefInt,
+    AnIn1,
+    AnIn2
 };
 
 enum class LedType

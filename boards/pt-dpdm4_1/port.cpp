@@ -74,6 +74,8 @@ adcsample_t adc1_samples[ADC1_NUM_CHANNELS] = {0};
 // 4 = BattVolt - ADC1_IN3
 // 5 = TempSensor
 // 6 = VRefInt
+// 7 = AnIn1 - ADC1_IN2
+// 8 = AnIn2 - ADC1_IN14
 
 static const ADCConversionGroup adc1_cfg = {
     .circular = true,
