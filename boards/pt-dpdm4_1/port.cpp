@@ -86,15 +86,19 @@ static const ADCConversionGroup adc1_cfg = {
     .cr2 = ADC_CR2_SWSTART | ADC_CR2_CONT,
     .smpr1 = ADC_SMPR1_SMP_AN12(ADC_SAMPLE_15) |
              ADC_SMPR1_SMP_AN13(ADC_SAMPLE_15) |
+             ADC_SMPR1_SMP_AN14(ADC_SAMPLE_15) |
              ADC_SMPR1_SMP_SENSOR(ADC_SAMPLE_15) |
              ADC_SMPR1_SMP_VREF(ADC_SAMPLE_15),
     .smpr2 = ADC_SMPR2_SMP_AN0(ADC_SAMPLE_15) |
              ADC_SMPR2_SMP_AN1(ADC_SAMPLE_15) |
+             ADC_SMPR2_SMP_AN2(ADC_SAMPLE_15) |
              ADC_SMPR2_SMP_AN3(ADC_SAMPLE_15),
     .htr = 0,
     .ltr = 0,
     .sqr1 = 0,
-    .sqr2 = ADC_SQR2_SQ7_N(ADC_CHANNEL_VREFINT),
+    .sqr2 = ADC_SQR2_SQ7_N(ADC_CHANNEL_VREFINT) |
+            ADC_SQR2_SQ8_N(ADC_CHANNEL_IN2) |
+            ADC_SQR2_SQ9_N(ADC_CHANNEL_IN14),
     .sqr3 = ADC_SQR3_SQ1_N(ADC_CHANNEL_IN13) |
             ADC_SQR3_SQ2_N(ADC_CHANNEL_IN12) |
             ADC_SQR3_SQ3_N(ADC_CHANNEL_IN0) |
@@ -125,6 +129,23 @@ void DeInitAdc()
 uint16_t GetAdcRaw(AnalogChannel channel)
 {
     return adc1_samples[static_cast<uint8_t>(channel)];
+}
+
+float AdcToVolts(adcsample_t raw)
+{
+    // MCU vRef = 3.3v
+    // 4095 counts full scale
+    float mcuVolts = (3.3 / 4095) * raw;
+
+    const float rUpper = 4700;
+    const float rLower = 10000;
+
+    return mcuVolts * ((rUpper + rLower) / rLower);
+}
+
+float GetAdcVolts(AnalogChannel channel)
+{
+    return AdcToVolts(GetAdcRaw(channel));
 }
 
 float GetBattVolt()

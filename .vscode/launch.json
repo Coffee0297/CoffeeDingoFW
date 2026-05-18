@@ -48,6 +48,22 @@
             "v1": false,
             "runToEntryPoint": "main",
 
+        },
+        {
+            "cwd": "${workspaceFolder}",
+            "executable": "${workspaceFolder}/build/pt-dpdm4_1.elf",
+            "name": "Debug PT-DPDM4_1",
+            "request": "launch",
+            "type": "cortex-debug",
+            "servertype": "openocd",
+            "configFiles": ["interface/stlink.cfg", 
+						    "target/stm32f4x.cfg"],
+            "showDevDebugOutput": "raw",
+            "svdFile": "${workspaceFolder}/boards/pt-dpdm4_1/STM32F446.svd",
+            "rtos": "auto",
+            "v1": false,
+            "runToEntryPoint": "main",
+
         }
     ]
 }

@@ -17,7 +17,7 @@
 
 #define NUM_OUTPUTS 4
 #define NUM_DIG_OUTPUTS 0
-#define NUM_DIG_INPUTS 4
+#define NUM_DIG_INPUTS 2
 #define NUM_ANALOG_INPUTS 2
 #define NUM_VIRT_INPUTS 16
 #define NUM_CAN_INPUTS 32
@@ -109,6 +109,7 @@ const I2CConfig i2cConfig = {
 msg_t InitAdc();
 void DeInitAdc();
 uint16_t GetAdcRaw(AnalogChannel channel);
+float GetAdcVolts(AnalogChannel channel);
 float GetBattVolt();
 float GetTemperature();
 float GetVDDA();
