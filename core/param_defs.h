@@ -269,3 +269,14 @@
     {0x3200 + (k) * 4 + (d), 2, &stConfig.stKeypad[k].stDial[d].nMaxCount,    &stConfigTemp.stKeypad[k].stDial[d].nMaxCount,    ParamType::UInt8, 16, 0, 16}, \
     {0x3200 + (k) * 4 + (d), 3, &stConfig.stKeypad[k].stDial[d].nLedOffset,   &stConfigTemp.stKeypad[k].stDial[d].nLedOffset,   ParamType::UInt8, 0, 0, 16}
 #endif
+
+//=============================================================================
+// NeoPixel (external) Parameters - Base 0x4000
+//=============================================================================
+#if HAS_NEOPIXELS
+#define NEOPIXEL_PARAMS(i) \
+    {0x4000 + (i), 0, &stConfig.stNeoPixel[i].bEnabled, &stConfigTemp.stNeoPixel[i].bEnabled, ParamType::Bool, 0, 0, 1}, \
+    {0x4000 + (i), 1, &stConfig.stNeoPixel[i].nInput,   &stConfigTemp.stNeoPixel[i].nInput,   ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
+    {0x4000 + (i), 2, &stConfig.stNeoPixel[i].nNumLEDs, &stConfigTemp.stNeoPixel[i].nNumLEDs, ParamType::UInt8, 1, 0, 255}, \
+    {0x4000 + (i), 3, &stConfig.stNeoPixel[i].eMode,    &stConfigTemp.stNeoPixel[i].eMode,    ParamType::Enum, static_cast<uint32_t>(NeoPixelMode::Static), 0, 3}
+#endif

@@ -124,3 +124,36 @@ static const PWMConfig pwm9Cfg = {
     .bdtr = 0,
     .dier = 0
 };
+
+//===============================================
+// NeoPixel PWM configurations
+//===============================================
+static const PWMConfig pwm1Cfg = {
+    .frequency = 1000000,
+    .period = 10000,
+    .callback = pwmIntNeopcb,
+    .channels = {
+        {PWM_OUTPUT_ACTIVE_HIGH, pwmIntNeocb},
+        {PWM_OUTPUT_DISABLED, NULL},
+        {PWM_OUTPUT_DISABLED, NULL},
+        {PWM_OUTPUT_DISABLED, NULL} 
+    },
+    .cr2 = 0,
+    .bdtr = 0,
+    .dier = 0
+};
+
+static const PWMConfig pwm2Cfg = {
+    .frequency = 1000000,
+    .period = 10000,
+    .callback = pwmExtNeoEndCb,
+    .channels = {
+        {PWM_OUTPUT_ACTIVE_HIGH, pwmExtNeocb},
+        {PWM_OUTPUT_DISABLED, NULL},
+        {PWM_OUTPUT_DISABLED, NULL},
+        {PWM_OUTPUT_DISABLED, NULL} 
+    },
+    .cr2 = 0,
+    .bdtr = 0,
+    .dier = 0
+};
