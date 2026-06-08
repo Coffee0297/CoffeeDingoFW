@@ -7,7 +7,7 @@
 
 class NeoPixels{
 public:
-    NeoPixels(uint8_t numPixels)
+    NeoPixels(uint8_t numPixels, PWMDriver *pwmDriver, const PWMConfig *pwmCfg, PwmChannel pwmCh)
         : m_numPixels(numPixels)
     {};
 

@@ -126,14 +126,54 @@ static const PWMConfig pwm9Cfg = {
 };
 
 //===============================================
+// NeoPixel PWM period callbacks
+// Start of the PWM cycle, set output to high
+//===============================================
+static void intNeo_pcb(PWMDriver *pwmp)
+{
+    (void)pwmp;
+    if ((pwmp->enabled & (1 << 0)) && (pwmp->tim->CCR[0] > 0))
+        palSetLine(LINE_NEOPIXEL_INT);
+}
+
+/*
+static void extNeo_pcb(PWMDriver *pwmp)
+{
+    (void)pwmp;
+    if ((pwmp->enabled & (1 << 0)) && (pwmp->tim->CCR[0] > 0))
+        palSetLine(LINE_NEOPIXEL_EXT);
+}
+*/
+
+//===============================================
+// NeoPixel PWM duty cycle callbacks
+// End of the PWM duty cycle, set output to low
+//===============================================
+static void intNeo_cb(PWMDriver *pwmp)
+{
+    (void)pwmp;
+    if (pwmp->enabled & (1 << 0))
+        palClearLine(LINE_NEOPIXEL_INT);
+}
+
+/*
+static void extNeo_cb(PWMDriver *pwmp)
+{
+    (void)pwmp;
+    if (pwmp->enabled & (1 << 0))
+        palClearLine(LINE_NEOPIXEL_EXT);
+}
+*/
+
+//===============================================
 // NeoPixel PWM configurations
 //===============================================
-static const PWMConfig pwm1Cfg = {
+static const PWMConfig pwmNeoIntCfg = {
     .frequency = 1000000,
     .period = 10000,
-    .callback = pwmIntNeopcb,
+    .callback = intNeo_pcb,
     .channels = {
-        {PWM_OUTPUT_ACTIVE_HIGH, pwmIntNeocb},
+        {PWM_OUTPUT_ACTIVE_HIGH, intNeo_cb},
         {PWM_OUTPUT_DISABLED, NULL},
         {PWM_OUTPUT_DISABLED, NULL},
         {PWM_OUTPUT_DISABLED, NULL} 
@@ -143,12 +183,13 @@ static const PWMConfig pwm1Cfg = {
     .dier = 0
 };
 
-static const PWMConfig pwm2Cfg = {
+/*
+static const PWMConfig pwmNeoExtCfg = {
     .frequency = 1000000,
     .period = 10000,
-    .callback = pwmExtNeoEndCb,
+    .callback = extNeo_pcb,
     .channels = {
-        {PWM_OUTPUT_ACTIVE_HIGH, pwmExtNeocb},
+        {PWM_OUTPUT_ACTIVE_HIGH, extNeo_cb},
         {PWM_OUTPUT_DISABLED, NULL},
         {PWM_OUTPUT_DISABLED, NULL},
         {PWM_OUTPUT_DISABLED, NULL} 
@@ -157,3 +198,4 @@ static const PWMConfig pwm2Cfg = {
     .bdtr = 0,
     .dier = 0
 };
+*/

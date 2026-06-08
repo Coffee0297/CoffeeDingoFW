@@ -232,8 +232,8 @@
 #define LINE_E2                     PAL_LINE(GPIOC, 11U)
 #define LINE_E3                     PAL_LINE(GPIOC, 13U)
 #define LINE_UNUSED                 PAL_LINE(GPIOA, 15U)
-#define LINE_NEOPIXEL1              PAL_LINE(GPIOA, 8U)
-#define LINE_NEOPIXEL2              PAL_LINE(GPIOB, 10U)
+#define LINE_NEOPIXEL_INT           PAL_LINE(GPIOA, 8U)
+#define LINE_NEOPIXEL_EXT           PAL_LINE(GPIOB, 10U)
 
 /*===========================================================================*/
 /* Driver pre-compile time settings.                                         */
@@ -284,7 +284,7 @@
  * PA5  - PF4_DEN                   (output pushpull pulldown).
  * PA6  - PF4_IN                    (output pushpull pulldown).
  * PA7  -                           (input pullup).
- * PA8  - NEOPIXEL1                 (alternate 1, pwm).
+ * PA8  - NEOPIXEL_INT              (alternate 1, pwm).
  * PA9  - USB_VBUS                  (input pulldown).
  * PA10 - DIG_IN1                   (input).
  * PA11 - USB_DM                    (alternate 10, usb dm).
@@ -403,7 +403,7 @@
  * PB7  - I2C1_SDA                  (alternate 4, i2c sda).
  * PB8  - CAN_RX                    (alternate 9, can rx).
  * PB9  - CAN_TX                    (alternate 9, can tx).
- * PB10 - NEOPIXEL2                 (alternate 1, pwm).
+ * PB10 - NEOPIXEL_EXT              (alternate 1, pwm).
  * PB11 -                           (input pullup).
  * PB12 -                           (input pullup).
  * PB13 - PF1_DEN                   (output pushpull pulldown).
