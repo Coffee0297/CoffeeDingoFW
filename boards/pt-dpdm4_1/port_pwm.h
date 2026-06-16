@@ -126,76 +126,23 @@ static const PWMConfig pwm9Cfg = {
 };
 
 //===============================================
-// NeoPixel PWM period callbacks
-// Start of the PWM cycle, set output to high
-//===============================================
-static void intNeo_pcb(PWMDriver *pwmp)
-{
-    (void)pwmp;
-    if ((pwmp->enabled & (1 << 0)) && (pwmp->tim->CCR[0] > 0))
-        palSetLine(LINE_NEOPIXEL_INT);
-}
-
-/*
-static void extNeo_pcb(PWMDriver *pwmp)
-{
-    (void)pwmp;
-    if ((pwmp->enabled & (1 << 0)) && (pwmp->tim->CCR[0] > 0))
-        palSetLine(LINE_NEOPIXEL_EXT);
-}
-*/
-
-//===============================================
-// NeoPixel PWM duty cycle callbacks
-// End of the PWM duty cycle, set output to low
-//===============================================
-static void intNeo_cb(PWMDriver *pwmp)
-{
-    (void)pwmp;
-    if (pwmp->enabled & (1 << 0))
-        palClearLine(LINE_NEOPIXEL_INT);
-}
-
-/*
-static void extNeo_cb(PWMDriver *pwmp)
-{
-    (void)pwmp;
-    if (pwmp->enabled & (1 << 0))
-        palClearLine(LINE_NEOPIXEL_EXT);
-}
-*/
-
-//===============================================
 // NeoPixel PWM configurations
+// DMA-driven: TIM1 Update event triggers DMA2 Stream5 Ch6
+// which streams CCR values directly — no CPU callbacks needed.
+// TIM1 clock = 72MHz (APB2=36MHz, 2x multiplier)
+// Period = 90 counts → 800kHz bit rate (1.25µs per bit)
 //===============================================
 static const PWMConfig pwmNeoIntCfg = {
-    .frequency = 1000000,
-    .period = 10000,
-    .callback = intNeo_pcb,
-    .channels = {
-        {PWM_OUTPUT_ACTIVE_HIGH, intNeo_cb},
+    .frequency = 72000000,
+    .period    = 90,
+    .callback  = NULL,
+    .channels  = {
+        {PWM_OUTPUT_ACTIVE_HIGH, NULL},  // PA8 = TIM1 CH1
         {PWM_OUTPUT_DISABLED, NULL},
         {PWM_OUTPUT_DISABLED, NULL},
-        {PWM_OUTPUT_DISABLED, NULL} 
+        {PWM_OUTPUT_DISABLED, NULL}
     },
-    .cr2 = 0,
+    .cr2  = 0,
     .bdtr = 0,
-    .dier = 0
+    .dier = STM32_TIM_DIER_UDE  // Update DMA Request enable
 };
-
-/*
-static const PWMConfig pwmNeoExtCfg = {
-    .frequency = 1000000,
-    .period = 10000,
-    .callback = extNeo_pcb,
-    .channels = {
-        {PWM_OUTPUT_ACTIVE_HIGH, extNeo_cb},
-        {PWM_OUTPUT_DISABLED, NULL},
-        {PWM_OUTPUT_DISABLED, NULL},
-        {PWM_OUTPUT_DISABLED, NULL} 
-    },
-    .cr2 = 0,
-    .bdtr = 0,
-    .dier = 0
-};
-*/

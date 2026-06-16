@@ -38,7 +38,9 @@ CPPSRC_BOARD += comms/usb.cpp \
 				functions/keypad/keypad_button.cpp \
 				functions/keypad/keypad.cpp \
 				hardware/mcp9808.cpp \
-				hardware/mb85rc.cpp
+				hardware/mb85rc.cpp \
+				functions/neopixel.cpp \
+				functions/neopixels.cpp
 
 UINC_BOARD += 	./functions/wiper \
 				./functions/keypad/blink \
