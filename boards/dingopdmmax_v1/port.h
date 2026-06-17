@@ -35,6 +35,8 @@
 #define KEYPAD_MAX_ANALOG_INPUTS 4
 #define KEYPAD_MAX_DIALS 2
 
+#define HAS_NEOPIXELS FALSE
+
 #define VAR_MAP_SYS_VARS 5
 #define VAR_MAP_WIPER_VARS 6
 
@@ -55,12 +57,6 @@
 
 #define MAILBOX_SIZE 128
 #define DEVICE_THREAD_STACK 2048
-
-// Last sector of flash on STM32F446RE (sector 7, 128KB at 0x08060000)
-// Code flash is limited to 384K (sectors 0-6) in the linker script
-#define CONFIG_SECTOR       7U
-#define CONFIG_FLASH_OFFSET 0x60000U
-#define CONFIG_FLASH        getBaseFlash(&EFLD1)
 
 #define NUM_TX_MSGS 27
 #define DEFAULT_BASE_ID 0x0DE

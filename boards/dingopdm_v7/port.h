@@ -35,6 +35,8 @@
 #define KEYPAD_MAX_ANALOG_INPUTS 4
 #define KEYPAD_MAX_DIALS 2
 
+#define HAS_NEOPIXELS FALSE
+
 #define VAR_MAP_SYS_VARS 5
 #define VAR_MAP_WIPER_VARS 6
 
@@ -55,13 +57,6 @@
 
 #define MAILBOX_SIZE 128
 #define DEVICE_THREAD_STACK 2048
-
-// Last 2KB sector of flash (sector 31, 0x0800F800)
-// Max program flash size goes to the end of sector 30 (0x0800F000) to leave config space at the end of flash
-// !!! Flash must be smaller thank 63488 bytes !!!
-#define CONFIG_SECTOR       31U
-#define CONFIG_FLASH_OFFSET (CONFIG_SECTOR * 2048U)
-#define CONFIG_FLASH        getBaseFlash(&EFLD1)
 
 #define NUM_TX_MSGS 27
 #define DEFAULT_BASE_ID 0x0DE
