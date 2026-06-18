@@ -31,6 +31,9 @@
 #if NUM_ANALOG_INPUTS > 0
 #include "analog_input.h"
 #endif  
+#if HAS_NEOPIXELS
+#include "neopixels.h"
+#endif
 
 #define CONFIG_VERSION 0x0006 //Increment when config structure changes
 
@@ -74,6 +77,9 @@ struct DeviceConfig{
   #endif
   #if NUM_ANALOG_INPUTS > 0
   Config_AnalogInput stAnalogInput[NUM_ANALOG_INPUTS];
+  #endif
+  #if HAS_NEOPIXELS
+  Config_NeoPixel stIntNeoPixels[MAX_NEOPIXELS];
   #endif
 };
 

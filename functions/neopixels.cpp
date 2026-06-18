@@ -15,9 +15,8 @@ NeoPixels::NeoPixels(uint8_t numPixels, PWMDriver *pwmDriver,
                      const PWMConfig *pwmCfg, PwmChannel pwmCh)
     : m_numPixels(numPixels), m_pwmDriver(pwmDriver),
       m_pwmCfg(pwmCfg), m_pwmCh(pwmCh),
-      m_dmaStream(nullptr), m_busy(false), m_initialized(false)
+      m_dmaBuffer{}, m_dmaStream(nullptr), m_busy(false), m_initialized(false)
 {
-    memset(m_dmaBuffer, 0, sizeof(m_dmaBuffer));
 }
 
 void NeoPixels::init() {
@@ -53,10 +52,13 @@ void NeoPixels::Update() {
     buildBuffer();
     m_busy = true;
 
-    dmaStreamSetPeripheral(m_dmaStream, &m_pwmDriver->tim->CCR[0]);
+    dmaStreamSetPeripheral(m_dmaStream, &m_pwmDriver->tim->CCR[(pwmchannel_t)m_pwmCh]);
     dmaStreamSetMemory0(m_dmaStream, m_dmaBuffer);
     dmaStreamSetTransactionSize(m_dmaStream, (uint16_t)(m_numPixels * 24 + NEO_RST));
     dmaStreamSetMode(m_dmaStream, NEO_DMA_MODE);
+    // Reset timer counter so DMA starts on a known boundary, preventing a
+    // phantom bit from an in-progress timer period shifting the bit stream.
+    m_pwmDriver->tim->CNT = 0;
     dmaStreamEnable(m_dmaStream);
 }
 

@@ -1,8 +1,9 @@
 #pragma once
 
+#include "port.h"
+
 #if HAS_NEOPIXELS
 
-#include "port.h"
 #include "neopixel.h"
 #include "hal.h"
 

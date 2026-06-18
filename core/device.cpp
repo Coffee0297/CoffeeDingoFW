@@ -347,6 +347,66 @@ void CyclicUpdate()
     for (uint8_t i = 0; i < NUM_KEYPADS; i++)
         keypad[i].Update();
     #endif
+
+    #if HAS_NEOPIXELS
+    stConfig.stIntNeoPixels[0].bEnabled = true;
+    stConfig.stIntNeoPixels[0].nVars[0] = 1; // Always on
+    stConfig.stIntNeoPixels[0].stColors[0].r = 16;
+    stConfig.stIntNeoPixels[0].stColors[0].g = 0;
+    stConfig.stIntNeoPixels[0].stColors[0].b = 0;
+    intNeoPixels.pixels[0].SetConfig(&stConfig.stIntNeoPixels[0]);
+
+    stConfig.stIntNeoPixels[1].bEnabled = true;
+    stConfig.stIntNeoPixels[1].nVars[0] = 1; // Always on
+    stConfig.stIntNeoPixels[1].stColors[0].r = 16;
+    stConfig.stIntNeoPixels[1].stColors[0].g = 0;
+    stConfig.stIntNeoPixels[1].stColors[0].b = 0;
+    intNeoPixels.pixels[1].SetConfig(&stConfig.stIntNeoPixels[1]);
+
+    stConfig.stIntNeoPixels[2].bEnabled = true;
+    stConfig.stIntNeoPixels[2].nVars[0] = 1; // Always on
+    stConfig.stIntNeoPixels[2].stColors[0].r = 16;
+    stConfig.stIntNeoPixels[2].stColors[0].g = 0;
+    stConfig.stIntNeoPixels[2].stColors[0].b = 0;
+    intNeoPixels.pixels[2].SetConfig(&stConfig.stIntNeoPixels[2]);
+
+    stConfig.stIntNeoPixels[3].bEnabled = true;
+    stConfig.stIntNeoPixels[3].nVars[0] = 1; // Always on
+    stConfig.stIntNeoPixels[3].stColors[0].r = 16;
+    stConfig.stIntNeoPixels[3].stColors[0].g = 0;
+    stConfig.stIntNeoPixels[3].stColors[0].b = 0;
+    intNeoPixels.pixels[3].SetConfig(&stConfig.stIntNeoPixels[3]);
+
+    stConfig.stIntNeoPixels[4].bEnabled = true;
+    stConfig.stIntNeoPixels[4].nVars[0] = 1; // Always on
+    stConfig.stIntNeoPixels[4].stColors[0].r = 16;
+    stConfig.stIntNeoPixels[4].stColors[0].g = 0;
+    stConfig.stIntNeoPixels[4].stColors[0].b = 0;
+    intNeoPixels.pixels[4].SetConfig(&stConfig.stIntNeoPixels[4]);
+
+    stConfig.stIntNeoPixels[5].bEnabled = true;
+    stConfig.stIntNeoPixels[5].nVars[0] = 1; // Always on
+    stConfig.stIntNeoPixels[5].stColors[0].r = 16;
+    stConfig.stIntNeoPixels[5].stColors[0].g = 0;
+    stConfig.stIntNeoPixels[5].stColors[0].b = 0;
+    intNeoPixels.pixels[5].SetConfig(&stConfig.stIntNeoPixels[5]);
+
+    stConfig.stIntNeoPixels[6].bEnabled = true;
+    stConfig.stIntNeoPixels[6].nVars[0] = 1; // Always on
+    stConfig.stIntNeoPixels[6].stColors[0].r = 16;
+    stConfig.stIntNeoPixels[6].stColors[0].g = 0;
+    stConfig.stIntNeoPixels[6].stColors[0].b = 0;
+    intNeoPixels.pixels[6].SetConfig(&stConfig.stIntNeoPixels[6]);
+
+    stConfig.stIntNeoPixels[7].bEnabled = true;
+    stConfig.stIntNeoPixels[7].nVars[0] = 1; // Always on
+    stConfig.stIntNeoPixels[7].stColors[0].r = 16;
+    stConfig.stIntNeoPixels[7].stColors[0].g = 0;
+    stConfig.stIntNeoPixels[7].stColors[0].b = 0;
+    intNeoPixels.pixels[7].SetConfig(&stConfig.stIntNeoPixels[7]);
+
+    intNeoPixels.Update();
+    #endif
 }
 
 void InitVarMap()

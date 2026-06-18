@@ -57,4 +57,9 @@ private:
     float *pFaultVar = nullptr;
 
     NeoPixelColor stActiveColor;
+
+    NeoPixelColor Color_Off = {0, 0, 0, 0};
+    NeoPixelColor Color_Red = {255, 0, 0, 0};
+    NeoPixelColor Color_Green = {0, 255, 0, 0};
+    NeoPixelColor Color_Blue = {0, 0, 255, 0};
 };
