@@ -28,7 +28,13 @@ void NeoPixels::init() {
 }
 
 void NeoPixels::buildBuffer() {
-    uint16_t idx = 0;
+    // Index 0 is a priming entry held low. The timer's CCR preload pipeline
+    // consumes exactly one DMA transfer before the first value reaches the
+    // output (deterministic because Update() gates the counter). Real data
+    // therefore starts at index 1; without this the first bit — pixel 0's
+    // green MSB — is dropped and every pixel decodes as value << 1.
+    m_dmaBuffer[0] = 0;
+    uint16_t idx = 1;
     for (uint8_t p = 0; p < m_numPixels; p++) {
         // WS2812B expects GRB order, MSB first
         uint32_t grb = ((uint32_t)pixels[p].GetGreen() << 16)
@@ -46,20 +52,27 @@ void NeoPixels::Update() {
     if (!m_initialized)
         init();
 
-    for (uint8_t i = 0; i < m_numPixels; i++)
-        pixels[i].Update();
-
     buildBuffer();
     m_busy = true;
+
+    // Gate the counter so DMA is fully armed before the first update event.
+    // Free-running, the number of timer periods that elapse before DMA's first
+    // transfer varies with the counter phase at enable time, so a varying
+    // number of leading bits are dropped each frame — the random flicker.
+    // Gated, exactly one transfer is consumed by the CCR preload pipeline every
+    // frame, which the priming entry at m_dmaBuffer[0] absorbs. CCR stays 0
+    // (output low) through the whole stopped window, so no bit is stretched.
+    m_pwmDriver->tim->CR1 &= ~STM32_TIM_CR1_CEN;
 
     dmaStreamSetPeripheral(m_dmaStream, &m_pwmDriver->tim->CCR[(pwmchannel_t)m_pwmCh]);
     dmaStreamSetMemory0(m_dmaStream, m_dmaBuffer);
     dmaStreamSetTransactionSize(m_dmaStream, (uint16_t)(m_numPixels * 24 + NEO_RST));
     dmaStreamSetMode(m_dmaStream, NEO_DMA_MODE);
-    // Reset timer counter so DMA starts on a known boundary, preventing a
-    // phantom bit from an in-progress timer period shifting the bit stream.
     m_pwmDriver->tim->CNT = 0;
+    m_pwmDriver->tim->SR  = 0;
     dmaStreamEnable(m_dmaStream);
+
+    m_pwmDriver->tim->CR1 |= STM32_TIM_CR1_CEN;   // release: deterministic start
 }
 
 void NeoPixels::dmaCallback(void *p, uint32_t flags) {

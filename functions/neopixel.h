@@ -36,11 +36,20 @@ inline constexpr NeoPixelColor NeoPixel_LightPurple  = {200, 150, 255};
 class NeoPixel {
 public:
     NeoPixel() = default;
+    
+    void SetColor(NeoPixelColor color) {
+        stScaledColor.r = (uint8_t)(((uint16_t)color.r * nBrightness) / 255);
+        stScaledColor.g = (uint8_t)(((uint16_t)color.g * nBrightness) / 255);
+        stScaledColor.b = (uint8_t)(((uint16_t)color.b * nBrightness) / 255);
+        stActiveColor = color;
+    };
 
-    void Update();
-
-    void SetColor(NeoPixelColor color) { stActiveColor = color; };
-    void SetBrightness(uint8_t brightness) { nBrightness = brightness; };
+    void SetBrightness(uint8_t brightness) { 
+        stScaledColor.r = (uint8_t)(((uint16_t)stActiveColor.r * brightness) / 255);
+        stScaledColor.g = (uint8_t)(((uint16_t)stActiveColor.g * brightness) / 255);
+        stScaledColor.b = (uint8_t)(((uint16_t)stActiveColor.b * brightness) / 255);
+        nBrightness = brightness;
+    };
 
     NeoPixelColor GetColor() { return stScaledColor; };
     uint8_t GetRed() { return stScaledColor.r; };

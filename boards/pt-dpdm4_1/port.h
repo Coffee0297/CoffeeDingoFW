@@ -111,3 +111,7 @@ float GetAdcVolts(AnalogChannel channel);
 float GetBattVolt();
 float GetTemperature();
 float GetVDDA();
+
+#if HAS_NEOPIXELS
+void UpdateNeopixels();
+#endif

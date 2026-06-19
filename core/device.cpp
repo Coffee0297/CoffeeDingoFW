@@ -349,24 +349,7 @@ void CyclicUpdate()
     #endif
 
     #if HAS_NEOPIXELS
-    intNeoPixels.pixels[0].SetColor(NeoPixel_Yellow);
-    intNeoPixels.pixels[0].SetBrightness(16);
-    intNeoPixels.pixels[1].SetColor(NeoPixel_Blue);
-    intNeoPixels.pixels[1].SetBrightness(16);
-    intNeoPixels.pixels[2].SetColor(NeoPixel_Green);
-    intNeoPixels.pixels[2].SetBrightness(16);
-    intNeoPixels.pixels[3].SetColor(NeoPixel_Brown);
-    intNeoPixels.pixels[3].SetBrightness(16);
-    intNeoPixels.pixels[4].SetColor(NeoPixel_Magenta);
-    intNeoPixels.pixels[4].SetBrightness(16);
-    intNeoPixels.pixels[5].SetColor(NeoPixel_Orange);
-    intNeoPixels.pixels[5].SetBrightness(16);
-    intNeoPixels.pixels[6].SetColor(NeoPixel_Purple);
-    intNeoPixels.pixels[6].SetBrightness(16);
-    intNeoPixels.pixels[7].SetColor(NeoPixel_White);
-    intNeoPixels.pixels[7].SetBrightness(16);
-
-    intNeoPixels.Update();
+    UpdateNeopixels();
     #endif
 }
 

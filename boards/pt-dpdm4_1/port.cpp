@@ -1,5 +1,8 @@
 #include "port.h"
 #include "mcu_utils.h"
+#include "hw_devices.h"
+#include "device.h"   // bDeviceOverTemp / bDeviceCriticalTemp
+#include "can.h"      // GetLastCanRxTime()
 
 static const CANConfig canConfig1000 =
 {
@@ -168,4 +171,69 @@ float GetTemperature()
 float GetVDDA()
 {
     return ((float)STM32_VREF_INT_CAL / (float)GetAdcRaw(AnalogChannel::VRefInt)) * 3.3;
+}
+
+void SetOutputNeopixel(uint8_t index)
+{
+    if (index >= NUM_OUTPUTS)
+        return;
+
+    switch (pf[index].GetState())
+    {    case ProfetState::Fault:
+        intNeoPixels.pixels[index].SetColor(NeoPixel_Red);
+        break;
+    case ProfetState::Overcurrent:
+        intNeoPixels.pixels[index].SetColor(NeoPixel_Yellow);
+        break;
+    case ProfetState::On:
+        intNeoPixels.pixels[index].SetColor(NeoPixel_Green);
+        break;
+    case ProfetState::Off:
+        intNeoPixels.pixels[index].SetColor(NeoPixel_Off);
+        break;
+    default:
+        intNeoPixels.pixels[index].SetColor(NeoPixel_Off);
+        break;
+    }
+}
+
+void UpdateNeopixels()
+{
+    constexpr uint8_t brightness = 16; // 0-255
+
+    for (uint8_t i = 0; i < 8; i++)
+        intNeoPixels.pixels[i].SetBrightness(brightness);
+
+    //Power
+    intNeoPixels.pixels[0].SetColor(NeoPixel_Green);
+
+    //Temperature
+    if(bDeviceCriticalTemp)
+        intNeoPixels.pixels[1].SetColor(NeoPixel_Red);
+    else if(bDeviceOverTemp)
+        intNeoPixels.pixels[1].SetColor(NeoPixel_Yellow);
+    else
+        intNeoPixels.pixels[1].SetColor(NeoPixel_Green);
+
+    //CAN Status
+    if((SYS_TIME - GetLastCanRxTime()) > 500) // 500ms timeout
+        intNeoPixels.pixels[2].SetColor(NeoPixel_Off);
+    else
+        intNeoPixels.pixels[2].SetColor(NeoPixel_Purple);
+
+    //Unused Neopixel (index 3)
+
+    //O1
+    SetOutputNeopixel(4);
+
+    //O2
+    SetOutputNeopixel(5);
+
+    //O3
+    SetOutputNeopixel(6);
+
+    //O4
+    SetOutputNeopixel(7);
+
+    intNeoPixels.Update();   // push to hardware
 }

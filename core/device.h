@@ -67,6 +67,8 @@ extern DeviceConfig stConfig;
 extern DeviceConfig stConfigTemp; // Used for staging new config before applying
 extern float *pVarMap[VAR_MAP_SIZE];
 extern DeviceState eState;
+extern bool bDeviceOverTemp;
+extern bool bDeviceCriticalTemp;
 
 #if HAS_EXT_TEMP_SENSOR
 extern float fTempSensor;
