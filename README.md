@@ -10,6 +10,27 @@
 
 dingoPDM is an Infineon Profet based Power Distribution Module. 
 
+## This fork — dingoConfig feature set
+
+This `testing` line adds the firmware features driven by the **dingoConfig** configurator
+([CoffeeDingoConfig](https://github.com/Coffee0297/CoffeeDingoConfig)). That UI **requires this
+firmware** (≥ **v0.5.1000**, config `0x000A`) to use any of them; basic read/write/configure still
+works on stock firmware.
+
+- **Lua scripting** — drive outputs, virtual inputs and CAN outputs from a Lua program
+  (`setLuaOut`, `readVar`, `txCan`, `canRxAdd`, `onCanRx`, `onTick`, `setTickRate`, `Timer`, …). One
+  assembled program is stored in config; it's uploaded and its runtime errors are read back over CAN.
+- **On-device overload (trip) log** — each output trip is recorded with a current waveform around it
+  (≈ −10 s … +3 s), so a trip that happened while the tool was disconnected is still recoverable.
+- **Warning & open-load detection** — per-output warn limit (soft over-current) and open-load /
+  broken-bulb floor, *reported only* (the output keeps running). Peak-current capture catches
+  sub-frame spikes.
+- **Expanded sleep** — configurable auto-sleep timeout plus an **input-driven sleep** source (a
+  digital input drives sleep directly, with configurable active level and "ignore always-on outputs").
+
+See [PR #1](https://github.com/Coffee0297/CoffeeDingoFW/pull/1) for the full changelog and the new
+CAN command set.
+
 # [**Documentation**](https://corygrant.github.io/dingoPDM/)
 
 # [**Store**](https://dingo-electronics.square.site/product/dingopdm/1)

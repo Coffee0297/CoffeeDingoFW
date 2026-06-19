@@ -21,6 +21,11 @@
 #include "request_msg.h"
 #include "infomsg.h"
 #include "status.h"
+#include "overload_log.h"
+#include <cstring>   // memset (Lua CAN bridge)
+#if HAS_LUA
+#include "lua_port.h"
+#endif
 #if HAS_WIPERS > 0
 #include "wiper/wiper.h"
 #endif
@@ -59,6 +64,10 @@ FatalErrorType eError = FatalErrorType::NoError;
 DeviceConfig stConfig;
 DeviceConfig stConfigTemp; // Used for staging new config before applying
 float *pVarMap[VAR_MAP_SIZE];
+#if HAS_LUA
+float fLuaOut[NUM_LUA_OUTPUTS];   // Lua output slots, written by setLuaOut(n,v)
+volatile bool gLuaReload = false; // set by the upload handler; LuaThread reloads
+#endif
 
 float fBattVolt;
 float fTempSensor;
@@ -70,6 +79,7 @@ bool bBootloaderRequest;
 void InitVarMap();
 void CyclicUpdate();
 void States();
+void LuaBridgeCanRxFeed(const CANRxFrame *f);   // defined below; fed from the RX drain
 
 struct DeviceThread : chibios_rt::BaseStaticThread<DEVICE_THREAD_STACK>
 {
@@ -79,6 +89,15 @@ struct DeviceThread : chibios_rt::BaseStaticThread<DEVICE_THREAD_STACK>
 
         while (true)
         {
+            // Apply a committed CAN filter / bitrate change without a power cycle.
+            if (gReinitCanRequested)
+            {
+                gReinitCanRequested = false;
+                chThdSleepMilliseconds(50);          // let the Burn reply transmit first
+                ApplyConfig(CanInput::nBaseIndex);   // rebuild the filter-ID table
+                InitCan(&stConfig.stDevice);         // restart CAN: re-applies filters + bitrate
+            }
+
             CyclicUpdate();
             States();
             chThdSleepMilliseconds(2);
@@ -115,6 +134,58 @@ struct SlowThread : chibios_rt::BaseStaticThread<256>
 static SlowThread slowThread;
 static chibios_rt::ThreadReference slowThreadRef;
 #endif
+
+//=============================================================================
+// Lua thread: runs the single embedded program's tick() at a fixed rate, well
+// below the 2 ms control loop. A runaway script is bounded by the instruction
+// hook inside LuaRunTick(), so it can never stall DeviceThread or the CAN stack.
+//=============================================================================
+#if HAS_LUA
+extern volatile bool gLuaReload;
+
+// Fallback demo program (no stored script yet): a ~1 Hz square wave on Lua output
+// slot 0 via a Timer, proving setLuaOut + Timer + onTick end-to-end.
+static const char LUA_DEFAULT_SCRIPT[] =
+    "local t = Timer.new()\n"
+    "function onTick()\n"
+    "  if t:getElapsedSeconds() >= 1.0 then t:reset() end\n"
+    "  setLuaOut(0, (t:getElapsedSeconds() < 0.5) and 1 or 0)\n"
+    "end\n"
+    "setTickRate(50)\n";
+
+// Load the stored program if present, else the demo. Runs on the LuaThread so
+// the (stack-hungry) parser uses the LuaThread's stack.
+static void LuaLoadFromConfig()
+{
+    if (stConfig.stLua.bEnabled && stConfig.stLua.nLength > 0 &&
+        stConfig.stLua.nLength < LUA_SCRIPT_MAX) {
+        stConfig.stLua.acScript[stConfig.stLua.nLength] = '\0';
+        LuaLoadString(stConfig.stLua.acScript);
+    } else {
+        LuaLoadString(LUA_DEFAULT_SCRIPT);
+    }
+}
+
+struct LuaThread : chibios_rt::BaseStaticThread<12288>   // Lua compiler/VM is stack-hungry; 4K overflowed on larger scripts
+{
+    void main()
+    {
+        setName("LuaThread");
+        // Let USB/CAN fully come up before touching Lua, so even if a stored script
+        // misbehaves the device has already enumerated and stays re-flashable.
+        chThdSleepMilliseconds(2000);
+        LuaPortInit();
+        LuaLoadFromConfig();
+        while (true)
+        {
+            if (gLuaReload) { gLuaReload = false; LuaLoadFromConfig(); }
+            LuaService();
+            chThdSleepMilliseconds(2);   // service base rate; onTick gated by setTickRate
+        }
+    }
+};
+static LuaThread luaThread;
+#endif // HAS_LUA
 
 void InitDevice()
 {
@@ -155,12 +226,21 @@ void InitDevice()
 
     InitInfoMsgs();
 
+    #if NUM_OUTPUTS > 0
+    OvlLogInit();
+    #endif
+
     #if CAN_SLEEP
     palClearLine(LINE_CAN_STANDBY);
     #endif
 
     #if (HAS_BATT_VOLT_SENSE || HAS_EXT_TEMP_SENSOR)
     slowThreadRef = slowThread.start(NORMALPRIO);
+    #endif
+
+    #if HAS_LUA
+    // Below the control loop so a Lua tick can never preempt safety-critical work.
+    luaThread.start(NORMALPRIO - 1);
     #endif
 
     deviceThread.start(NORMALPRIO);
@@ -266,6 +346,10 @@ void CyclicUpdate()
             for (uint8_t i = 0; i < NUM_CAN_INPUTS; i++)
                 canIn[i].CheckMsg(rxMsg);
 
+            #if HAS_LUA
+            LuaBridgeCanRxFeed(&rxMsg);   // queue for onCanRx() if id was registered
+            #endif
+
             #if NUM_KEYPADS > 0
             for (uint8_t i = 0; i < NUM_KEYPADS; i++)
                 keypad[i].CheckMsg(rxMsg);
@@ -289,6 +373,28 @@ void CyclicUpdate()
     #if NUM_OUTPUTS > 0
     for (uint8_t i = 0; i < NUM_OUTPUTS; i++)
         pf[i].Update(starter.fVal[i]);
+
+    // Overload log: decimate the 500Hz loop to one OVL_SAMPLE_MS waveform point (the
+    // peak over the bucket, via GetPeakReset), and log a trip on the rising edge into
+    // Overcurrent/Fault. Raw GetState() is used so Warning/OpenLoad don't count as trips.
+    {
+        static uint8_t nOvlDiv = 0;
+        static ProfetState ePrevRaw[NUM_OUTPUTS];
+        bool bSample = (++nOvlDiv >= (OVL_SAMPLE_MS / 2));
+        if (bSample) nOvlDiv = 0;
+        for (uint8_t i = 0; i < NUM_OUTPUTS; i++)
+        {
+            if (bSample)
+                OvlLogSample(i, pf[i].GetPeakReset());
+
+            ProfetState raw = pf[i].GetState();
+            bool bTrip = (raw == ProfetState::Overcurrent || raw == ProfetState::Fault);
+            bool bWasTrip = (ePrevRaw[i] == ProfetState::Overcurrent || ePrevRaw[i] == ProfetState::Fault);
+            if (bTrip && !bWasTrip)
+                OvlLogTrigger(i, raw, stConfig.stOutput[i].fCurrentLimit);
+            ePrevRaw[i] = raw;
+        }
+    }
     #endif
 
     #if NUM_DIG_INPUTS > 0
@@ -465,8 +571,101 @@ void InitVarMap()
     }
     #endif
 
+    #if HAS_LUA
+    // Lua output slots (written by setLuaOut(n,v) from the Lua program). An output,
+    // virtual input, CAN output, etc. is driven by Lua by setting its nInput to one
+    // of these indices. This block is intentionally last so existing indices are stable.
+    for (uint16_t i = 0; i < NUM_LUA_OUTPUTS; i++)
+        pVarMap[index++] = &fLuaOut[i];
+    #endif
+
     //VarMap size must match the expected size
     if (index != VAR_MAP_SIZE)
         Error::SetFatalError(FatalErrorType::ErrVarMap, MsgSrc::Init);
 
 }
+
+//=============================================================================
+// Lua bridge: lets the Lua port (lua_port.cpp) read any signal and drive the
+// Lua output slots, without exposing the var-map internals to C.
+//=============================================================================
+#if HAS_LUA
+extern "C" float LuaBridgeReadVar(int idx)
+{
+    if (idx < 0 || idx >= VAR_MAP_SIZE || pVarMap[idx] == nullptr) return 0.0f;
+    return *pVarMap[idx];
+}
+
+extern "C" void LuaBridgeSetOut(int slot, float val)
+{
+    if (slot >= 0 && slot < NUM_LUA_OUTPUTS) fLuaOut[slot] = val;
+}
+
+extern "C" uint32_t LuaBridgeMillis() { return (uint32_t)SYS_TIME; }
+
+//-----------------------------------------------------------------------------
+// Lua CAN bridge. Producer = DeviceThread (CyclicUpdate RX drain); consumer =
+// LuaThread. Single-producer/single-consumer ring, so volatile head/tail indices
+// are sufficient without locks.
+//-----------------------------------------------------------------------------
+#define LUA_CANRX_REG_MAX 16
+#define LUA_CANRX_QUEUE   16
+static volatile uint32_t luaRxIds[LUA_CANRX_REG_MAX];
+static volatile uint8_t  luaRxIdCount = 0;
+struct LuaRxFrame { uint32_t id; uint8_t ext; uint8_t dlc; uint8_t data[8]; };
+static LuaRxFrame        luaRxQ[LUA_CANRX_QUEUE];
+static volatile uint8_t  luaRxHead = 0;   // producer
+static volatile uint8_t  luaRxTail = 0;   // consumer
+
+extern "C" void LuaBridgeCanRxRegister(uint32_t id)
+{
+    for (uint8_t i = 0; i < luaRxIdCount; i++)
+        if (luaRxIds[i] == id) return;
+    if (luaRxIdCount < LUA_CANRX_REG_MAX) luaRxIds[luaRxIdCount++] = id;
+}
+
+// Called from CyclicUpdate for every RX frame; queues it only if its id was
+// registered via canRxAdd().
+void LuaBridgeCanRxFeed(const CANRxFrame *f)
+{
+    uint32_t id = (f->IDE == CAN_IDE_EXT) ? f->EID : f->SID;
+    bool match = false;
+    for (uint8_t i = 0; i < luaRxIdCount; i++)
+        if (luaRxIds[i] == id) { match = true; break; }
+    if (!match) return;
+
+    uint8_t next = (uint8_t)((luaRxHead + 1) % LUA_CANRX_QUEUE);
+    if (next == luaRxTail) return;   // full — drop oldest-policy: just drop new
+    LuaRxFrame *d = &luaRxQ[luaRxHead];
+    d->id = id;
+    d->ext = (f->IDE == CAN_IDE_EXT);
+    d->dlc = f->DLC;
+    for (int i = 0; i < 8; i++) d->data[i] = f->data8[i];
+    luaRxHead = next;
+}
+
+extern "C" int LuaBridgeCanRxPop(uint32_t *id, int *ext, uint8_t *data, int *dlc)
+{
+    if (luaRxTail == luaRxHead) return 0;
+    LuaRxFrame *s = &luaRxQ[luaRxTail];
+    *id = s->id;
+    *ext = s->ext;
+    *dlc = s->dlc;
+    for (int i = 0; i < 8; i++) data[i] = s->data[i];
+    luaRxTail = (uint8_t)((luaRxTail + 1) % LUA_CANRX_QUEUE);
+    return 1;
+}
+
+extern "C" void LuaBridgeTxCan(uint32_t id, int ext, const uint8_t *data, int dlc)
+{
+    CANTxFrame f;
+    memset(&f, 0, sizeof(f));
+    f.IDE = ext ? CAN_IDE_EXT : CAN_IDE_STD;
+    if (ext) f.EID = id; else f.SID = id;
+    f.RTR = CAN_RTR_DATA;
+    if (dlc > 8) dlc = 8;
+    f.DLC = (uint8_t)dlc;
+    for (int i = 0; i < dlc; i++) f.data8[i] = data[i];
+    PostTxFrame(&f);
+}
+#endif // HAS_LUA

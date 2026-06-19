@@ -21,6 +21,7 @@ ASMXRC += $(BOOTLOADERASM)
 CPPSRC_BOARD += comms/usb.cpp \
 				core/sleep.cpp \
 				functions/profet.cpp \
+				functions/overload_log.cpp \
 				functions/pwm.cpp \
 				functions/digital_input.cpp \
 				functions/starter.cpp \

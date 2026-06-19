@@ -30,6 +30,8 @@ public:
 
     void Update();
 
+    ioline_t GetLine() const { return m_line; }
+
     float fVal;
 
 private:

@@ -12,6 +12,8 @@ void Profet::Update(bool bOutEnabled)
         palClearLine(m_in);
         nOcCount = 0;
         eState = ProfetState::Off;
+        eReported = ProfetState::Off;
+        nOpenLoadStart = 0;
         fOutput = 0;
         return;
     }
@@ -138,6 +140,37 @@ void Profet::Update(bool bOutEnabled)
 
     pwm.Update();
 
+    // Peak-hold: track the highest current seen since the last report. The control loop
+    // runs at 500Hz so this catches inrush/short spikes the 10Hz CAN broadcast would miss.
+    if (fCurrent > fPeak)
+        fPeak = fCurrent;
+
+    // Reported state overlay: Warning / OpenLoad are sub-states of On (report only, the
+    // output keeps running). The raw eState drives the trip logic above and is unchanged.
+    eReported = eState;
+    if (eState == ProfetState::On && !bInRushActive)
+    {
+        // Open-load (broken bulb / no load): On but current below the floor for the debounce time.
+        if (pConfig->fOpenLoadLimit > 0 && fCurrent < pConfig->fOpenLoadLimit)
+        {
+            if (nOpenLoadStart == 0)
+                nOpenLoadStart = SYS_TIME;
+            if ((SYS_TIME - nOpenLoadStart) >= pConfig->nOpenLoadTime)
+                eReported = ProfetState::OpenLoad;
+        }
+        else
+        {
+            nOpenLoadStart = 0;
+            // Warning: above warn limit but below trip limit.
+            if (pConfig->fWarnLimit > 0 && fCurrent > pConfig->fWarnLimit)
+                eReported = ProfetState::Warning;
+        }
+    }
+    else
+    {
+        nOpenLoadStart = 0;
+    }
+
     // Set var map values
     fOutput = eState == ProfetState::On ? 1 : 0;
     fOvercurrent = eState == ProfetState::Overcurrent ? 1 : 0;
@@ -196,6 +229,10 @@ void Profet::FollowerUpdate()
     fOutput = eState == ProfetState::On ? 1 : 0;
     fOvercurrent = eState == ProfetState::Overcurrent ? 1 : 0;
     fFault = 0;
+
+    if (fCurrent > fPeak)
+        fPeak = fCurrent;
+    eReported = eState;
 }
 
 void Profet::HandleDsel()

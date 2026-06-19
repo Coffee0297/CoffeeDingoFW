@@ -62,6 +62,18 @@ enum class MsgCmd : uint8_t
     CheckCrc = 34,
     CheckCrcRsp = 35,
 
+    LuaWrite = 40,          // upload a chunk: [cmd, offHi, offLo, b0..b4] (5 bytes)
+    LuaWriteComplete = 41,  // [cmd, lenHi, lenLo] -> store length, persist, reload
+    LuaRead = 42,           // [cmd, offHi, offLo] -> reply with 5 bytes at offset
+    LuaErr = 43,            // [cmd, offHi, offLo] -> reply 5 bytes of last error at offset
+
+    // On-device overload (trip) log read-back. The device records the last N trips
+    // with a current waveform around the trip; the tool reads them for troubleshooting.
+    OvlCount = 44,          // [cmd] -> reply [cmd, count] (number of stored events)
+    OvlHeader = 45,         // [cmd, idx] -> reply [cmd, idx, outNum, state, peakLo, peakHi, limitLo, limitHi] (peak/limit in 0.1A)
+    OvlData = 46,           // [cmd, idx, offHi, offLo] -> reply [cmd, idx, offHi, offLo, b0..b3] (4 sample bytes @ 0.5A)
+    OvlClear = 47,          // [cmd] -> clear the log
+
     Invalid = 0xFF
 };
 
@@ -89,7 +101,9 @@ enum class MsgSrc : uint8_t
     I2C,
     TempSensor,
     USBConnection,
-    Init
+    Init,
+    OutputWarning,   // output current above warn limit (below trip)
+    OpenLoad         // output on but current below open-load floor (broken bulb / no load)
 };
 
 //=============================================================================
@@ -171,7 +185,9 @@ enum class ProfetState : uint8_t
     Off,
     On,
     Overcurrent,
-    Fault
+    Fault,
+    Warning,    // On, but current above the warning limit (below trip) — reported only
+    OpenLoad    // On + past inrush, but current below the open-load floor (broken bulb / no load) — reported only
 };
 
 enum class ProfetResetMode : uint8_t

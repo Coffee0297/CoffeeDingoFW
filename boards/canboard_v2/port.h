@@ -3,6 +3,10 @@
 #include "hal.h"
 #include "enums.h"
 
+#define BOARD_ID 2 //device-type id reported in the Version reply (0=dingoPDM, 1=PDM-MAX, 2=CANBoard)
+
+#define HAS_LUA FALSE   // no embedded Lua on the CANBoard
+
 #define PROCESS_STACK 0x0400
 
 #define HAS_SE_LEDS FALSE
