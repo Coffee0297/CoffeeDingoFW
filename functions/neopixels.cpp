@@ -31,7 +31,9 @@ void NeoPixels::buildBuffer() {
     uint16_t idx = 0;
     for (uint8_t p = 0; p < m_numPixels; p++) {
         // WS2812B expects GRB order, MSB first
-        uint32_t grb = pixels[p].GetBytes();
+        uint32_t grb = ((uint32_t)pixels[p].GetGreen() << 16)
+                     | ((uint32_t)pixels[p].GetRed()   <<  8)
+                     |  (uint32_t)pixels[p].GetBlue();
         for (int8_t bit = 23; bit >= 0; bit--)
             m_dmaBuffer[idx++] = (grb & (1u << bit)) ? NEO_T1H : NEO_T0H;
     }
