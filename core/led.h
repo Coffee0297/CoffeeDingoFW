@@ -16,6 +16,7 @@ public:
     void Solid(bool bState);
     void Code(uint8_t nCode);
     void Blink();
+    bool GetState() { return bState; }
 
     private:
         ioline_t m_line;
