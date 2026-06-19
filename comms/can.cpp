@@ -245,9 +245,11 @@ uint32_t GetLastCanRxTime()
     return nLastCanRxTime;
 }
 
+volatile bool gReinitCanRequested = false;
+
 void SetCanFilterEnabled(bool bEnabled)
 {
     bCanFilterEnabled = bEnabled;
-
-    // TODO: Reconfigure filters if enabled/disabled
+    // The actual filter hardware is (re)applied by InitCan(); a runtime change is committed
+    // on Burn via gReinitCanRequested (see DeviceThread), so no power cycle is needed.
 }

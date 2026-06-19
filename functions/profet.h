@@ -21,6 +21,10 @@ struct Config_Output{
   int8_t nPrimaryOutput;  //index of primary to follow, -1 = unpaired
 
   Config_PwmOutput stPwm;
+
+  float fWarnLimit;      //A — warn (report only) when current exceeds this but is below fCurrentLimit. 0 = disabled
+  float fOpenLoadLimit;  //A — open-load/broken-bulb floor: On + past inrush + current below this = OpenLoad. 0 = disabled
+  uint16_t nOpenLoadTime;//ms current must stay below the floor before flagging OpenLoad
 };
 
 //=============================================================================
@@ -92,7 +96,11 @@ public:
     void Update(bool bOutEnabled);
 
     float GetCurrent() { return fCurrent; }
-    ProfetState GetState() { return eState; }
+    ProfetState GetState() { return eState; }              // raw machine state (Off/On/Overcurrent/Fault)
+    ProfetState GetReportedState() { return eReported; }   // state shown to CAN/tool, overlays Warning/OpenLoad
+    // Peak current since the last read. Read-and-clear so each CAN frame / log sample
+    // reports the max seen since it last looked — catches sub-frame inrush/short spikes.
+    float GetPeakReset() { float p = fPeak; fPeak = fCurrent; return p; }
     uint16_t GetOcCount() { return nOcCount; }
     uint8_t GetDutyCycle()
     {
@@ -131,6 +139,10 @@ private:
     ProfetState eState;
     ProfetState eReqState;
     ProfetState eLastState;
+    ProfetState eReported;     // eState with Warning/OpenLoad overlaid (reported to CAN)
+
+    float fPeak;               // max current since last GetPeakReset()
+    uint32_t nOpenLoadStart;   // time current first dropped below the open-load floor (ms), 0 = not low
 
     uint16_t nIS;         // Raw analog current value
     uint16_t nLastIS = 0; // Last analog current value

@@ -14,7 +14,12 @@
     {0x0000, 1, &stConfig.stDevice.eCanSpeed,          &stConfigTemp.stDevice.eCanSpeed,         ParamType::Enum,   static_cast<uint32_t>(CanBitrate::Bitrate_500K), 0, 4}, \
     {0x0000, 2, &stConfig.stDevice.bSleepEnabled,      &stConfigTemp.stDevice.bSleepEnabled,     ParamType::Bool,   0, 0, 1}, \
     {0x0000, 3, &stConfig.stDevice.bCanFilterEnabled,  &stConfigTemp.stDevice.bCanFilterEnabled, ParamType::Bool,   0, 0, 1}, \
-    {0x0000, 4, &stConfig.stDevice.bConnectUsbToCan,   &stConfigTemp.stDevice.bConnectUsbToCan,  ParamType::Bool,   1, 0, 1}
+    {0x0000, 4, &stConfig.stDevice.bConnectUsbToCan,   &stConfigTemp.stDevice.bConnectUsbToCan,  ParamType::Bool,   1, 0, 1}, \
+    {0x0000, 5, &stConfig.stDevice.nSleepTimeoutMs,    &stConfigTemp.stDevice.nSleepTimeoutMs,   ParamType::UInt16, 30000, 1000, 60000}, \
+    {0x0000, 6, &stConfig.stDevice.bSleepInputEnabled, &stConfigTemp.stDevice.bSleepInputEnabled, ParamType::Bool, 0, 0, 1}, \
+    {0x0000, 7, &stConfig.stDevice.nSleepInput,        &stConfigTemp.stDevice.nSleepInput,       ParamType::UInt16, 0, 0, NUM_DIG_INPUTS}, \
+    {0x0000, 8, &stConfig.stDevice.bSleepInputActiveHigh, &stConfigTemp.stDevice.bSleepInputActiveHigh, ParamType::Bool, 0, 0, 1}, \
+    {0x0000, 9, &stConfig.stDevice.bSleepIgnoreAlwaysOn,  &stConfigTemp.stDevice.bSleepIgnoreAlwaysOn,  ParamType::Bool, 1, 0, 1}
 
 //=============================================================================
 // Output Parameters - Base 0x1000
@@ -38,7 +43,10 @@
     {0x1000 + (i), 14, &stConfig.stOutput[i].stPwm.nSoftStartRampTime,   &stConfigTemp.stOutput[i].stPwm.nSoftStartRampTime,   ParamType::UInt16, 0, 0, 10000}, \
     {0x1000 + (i), 15, &stConfig.stOutput[i].stPwm.nDutyCycleInputDenom, &stConfigTemp.stOutput[i].stPwm.nDutyCycleInputDenom, ParamType::UInt16, 100, 1, 5000}, \
     {0x1000 + (i), 16, &stConfig.stOutput[i].stPwm.nMinDutyCycle,        &stConfigTemp.stOutput[i].stPwm.nMinDutyCycle,        ParamType::UInt16, 0, 0, 100}, \
-    {0x1000 + (i), 17, &stConfig.stOutput[i].nPrimaryOutput,             &stConfigTemp.stOutput[i].nPrimaryOutput,             ParamType::Int8,  I8(-1), I8(-1), VAR_MAP_SIZE - 1}
+    {0x1000 + (i), 17, &stConfig.stOutput[i].nPrimaryOutput,             &stConfigTemp.stOutput[i].nPrimaryOutput,             ParamType::Int8,  I8(-1), I8(-1), VAR_MAP_SIZE - 1}, \
+    {0x1000 + (i), 18, &stConfig.stOutput[i].fWarnLimit,                 &stConfigTemp.stOutput[i].fWarnLimit,                 ParamType::Float,  F(0.0f), F(0.0f), F(100.0f)}, \
+    {0x1000 + (i), 19, &stConfig.stOutput[i].fOpenLoadLimit,             &stConfigTemp.stOutput[i].fOpenLoadLimit,             ParamType::Float,  F(0.0f), F(0.0f), F(100.0f)}, \
+    {0x1000 + (i), 20, &stConfig.stOutput[i].nOpenLoadTime,              &stConfigTemp.stOutput[i].nOpenLoadTime,              ParamType::UInt16, 1000, 0, 60000}
 #endif
 
 //=============================================================================

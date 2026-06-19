@@ -10,8 +10,11 @@ MOV R3, #0           // Prepare 0 to clear the magic value
 STR R3, [R0, #0]     // Invalidate the magic value
 CMP R2, R1
 BEQ UseDFU
-   // bootloader not needed, jump back to normal ChibiOS startup
-   B   _crt0_entry
+   // bootloader not needed, jump back to normal ChibiOS startup.
+   // Indirect (register) jump — a narrow B can't always reach _crt0_entry once this
+   // handler is linked into its own section far from crt0.
+   LDR R0, =_crt0_entry
+   BX  R0
 
 UseDFU:
 LDR R0, =0x40023844 // RCC_APB2ENR

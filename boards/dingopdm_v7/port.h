@@ -4,6 +4,7 @@
 #include "enums.h"
 
 #define PDM_TYPE 0 //0 = PDM
+#define BOARD_ID 0 //device-type id reported in the Version reply (0=dingoPDM, 1=PDM-MAX, 2=CANBoard)
 
 #define PROCESS_STACK 0x1000
 
@@ -35,6 +36,10 @@
 #define KEYPAD_MAX_ANALOG_INPUTS 4
 #define KEYPAD_MAX_DIALS 2
 
+// Lua output slots: a pool the Lua program writes via setLuaOut(n,v). Any output/
+// virtual-input/CAN-output is "Lua-driven" by pointing its nInput at one of these.
+#define NUM_LUA_OUTPUTS 32
+
 #define VAR_MAP_SYS_VARS 5
 #define VAR_MAP_WIPER_VARS 6
 
@@ -50,7 +55,8 @@
     (NUM_CONDITIONS * 1) + \
     (NUM_COUNTERS * 1) + \
     VAR_MAP_WIPER_VARS + \
-    (NUM_KEYPADS * (KEYPAD_MAX_BUTTONS + KEYPAD_MAX_DIALS + KEYPAD_MAX_ANALOG_INPUTS)) \
+    (NUM_KEYPADS * (KEYPAD_MAX_BUTTONS + KEYPAD_MAX_DIALS + KEYPAD_MAX_ANALOG_INPUTS)) + \
+    (NUM_LUA_OUTPUTS * 1) \
 )
 
 #define MAILBOX_SIZE 128
@@ -65,6 +71,11 @@
 
 #define NUM_TX_MSGS 27
 #define DEFAULT_BASE_ID 0x0DE
+
+// Lua: embedded interpreter enabled on this board.
+#define HAS_LUA TRUE
+#define LUA_HEAP_SIZE (48 * 1024)   // static RAM arena (no newlib malloc)
+#define LUA_SCRIPT_MAX 4096         // max assembled program size stored in config
 
 #define ADC1_NUM_CHANNELS 8
 #define ADC1_BUF_DEPTH 1

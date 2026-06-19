@@ -127,7 +127,15 @@ LDSCRIPT = $(BOARDDIR)/$(BOARD).ld
 
 # C sources that can be compiled in ARM or THUMB mode depending on the global
 # setting.
-CSRC = $(ALLCSRC)
+# Lua 5.5 is vendored under lua/ and built as C — only for boards that enable it
+# (HAS_LUA). Compiling the Lua core for a non-Lua board is pure waste and trips LTO.
+LUA_BOARDS = dingopdm_v7 dingopdmmax_v1
+ifneq (,$(filter $(BOARD),$(LUA_BOARDS)))
+LUASRC = $(wildcard lua/*.c)
+LUA_CPPSRC = lua/lua_port.cpp
+LUA_INCDIR = ./lua
+endif
+CSRC = $(ALLCSRC) $(LUASRC)
 
 # C++ sources that can be compiled in ARM or THUMB mode depending on the global
 # setting.
@@ -159,13 +167,17 @@ CPPSRC = $(ALLCPPSRC) \
 				 functions/virtual_input.cpp \
 				 utils/crc.cpp \
 				 utils/dbc.cpp \
+				 $(LUA_CPPSRC) \
 				 main.cpp
 
 # List ASM source files here.
 ASMSRC = $(ALLASMSRC)
 
 # List ASM with preprocessor source files here.
-ASMXSRC = $(ALLXASMSRC)
+# $(BOOTLOADERASM) (set in boards/*/board.mk) holds the custom Reset_Handler that checks
+# the 0xDEADBEEF magic and jumps to the ROM DFU bootloader. It MUST be linked or the
+# software "enter bootloader" command just resets into the app (weak ChibiOS handler wins).
+ASMXSRC = $(ALLXASMSRC) $(BOOTLOADERASM)
 
 # Inclusion directories.
 INCDIR = $(CONFDIR) $(ALLINC) $(TESTINC)
@@ -197,6 +209,7 @@ UINCDIR = $(MCUDIR) \
 				  ./functions \
 				  $(UINC_BOARD) \
 				  ./hardware \
+				  $(LUA_INCDIR) \
 				  ./utils
 
 # List the user directory to look for the libraries here

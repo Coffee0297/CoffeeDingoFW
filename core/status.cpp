@@ -95,7 +95,9 @@ ProfetState GetOutputState(uint8_t nOutput)
     if (nOutput >= NUM_OUTPUTS)
         return ProfetState::Off;
 
-    return pf[nOutput].GetState();
+    // Reported state overlays Warning/OpenLoad on top of On for the tool/CAN. The raw
+    // machine state (used by overload-log trip detection) is read via pf[].GetState().
+    return pf[nOutput].GetReportedState();
 }
 
 uint8_t GetOutputOcCount(uint8_t nOutput)
