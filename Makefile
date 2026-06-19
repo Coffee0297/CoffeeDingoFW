@@ -4,8 +4,9 @@
 #
 
 ifeq ($(BOARD),)
-	BOARD = dingopdm_v7
+	#BOARD = dingopdm_v7
 	#BOARD = dingopdmmax_v1
+	BOARD = canboard_v2
 endif
 
 $(info BOARD is set to: $(BOARD))
@@ -66,7 +67,7 @@ endif
 # Stack size to be allocated to the Cortex-M process stack. This stack is
 # the stack used by the main() thread.
 ifeq ($(USE_PROCESS_STACKSIZE),)
-	USE_PROCESS_STACKSIZE = 0x1000
+	USE_PROCESS_STACKSIZE =  $(PROCESS_STACK)
 endif
 
 # Stack size to the allocated to the Cortex-M main/exceptions stack. This
@@ -96,19 +97,14 @@ endif
 # Define project name here
 PROJECT = $(BOARD)
 
-# Target settings.
-MCU  = cortex-m4
+# Target settings. MCU is set in boards/*/board.mk
 
 # Imported source files and paths.
 CHIBIOS  := ./ChibiOS
-CONFDIR  := ./cfg
+CONFDIR  := $(BOARDDIR)/cfg
 BUILDDIR := ./build
 DEPDIR   := ./.dep
 
-MCUDIR := boards/$(MCU)
-
-BOOTLOADERASM := $(MCUDIR)/enter_bootloader.S
-	
 # Licensing files.
 include $(CHIBIOS)/os/license/license.mk
 
@@ -131,46 +127,56 @@ LDSCRIPT = $(BOARDDIR)/$(BOARD).ld
 
 # C sources that can be compiled in ARM or THUMB mode depending on the global
 # setting.
-CSRC = $(ALLCSRC)
+# Lua 5.5 is vendored under lua/ and built as C — only for boards that enable it
+# (HAS_LUA). Compiling the Lua core for a non-Lua board is pure waste and trips LTO.
+LUA_BOARDS = dingopdm_v7 dingopdmmax_v1
+ifneq (,$(filter $(BOARD),$(LUA_BOARDS)))
+LUASRC = $(wildcard lua/*.c)
+LUA_CPPSRC = lua/lua_port.cpp
+LUA_INCDIR = ./lua
+endif
+CSRC = $(ALLCSRC) $(LUASRC)
 
 # C++ sources that can be compiled in ARM or THUMB mode depending on the global
 # setting.
 CPPSRC = $(ALLCPPSRC) \
 				 $(BOARDDIR)/port.cpp \
 				 $(MCUDIR)/mcu_utils.cpp \
-				 msg.cpp \
-				 can_input.cpp \
-				 can.cpp \
-				 condition.cpp \
-				 config.cpp \
-				 config_handler.cpp \
-				 counter.cpp \
-				 crc.cpp \
-				 digital.cpp \
-				 error.cpp \
-				 flasher.cpp \
-				 input.cpp \
-				 led.cpp \
-				 mailbox.cpp \
-				 pdm.cpp \
-				 pwm.cpp \
-				 profet.cpp \
-				 hw_devices.cpp \
-				 starter.cpp \
-				 usb.cpp \
-				 virtual_input.cpp \
-				 wiper/wiper_digin.cpp \
-				 wiper/wiper_intin.cpp \
-				 wiper/wiper_mixin.cpp \
-				 wiper/wiper.cpp \
-				 hardware/mcp9808.cpp \
-				 hardware/mb85rc.cpp \
+				 $(BOARDDIR)/msg.cpp \
+				 $(BOARDDIR)/hw_devices.cpp \
+				 $(CPPSRC_BOARD) \
+				 comms/can.cpp \
+				 comms/infomsg.cpp \
+				 comms/mailbox.cpp \
+				 comms/request_msg.cpp \
+				 core/config.cpp \
+				 core/config_ext.cpp \
+				 core/config_handler.cpp \
+				 core/error.cpp \
+				 core/led.cpp \
+				 core/param_protocol.cpp \
+				 core/param_registry.cpp \
+				 core/status.cpp \
+				 core/device.cpp \
+				 functions/can_input.cpp \
+				 functions/can_outputs.cpp \
+				 functions/condition.cpp \
+				 functions/counter.cpp \
+				 functions/flasher.cpp \
+				 functions/input.cpp \
+				 functions/virtual_input.cpp \
+				 utils/crc.cpp \
+				 utils/dbc.cpp \
+				 $(LUA_CPPSRC) \
 				 main.cpp
 
 # List ASM source files here.
 ASMSRC = $(ALLASMSRC)
 
 # List ASM with preprocessor source files here.
+# $(BOOTLOADERASM) (set in boards/*/board.mk) holds the custom Reset_Handler that checks
+# the 0xDEADBEEF magic and jumps to the ROM DFU bootloader. It MUST be linked or the
+# software "enter bootloader" command just resets into the app (weak ChibiOS handler wins).
 ASMXSRC = $(ALLXASMSRC) $(BOOTLOADERASM)
 
 # Inclusion directories.
@@ -197,7 +203,14 @@ UDEFS =
 UADEFS = 
 
 # List all user directories here
-UINCDIR = ./boards/$(MCU)
+UINCDIR = $(MCUDIR) \
+				  ./comms \
+				  ./core \
+				  ./functions \
+				  $(UINC_BOARD) \
+				  ./hardware \
+				  $(LUA_INCDIR) \
+				  ./utils
 
 # List the user directory to look for the libraries here
 ULIBDIR =
