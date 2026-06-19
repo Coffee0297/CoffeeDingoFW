@@ -4,19 +4,22 @@ on:
   push:
     branches: [ main, master ]
     paths:
-      - "core/core/device_config.h"
+      - "core/device_config.h"
       - "**/*.c"
       - "**/*.h"
       - "Makefile"
       - ".github/workflows/build_firmware.yml"
   pull_request:
     paths:
-      - "core/core/device_config.h"
+      - "core/device_config.h"
       - "**/*.c"
       - "**/*.h"
       - "Makefile"
       - ".github/workflows/build_firmware.yml"
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   build-and-release:

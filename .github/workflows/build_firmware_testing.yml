@@ -11,6 +11,8 @@ on:
       - ".github/workflows/build_firmware_testing.yml"
   workflow_dispatch:
 
+permissions:
+  contents: write
 
 jobs:
   build-and-release:
@@ -78,21 +80,21 @@ jobs:
           cp build/dingopdm_v7.bin firmware_artifacts/dingopdm_v7_FW_v${VERSION_DASHED}.bin
           cp build/dingopdm_v7.elf firmware_artifacts/dingopdm_v7_FW_v${VERSION_DASHED}.elf
 
-          # Build second variant, in build directory
+          # Build second variant — keep in firmware_artifacts so the next 'make clean' can't wipe it
           make clean
           make BOARD=dingopdmmax_v1
-          cp build/dingopdmmax_v1.hex build/dingopdmmax_v1_FW_v${VERSION_DASHED}.hex
-          cp build/dingopdmmax_v1.bin build/dingopdmmax_v1_FW_v${VERSION_DASHED}.bin
-          cp build/dingopdmmax_v1.elf build/dingopdmmax_v1_FW_v${VERSION_DASHED}.elf
+          cp build/dingopdmmax_v1.hex firmware_artifacts/dingopdmmax_v1_FW_v${VERSION_DASHED}.hex
+          cp build/dingopdmmax_v1.bin firmware_artifacts/dingopdmmax_v1_FW_v${VERSION_DASHED}.bin
+          cp build/dingopdmmax_v1.elf firmware_artifacts/dingopdmmax_v1_FW_v${VERSION_DASHED}.elf
 
-          # Build third variant, in build directory
+          # Build third variant — also into firmware_artifacts
           make clean
           make BOARD=canboard_v2
-          cp build/canboard_v2.hex build/canboard_v2_FW_v${VERSION_DASHED}.hex
-          cp build/canboard_v2.bin build/canboard_v2_FW_v${VERSION_DASHED}.bin
-          cp build/canboard_v2.elf build/canboard_v2_FW_v${VERSION_DASHED}.elf
+          cp build/canboard_v2.hex firmware_artifacts/canboard_v2_FW_v${VERSION_DASHED}.hex
+          cp build/canboard_v2.bin firmware_artifacts/canboard_v2_FW_v${VERSION_DASHED}.bin
+          cp build/canboard_v2.elf firmware_artifacts/canboard_v2_FW_v${VERSION_DASHED}.elf
 
-          # Copy back to build for the release action
+          # Copy all renamed artifacts back to build/ for the release action
           cp firmware_artifacts/* build/
 
           ls -l build/
