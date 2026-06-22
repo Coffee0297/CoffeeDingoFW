@@ -3,6 +3,7 @@
 #include "crc.h"
 #include "param_protocol.h"
 #include "config_ext.h"
+#include <cstring>
 
 //Try to read config from internal flash first
 //If it fails, try external memory
@@ -93,6 +94,10 @@ bool WriteConfig(){
 
 void InitConfig()
 {
+    // stConfigTemp may live in NOLOAD CCM (not zeroed by crt0) — clear it so unwritten staging
+    // fields behave exactly as the old zero-initialised BSS buffer did.
+    memset(&stConfigTemp, 0, sizeof(stConfigTemp));
+
     #if !HAS_EXT_MEMORY
     eflStart(&EFLD1, NULL);
     #endif

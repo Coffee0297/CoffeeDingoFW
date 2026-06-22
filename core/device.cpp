@@ -61,8 +61,11 @@ Keypad keypad[NUM_KEYPADS];
 DeviceState eState = DeviceState::Run;
 float fState; //For var map
 FatalErrorType eError = FatalErrorType::NoError;
+#ifndef CCM_BSS
+#define CCM_BSS   // boards without CCM keep these buffers in normal RAM
+#endif
 DeviceConfig stConfig;
-DeviceConfig stConfigTemp; // Used for staging new config before applying
+DeviceConfig stConfigTemp CCM_BSS; // staging buffer for new config before applying (CCM on CanBoard)
 float *pVarMap[VAR_MAP_SIZE];
 #if HAS_LUA
 float fLuaOut[NUM_LUA_OUTPUTS];   // Lua output slots, written by setLuaOut(n,v)
@@ -487,6 +490,7 @@ void InitVarMap()
         pVarMap[index++] = &analogIn[i].fValMillivolts;
         pVarMap[index++] = &analogIn[i].fRotaryPos;
         pVarMap[index++] = &analogIn[i].fSwitchVal;
+        pVarMap[index++] = &analogIn[i].fScaledVal;
     }
     #endif
 

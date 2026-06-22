@@ -84,3 +84,17 @@ REGION_ALIAS("HEAP_RAM", ram0);
 
 /* Generic rules inclusion.*/
 INCLUDE rules.ld
+
+/* CanBoard-only: park the config staging buffer in the otherwise-unused 4 KB CCM (ram4),
+   freeing main SRAM (ram0). CCM is CPU-only (no DMA) — fine for stConfigTemp, which is never
+   a DMA target. NOLOAD: not initialised by crt0, so InitConfig() zeroes it. */
+SECTIONS
+{
+    .ccm (NOLOAD) :
+    {
+        . = ALIGN(8);
+        *(.ccm)
+        *(.ccm.*)
+        . = ALIGN(8);
+    } > ram4
+}

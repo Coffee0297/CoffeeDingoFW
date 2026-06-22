@@ -7,6 +7,9 @@
 
 #define HAS_LUA FALSE   // no embedded Lua on the CANBoard
 
+// Park selected CPU-only buffers in the 4 KB CCM (ram4) to free main SRAM. See canboard_v2.ld.
+#define CCM_BSS __attribute__((section(".ccm")))
+
 #define PROCESS_STACK 0x0400
 
 #define HAS_SE_LEDS FALSE
@@ -43,7 +46,7 @@
 #define VAR_MAP_SIZE ( \
     VAR_MAP_SYS_VARS + \
     (NUM_DIG_INPUTS * 1) + \
-    (NUM_ANALOG_INPUTS * 4) + \
+    (NUM_ANALOG_INPUTS * 5) + \
     (NUM_DIG_OUTPUTS * 1) + \
     (NUM_CAN_INPUTS * 2) + \
     (NUM_VIRT_INPUTS * 1) + \
