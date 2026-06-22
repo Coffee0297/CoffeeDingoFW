@@ -20,10 +20,36 @@ firmware build** (**v5.5.101**, the `testing` prerelease) to work — they're ne
 params, so an older/stock build won't expose them. The tool expects firmware **≥ 5.5.100** and shows a
 "firmware needs updating" notice below that.
 
+### Features added since the fork (vs upstream dingoFW)
+
+1. **Analog input → multi-position / rotary switch** *(v5.5.101)* — decode up to **10 positions** on one
+   analog input from per-position **calibrated voltages**, so *uneven* steps (wiper/blinker stalks) work.
+   Each position has a tolerance window; a reading outside every window reports **"no position"**.
+2. **Analog input → linear sensor scaling** *(v5.5.101)* — map the input millivolts to engineering units
+   (`scaled = gain·mV + offset`) for a pressure/temperature/etc. sensor. The scaled value is published in
+   the variable map, so **outputs and conditions can use it** (e.g. a fan driven by a temperature sensor).
+3. **Analog input → on/off switch** — use an analog input as a simple threshold switch (momentary/latched,
+   invertible). An input is on/off **or** multi-position **or** linear-scaled — mutually exclusive.
+4. **Lua scripting** — drive outputs, virtual inputs and CAN outputs from a Lua program.
+5. **On-device overload (trip) log** — each output trip recorded with a current waveform (≈ −10 s … +3 s).
+6. **Warning & open-load detection** — per-output warn limit and open-load / broken-bulb floor (reported).
+7. **Expanded sleep** — configurable auto-sleep timeout plus an input-driven sleep source.
+8. **CanBoard built for the STM32F303K8T6 (Cortex-M4F)** *(v5.5.101)* — hardware FPU enabled and the
+   CanBoard image size-optimised (`-Os`), and the config staging buffer moved into the 4 KB CCM. This is
+   what lets the calibrated-switch + scaling features fit the CanBoard's 62 KB flash / 12 KB SRAM.
+
+> ⚠️ **v5.5.101 has not been flashed/tested on a CanBoard yet** — it compiles for all three boards and
+> the sizes fit, but the FPU/`-Os` switch and the new decode are behaviour changes. Flash and verify on
+> hardware before relying on it.
+
+The detailed bullets:
+
 - **Calibrated multi-position analog input** *(new in v5.5.101)* — decode a rotary/selector
   switch on one analog input from per-position **calibrated voltages**, so *uneven* steps
   (wiper/blinker stalks) work. Each position has a tolerance window; a reading outside every window
   reports "no position". Configured/calibrated from dingoConfig. See [CHANGELOG](CHANGELOG.md).
+- **Linear sensor scaling** *(new in v5.5.101)* — `scaled = gain·mV + offset` from two calibration
+  points; exposed in the variable map for use in outputs/conditions/CAN.
 - **Lua scripting** — drive outputs, virtual inputs and CAN outputs from a Lua program
   (`setLuaOut`, `readVar`, `txCan`, `canRxAdd`, `onCanRx`, `onTick`, `setTickRate`, `Timer`, …). One
   assembled program is stored in config; it's uploaded and its runtime errors are read back over CAN.
