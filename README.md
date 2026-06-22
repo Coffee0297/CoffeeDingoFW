@@ -16,10 +16,14 @@ dingoPDM is an Infineon Profet based Power Distribution Module.
 
 This fork adds the firmware features driven by the **dingoConfig** configurator
 ([CoffeeDingoConfig](https://github.com/Coffee0297/CoffeeDingoConfig)). Those features need **this
-firmware build** (the **v5.5.100** release) to work — they're new CAN commands and config params,
-so an older/stock build won't expose them. The tool expects firmware **≥ 5.5.100** and shows a
+firmware build** (**v5.5.101**, the `testing` prerelease) to work — they're new CAN commands and config
+params, so an older/stock build won't expose them. The tool expects firmware **≥ 5.5.100** and shows a
 "firmware needs updating" notice below that.
 
+- **Calibrated multi-position analog input** *(new in v5.5.101)* — decode a rotary/selector
+  switch on one analog input from per-position **calibrated voltages**, so *uneven* steps
+  (wiper/blinker stalks) work. Each position has a tolerance window; a reading outside every window
+  reports "no position". Configured/calibrated from dingoConfig. See [CHANGELOG](CHANGELOG.md).
 - **Lua scripting** — drive outputs, virtual inputs and CAN outputs from a Lua program
   (`setLuaOut`, `readVar`, `txCan`, `canRxAdd`, `onCanRx`, `onTick`, `setTickRate`, `Timer`, …). One
   assembled program is stored in config; it's uploaded and its runtime errors are read back over CAN.
