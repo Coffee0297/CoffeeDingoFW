@@ -3,6 +3,21 @@
 Notable changes to this **dingoFW** fork (the dingoConfig feature set). Version is `MAJOR.MINOR.BUILD`
 from `core/device_config.h`; the `testing` CI build publishes it as a prerelease (`Testing v5.5.x`).
 
+## [5.5.102] — 2026-06-23 (testing prerelease)
+
+CAN broadcast wire-format fixes. **Breaking** — reflash to keep telemetry correct. Pairs with the
+matching dingoConfig decode update and the new `docs/can-frame-map.md` frame reference.
+
+### Fixed
+- **2nd CAN-input value in each value-pair frame** was encoded at start bit 33 instead of 32
+  (`boards/*/msg.cpp`), so on the wire it sat at bits 33–63 with its MSB truncated and did not match
+  the DBC. Now byte-aligned at bytes 4–7 (bit 32). Affects dingoPDM, dingoPDM-Max and CANBoard.
+- **Total/Output current** now transmitted at **0.1 A/bit** (×10), matching the DBCs, the overload
+  log and the battery/temperature fields, instead of 1 A/bit. Removed the incorrect "Already scaled
+  by 10" note on dingoPDM-Max.
+- **Keypad-2 dials DBC** (`dingoPdm*_0.5.1.dbc` Msg 26) corrected to bytes 0–7 (was start bit 24,
+  with one signal past the frame); generator `dbc_builder/*/build_msg_26.py` fixed to match.
+
 ## [5.5.101] — 2026-06-22 (testing prerelease)
 
 Gives the analog input three mutually-exclusive modes — on/off switch, calibrated multi-position
