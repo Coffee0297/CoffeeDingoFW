@@ -3,6 +3,37 @@
 Notable changes to this **dingoFW** fork (the dingoConfig feature set). Version is `MAJOR.MINOR.BUILD`
 from `core/device_config.h`; the `testing` CI build publishes it as a prerelease (`Testing v5.5.x`).
 
+## [5.5.103] — 2026-06-24 (testing prerelease)
+
+CANBoard digital-output PWM. **Breaking** — config struct changed (`CONFIG_VERSION` 0x000B → 0x000C),
+so devices load defaults on first boot after flashing. Needs the matching dingoConfig update to expose
+the new params (0x2100 sub 2–10) and decode the new duty frame (0x64B). The CANBoard DBC was
+regenerated (`dbc/CANBoard_0.5.1.dbc`); downstream consumers (dingoConfig, dingoPDM MCP) pick up the
+new signals from it.
+
+### Added
+- **PWM on the CANBoard's 4 digital outputs (DO1–DO4)** — mirrors the dingoPDM Profet PWM: enable,
+  fixed or variable duty (from a var-map input ÷ denominator), 0–400 Hz, soft-start ramp, min duty.
+  Reuses the existing `Pwm` class / `Config_PwmOutput`. Each output gets its own timebase
+  (DO1→TIM3, DO2→TIM15, DO3→TIM16, DO4→TIM17) for independent frequencies; the timer just drives the
+  period/compare ISRs that toggle the plain-GPIO DO line (no timer-AF pin needed). TIM2 (system tick)
+  and TIM1/TIM4 are left alone. New params at base 0x2100 sub 2–10. Flash 53.9 % → 59.2 %.
+  ✅ **Flashed and verified on a CanBoard** (SWD via Raspberry Pi Pico / CMSIS-DAP) — boots clean and
+  CAN broadcasts confirmed, after the FPU stack fix below.
+- **CANBoard duty-cycle CAN broadcast** — new cyclic frame **Msg 9 at `base+0x0B` (0x64B default)**,
+  mirroring the PDM's Msg 23: one byte per output, 0–100 % (`DigitalOutputDC_1..4`), bytes 0–3.
+  Only sent when at least one DO has PWM enabled. On/off state stays in Msg 2 byte 6. Slots into the
+  free `0x64B–0x64F` range (cyclic frames previously ended at 0x64A).
+
+### Fixed
+- **CAN went silent on the CanBoard** under the M4F / hardware-FPU build (the FPU switch from v5.5.101):
+  with the FPU enabled, exception entry pushes an extended (~104 B) stack frame onto the active thread's
+  stack, overflowing the **128 B** `waCanCyclicTxThread` / `waCanRxThread` stacks (`comms/can.cpp`) and
+  corrupting RAM, so broadcasts stopped. Bumped both to **256 B**. The v5.5.101 FPU change shipped
+  without resizing these; the first on-hardware test surfaced it. Upstream (soft-float) was unaffected.
+- DBC builder (`dbc/dbc_builder/main.py`) now writes **LF** line endings, so regenerating on Windows
+  no longer rewrites every line of all three DBCs (cantools emits CRLF; text-mode write doubled it).
+
 ## [5.5.102] — 2026-06-23 (testing prerelease)
 
 CAN broadcast wire-format fixes. **Breaking** — reflash to keep telemetry correct. Pairs with the

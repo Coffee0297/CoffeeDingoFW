@@ -6,7 +6,8 @@
 
 #define PWM_UPDATE_TIME 2.0 //ms
 
-#if NUM_OUTPUTS > 0
+// Compiled for boards with Profet outputs (PDM) OR digital-output PWM (CanBoard).
+#if (NUM_OUTPUTS > 0) || HAS_DIG_PWM
 
 extern float *pVarMap[VAR_MAP_SIZE];
 

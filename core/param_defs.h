@@ -201,10 +201,27 @@
 //=============================================================================
 // Digital Output Parameters - Base 0x2100
 //=============================================================================
-#if NUM_DIG_OUTPUTS > 0 
+#if NUM_DIG_OUTPUTS > 0
+#if HAS_DIG_PWM
+// Sub 2-10 mirror the Profet PWM params (base 0x1000 sub 8-16) for the CanBoard's
+// digital outputs. Same field meanings so the configurator can reuse them.
+#define DIGITAL_OUTPUT_PARAMS(i) \
+    {0x2100 + (i), 0,  &stConfig.stDigOutput[i].bEnabled,                   &stConfigTemp.stDigOutput[i].bEnabled,                   ParamType::Bool,   0, 0, 1}, \
+    {0x2100 + (i), 1,  &stConfig.stDigOutput[i].nInput,                     &stConfigTemp.stDigOutput[i].nInput,                     ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
+    {0x2100 + (i), 2,  &stConfig.stDigOutput[i].stPwm.bEnabled,             &stConfigTemp.stDigOutput[i].stPwm.bEnabled,             ParamType::Bool,   0, 0, 1}, \
+    {0x2100 + (i), 3,  &stConfig.stDigOutput[i].stPwm.bSoftStart,           &stConfigTemp.stDigOutput[i].stPwm.bSoftStart,           ParamType::Bool,   0, 0, 1}, \
+    {0x2100 + (i), 4,  &stConfig.stDigOutput[i].stPwm.bVariableDutyCycle,   &stConfigTemp.stDigOutput[i].stPwm.bVariableDutyCycle,   ParamType::Bool,   0, 0, 1}, \
+    {0x2100 + (i), 5,  &stConfig.stDigOutput[i].stPwm.nDutyCycleInput,      &stConfigTemp.stDigOutput[i].stPwm.nDutyCycleInput,      ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
+    {0x2100 + (i), 6,  &stConfig.stDigOutput[i].stPwm.nFixedDutyCycle,      &stConfigTemp.stDigOutput[i].stPwm.nFixedDutyCycle,      ParamType::UInt8,  100, 0, 100}, \
+    {0x2100 + (i), 7,  &stConfig.stDigOutput[i].stPwm.nFreq,                &stConfigTemp.stDigOutput[i].stPwm.nFreq,                ParamType::UInt16, 100, 0, 400}, \
+    {0x2100 + (i), 8,  &stConfig.stDigOutput[i].stPwm.nSoftStartRampTime,   &stConfigTemp.stDigOutput[i].stPwm.nSoftStartRampTime,   ParamType::UInt16, 0, 0, 10000}, \
+    {0x2100 + (i), 9,  &stConfig.stDigOutput[i].stPwm.nDutyCycleInputDenom, &stConfigTemp.stDigOutput[i].stPwm.nDutyCycleInputDenom, ParamType::UInt16, 100, 1, 5000}, \
+    {0x2100 + (i), 10, &stConfig.stDigOutput[i].stPwm.nMinDutyCycle,        &stConfigTemp.stDigOutput[i].stPwm.nMinDutyCycle,        ParamType::UInt16, 0, 0, 100}
+#else
 #define DIGITAL_OUTPUT_PARAMS(i) \
     {0x2100 + (i), 0, &stConfig.stDigOutput[i].bEnabled,     &stConfigTemp.stDigOutput[i].bEnabled,    ParamType::Bool,   0, 0, 1}, \
     {0x2100 + (i), 1, &stConfig.stDigOutput[i].nInput,       &stConfigTemp.stDigOutput[i].nInput,      ParamType::UInt16,   0, 0, VAR_MAP_SIZE - 1}
+#endif
 #endif
 
 //=============================================================================

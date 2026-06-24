@@ -55,6 +55,8 @@ float GetKeypadDialVal(uint8_t nKeypad, uint8_t nDial);
 
 bool GetDigInputVal(uint8_t nInput);
 bool GetDigOutputState(uint8_t nOutput);
+uint8_t GetDigOutputDC(uint8_t nOutput);
+bool GetAnyDigOutputPwmEnable();
 uint16_t GetAnalogInputVal(uint8_t nInput);
 float GetAnalogInputMv(uint8_t nInput);
 uint8_t GetRotarySwitchPos(uint8_t nInput);

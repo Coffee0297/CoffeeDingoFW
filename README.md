@@ -37,10 +37,21 @@ expanded sleep, etc. are all **already in the base dingoFW**, not added here.
    CanBoard as `cortex-m3` / soft-float / `-O0`; this enables the **hardware FPU**, size-optimises it
    (`-Os`), and moves the config staging buffer into the 4 KB **CCM**. That's what frees the room for the
    two analog features (flash 101.5 % → 53.9 %; heap 448 B → 1600 B).
+   The FPU isn't cosmetic: the analog scaling (`gain·mV+offset`), calibrated decode, and the PWM
+   duty/soft-start-ramp math all run **every control loop**, and in soft-float those libgcc float
+   helpers (~2.5 KB) are exactly what overflowed the 64 KB flash and would slow the 2 ms loop — the
+   hardware FPU makes them single-cycle. Catch: FPU-on enlarges the exception stack frame (~104 B), which
+   is why the CAN thread stacks had to grow in v5.5.103 (the bug that first silenced CAN on real hardware).
+4. **CanBoard digital-output PWM** *(v5.5.103)* — the base PWM is tied to the PDM's Profet outputs
+   (`NUM_OUTPUTS`), which the CanBoard doesn't have. This brings the same PWM model to the CanBoard's 4
+   digital outputs (DO1–DO4): enable, fixed/variable duty, 0–400 Hz, soft-start, min duty. Each output
+   runs on its own free timer (TIM3/15/16/17) as a software-toggled timebase, so frequencies are
+   independent (flash 53.9 % → 59.0 %).
 
-> ⚠️ **v5.5.101 has not been flashed/tested on a CanBoard yet** — it compiles for all three boards and
-> the sizes fit, but the FPU/`-Os` switch and the new decode are behaviour changes. Flash and verify on
-> hardware before relying on it. See [CHANGELOG](CHANGELOG.md).
+> ✅ **Flashed and verified on a CanBoard** (v5.5.103, SWD via a Raspberry Pi Pico / CMSIS-DAP): boots
+> clean and CAN broadcasts work. The FPU switch initially silenced CAN by overflowing an undersized
+> CAN-thread stack — now fixed (stacks enlarged). The PWM outputs themselves still want a bench check
+> (scope DO1–DO4, watch the `0x64B` duty frame). See [CHANGELOG](CHANGELOG.md).
 
 # [**Documentation**](https://corygrant.github.io/dingoPDM/)
 
