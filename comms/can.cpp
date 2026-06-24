@@ -16,7 +16,10 @@ static bool bCanFilterEnabled = true;
 
 void ConfigureCanFilters();
 
-static THD_WORKING_AREA(waCanCyclicTxThread, 128);
+// 256 not 128: with the hardware FPU enabled (M4F builds), exception entry pushes an
+// extended stack frame (~104 B) onto the active thread's stack. 128 B overflowed and
+// corrupted RAM, silencing CAN broadcasts on the CanBoard. See docs / CHANGELOG.
+static THD_WORKING_AREA(waCanCyclicTxThread, 256);
 void CanCyclicTxThread(void *)
 {
     chRegSetThreadName("CAN Cyclic Tx");
@@ -73,7 +76,7 @@ void CanTxThread(void *)
     }
 }
 
-static THD_WORKING_AREA(waCanRxThread, 128);
+static THD_WORKING_AREA(waCanRxThread, 256);   // FPU exception-frame headroom (see waCanCyclicTxThread)
 void CanRxThread(void *)
 {
     CANRxFrame msg;

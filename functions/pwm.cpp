@@ -1,7 +1,7 @@
 #include "pwm.h"
 #include "dbc.h"
 
-#if NUM_OUTPUTS > 0
+#if (NUM_OUTPUTS > 0) || HAS_DIG_PWM
 void Pwm::Update()
 {
     bChannelEnabled = (bool)(m_pwm->enabled & (1 << 0));

@@ -1,4 +1,5 @@
 #include "hw_devices.h"
+#include "port_pwm.h"
 
 Digital_Input digIn[NUM_DIG_INPUTS] = {
     Digital_Input(LINE_DI1),
@@ -11,10 +12,10 @@ Digital_Input digIn[NUM_DIG_INPUTS] = {
     Digital_Input(LINE_DI8)};   
 
 Digital_Output digOut[NUM_DIG_OUTPUTS] = {
-    Digital_Output(LINE_DO1),
-    Digital_Output(LINE_DO2),
-    Digital_Output(LINE_DO3),
-    Digital_Output(LINE_DO4)};
+    Digital_Output(LINE_DO1, &PWMD3,  &pwm3Cfg,  PwmChannel::Ch1),
+    Digital_Output(LINE_DO2, &PWMD15, &pwm15Cfg, PwmChannel::Ch1),
+    Digital_Output(LINE_DO3, &PWMD16, &pwm16Cfg, PwmChannel::Ch1),
+    Digital_Output(LINE_DO4, &PWMD17, &pwm17Cfg, PwmChannel::Ch1)};
 
 Analog_Input analogIn[NUM_ANALOG_INPUTS] = {
     Analog_Input(AnalogChannel::AnIn1),

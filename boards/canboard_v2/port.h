@@ -22,6 +22,7 @@
 
 #define NUM_OUTPUTS 0
 #define NUM_DIG_OUTPUTS 4
+#define HAS_DIG_PWM TRUE   // digital outputs DO1-4 can run software-toggled PWM (TIM3/15/16/17)
 #define NUM_DIG_INPUTS 8
 #define NUM_ANALOG_INPUTS 5
 #define NUM_VIRT_INPUTS 8
@@ -68,7 +69,7 @@
 #define MAILBOX_SIZE 16
 #define DEVICE_THREAD_STACK 512
 
-#define NUM_TX_MSGS 9
+#define NUM_TX_MSGS 10
 #define DEFAULT_BASE_ID 0x640
 
 #define ADC1_NUM_CHANNELS 5

@@ -16,6 +16,9 @@ if __name__ == "__main__":
         rel_path = "../" + db.name + "_" + db.version + ".dbc"
         abs_file_path = os.path.abspath(os.path.realpath(os.path.join(script_dir, rel_path)))
         print(abs_file_path)
-        with open(abs_file_path, 'w') as f:
-            f.write(db.as_dbc_string()) 
+        # Normalise to LF so regenerating on Windows doesn't churn every line
+        # (cantools emits CRLF and text-mode write would add another CR).
+        content = db.as_dbc_string().replace('\r\n', '\n').replace('\r', '\n')
+        with open(abs_file_path, 'w', newline='\n') as f:
+            f.write(content) 
       

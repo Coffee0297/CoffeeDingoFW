@@ -388,6 +388,26 @@ bool GetDigOutputState(uint8_t nOutput)
 }
 #endif
 
+#if HAS_DIG_PWM
+uint8_t GetDigOutputDC(uint8_t nOutput)
+{
+    if (nOutput >= NUM_DIG_OUTPUTS)
+        return 0;
+
+    return digOut[nOutput].GetDutyCycle();
+}
+
+bool GetAnyDigOutputPwmEnable()
+{
+    for (uint8_t i = 0; i < NUM_DIG_OUTPUTS; i++)
+    {
+        if (stConfig.stDigOutput[i].stPwm.bEnabled)
+            return true;
+    }
+    return false;
+}
+#endif
+
 #if NUM_ANALOG_INPUTS > 0
 uint16_t GetAnalogInputVal(uint8_t nInput)
 {

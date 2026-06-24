@@ -7,4 +7,5 @@ from .build_msg_5 import build_msg_5
 from .build_msg_6 import build_msg_6
 from .build_msg_7 import build_msg_7
 from .build_msg_8 import build_msg_8
+from .build_msg_9 import build_msg_9
 from .build_db import build_db
