@@ -97,6 +97,13 @@ endif
 # Define project name here
 PROJECT = $(BOARD)
 
+# Emit an S-record (build/$(PROJECT).srec) alongside the .hex/.bin. ChibiOS's rules.mk both
+# gates srec output on `ifdef SREC` and uses $(SREC) as the objcopy command, so this must be the
+# command (not a flag). This is the format the OpenBLT CAN bootloader / dingoConfig "Update
+# firmware over CAN" flasher consumes (it carries load addresses, so the host programs exactly
+# the app region). $(CP) is defined later in arm-none-eabi.mk; deferred '=' expands it at use.
+SREC = $(CP) -O srec
+
 # Target settings. MCU is set in boards/*/board.mk
 
 # Imported source files and paths.
