@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <cstddef>
 #include "port.h"
 #include "enums.h"
 #include "dbc.h"
@@ -95,6 +96,15 @@ struct DeviceConfig{
   Config_Lua stLua;
   #endif
 };
+
+// The CAN bootloader (bootloader/) reads nBaseId and eCanSpeed straight out of the config
+// sector by fixed byte offset, so it can come up at the same base ID and CAN speed as the
+// app without linking any firmware code. Pin those offsets here: if a struct change moves
+// them, the bootloader's reader (DingoLoadCanConfig in Source/ARMCM4_STM32F3/can.c) would
+// read garbage - fail the build loudly instead of shipping a bootloader that can't be reached.
+static_assert(offsetof(DeviceConfig, stDevice) == 0, "config blob must start with Config_Device");
+static_assert(offsetof(Config_Device, nBaseId) == 2, "bootloader expects nBaseId at config offset 2");
+static_assert(offsetof(Config_Device, eCanSpeed) == 4, "bootloader expects eCanSpeed at config offset 4");
 
 extern DeviceConfig stConfig;
 extern DeviceConfig stConfigTemp; // Used for staging new config before applying

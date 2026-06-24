@@ -77,16 +77,17 @@ void CheckRequestMsgs(CANRxFrame *frame)
         gReinitCanRequested = true;
     }
 
-    #if HAS_USB
-    // Check for bootloader request
+    // Check for bootloader request (all boards). The "BOOTL" signature guards against
+    // accidental entry. RequestBootloader() is board-specific: on the CANBoard it enters the
+    // OpenBLT CAN bootloader (boards/cortex-m3/mcu_utils.cpp); on the PDMs (HAS_USB) it enters
+    // the USB-DFU system bootloader (boards/cortex-m4/mcu_utils.cpp).
     if ((frame->DLC == 8) &&
-        (frame->data8[0] == static_cast<uint8_t>(MsgCmd::Bootloader)) && 
-        (frame->data8[1] == 'B') && (frame->data8[2] == 'O') && 
+        (frame->data8[0] == static_cast<uint8_t>(MsgCmd::Bootloader)) &&
+        (frame->data8[1] == 'B') && (frame->data8[2] == 'O') &&
         (frame->data8[3] == 'O') && (frame->data8[4] == 'T') && (frame->data8[5] == 'L'))
     {
         RequestBootloader();
     }
-    #endif
 
     #if HAS_LUA
     // ---- Lua program upload (chunked) -------------------------------------

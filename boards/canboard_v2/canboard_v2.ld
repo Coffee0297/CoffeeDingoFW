@@ -19,7 +19,11 @@
  */
 MEMORY
 {
-    flash0 (rx) : org = 0x08000000, len = 62k
+    /* dingoFW: application relocated above the 16 KB OpenBLT bootloader (sectors 0..7).
+     * App now lives at 0x08004000 (sector 8) .. 0x0800F800 = 46 KB. ChibiOS crt0 sets
+     * VTOR from _vectors, so the vector table follows flash0's origin automatically.
+     * flash_config (the persistent config sector) is unchanged so settings survive. */
+    flash0 (rx) : org = 0x08004000, len = 46k
     flash_config (r) : org = 0x0800F800, len = 2k
     flash1 (rx) : org = 0x00000000, len = 0
     flash2 (rx) : org = 0x00000000, len = 0
