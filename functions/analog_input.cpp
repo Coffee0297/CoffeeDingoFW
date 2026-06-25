@@ -2,18 +2,19 @@
 
 void Analog_Input::Update()
 {
+    // Always sample the raw pin — it's a physical input, so its live voltage should be visible (on CAN
+    // and in dingoConfig) whether or not the input is "enabled" for logic. Only the derived decoders
+    // below are config-gated; each already zeroes itself when its own feature is off.
+    fVal = (float)GetAdcRaw(m_channel);
+    fValMillivolts = GetAdcVolts(m_channel) * 1000.0f;
+
     if(!pConfig->bEnabled)
     {
-        fVal = 0;
-        fValMillivolts = 0;
         fRotaryPos = 0;
         fSwitchVal = 0;
         fScaledVal = 0;
         return;
     }
-
-    fVal = (float)GetAdcRaw(m_channel);
-    fValMillivolts = GetAdcVolts(m_channel) * 1000.0f;
 
     RotaryUpdate();
     SwitchUpdate();

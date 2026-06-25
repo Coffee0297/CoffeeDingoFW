@@ -3,13 +3,22 @@
 Notable changes to this **dingoFW** fork (the dingoConfig feature set). Version is `MAJOR.MINOR.BUILD`
 from `core/device_config.h`; the `testing` CI build publishes it as a prerelease (`Testing v5.5.x`).
 
-## [5.5.104] — 2026-06-24 (testing prerelease)
+## [5.5.104] — 2026-06-25
 
 OpenBLT CAN bootloader + application relocation, so the app can be reflashed over CAN from dingoConfig
 ("Update firmware over CAN") after a one-time SWD flash of the bootloader. No config-struct change.
 Verified end-to-end on a CANBoard (SWD-once → CAN-after, settings preserved, interrupted-flash recovery).
+Also: a USB `I` identify command and always-live analog inputs.
 
 ### Added
+- **USB `I` identify command** (`comms/usb.cpp`) — a non-standard SLCAN extension (mirrors the `X`
+  accept-filter): when this board is the USB↔CAN bridge, a host sends `I` and the board replies
+  `I<baseId>` over USB only (never onto CAN). Lets dingoConfig learn which board is the bridge so it
+  flashes that board over USB and every other module over CAN. Standalone SLCAN adapters ignore it.
+- **Analog inputs always read live** (`functions/analog_input.cpp`) — the raw ADC voltage is now
+  sampled and broadcast on CAN whether or not the input is `bEnabled`; only the derived decoders
+  (rotary / switch / scale) stay config-gated. Previously a disabled input forced 0 mV, so a probe on
+  an unconfigured pin read 0 in dingoConfig.
 - **OpenBLT (Feaser) XCP-over-CAN bootloader** for the CANBoard, vendored under `bootloader/` (trimmed to
   the core + the `ARMCM4_STM32F3` port; CAN-only). One-time SWD install (`bootloader/canboard/`,
   `make` → `bin/canboard_blt.hex`); thereafter the app is flashed over CAN.
