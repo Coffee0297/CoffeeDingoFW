@@ -46,7 +46,10 @@
     {0x1000 + (i), 17, &stConfig.stOutput[i].nPrimaryOutput,             &stConfigTemp.stOutput[i].nPrimaryOutput,             ParamType::Int8,  I8(-1), I8(-1), VAR_MAP_SIZE - 1}, \
     {0x1000 + (i), 18, &stConfig.stOutput[i].fWarnLimit,                 &stConfigTemp.stOutput[i].fWarnLimit,                 ParamType::Float,  F(0.0f), F(0.0f), F(100.0f)}, \
     {0x1000 + (i), 19, &stConfig.stOutput[i].fOpenLoadLimit,             &stConfigTemp.stOutput[i].fOpenLoadLimit,             ParamType::Float,  F(0.0f), F(0.0f), F(100.0f)}, \
-    {0x1000 + (i), 20, &stConfig.stOutput[i].nOpenLoadTime,              &stConfigTemp.stOutput[i].nOpenLoadTime,              ParamType::UInt16, 1000, 0, 60000}
+    {0x1000 + (i), 20, &stConfig.stOutput[i].nOpenLoadTime,              &stConfigTemp.stOutput[i].nOpenLoadTime,              ParamType::UInt16, 1000, 0, 60000}, \
+    {0x1000 + (i), 21, &stConfig.stOutput[i].stPwm.bVariableFreq,        &stConfigTemp.stOutput[i].stPwm.bVariableFreq,        ParamType::Bool,   0, 0, 1}, \
+    {0x1000 + (i), 22, &stConfig.stOutput[i].stPwm.nFreqInput,           &stConfigTemp.stOutput[i].stPwm.nFreqInput,           ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
+    {0x1000 + (i), 23, &stConfig.stOutput[i].stPwm.nFreqInputDenom,      &stConfigTemp.stOutput[i].stPwm.nFreqInputDenom,      ParamType::UInt16, 1, 1, 5000}
 #endif
 
 //=============================================================================
@@ -102,7 +105,8 @@
     {0x1500 + (i), 0, &stConfig.stCondition[i].bEnabled,  &stConfigTemp.stCondition[i].bEnabled,  ParamType::Bool,   0, 0, 1}, \
     {0x1500 + (i), 1, &stConfig.stCondition[i].nInput,    &stConfigTemp.stCondition[i].nInput,    ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
     {0x1500 + (i), 2, &stConfig.stCondition[i].eOperator, &stConfigTemp.stCondition[i].eOperator, ParamType::Enum,   static_cast<uint32_t>(Operator::Equal), 0, 7}, \
-    {0x1500 + (i), 3, &stConfig.stCondition[i].fArg,      &stConfigTemp.stCondition[i].fArg,      ParamType::Float,  F(0.0f), F(-1e9f), F(1e9f)}
+    {0x1500 + (i), 3, &stConfig.stCondition[i].fArg,      &stConfigTemp.stCondition[i].fArg,      ParamType::Float,  F(0.0f), F(-1e9f), F(1e9f)}, \
+    {0x1500 + (i), 4, &stConfig.stCondition[i].fArgOff,   &stConfigTemp.stCondition[i].fArgOff,   ParamType::Float,  F(0.0f), F(-1e9f), F(1e9f)}
 
 //=============================================================================
 // Counter Parameters - Base 0x1600
@@ -216,7 +220,10 @@
     {0x2100 + (i), 7,  &stConfig.stDigOutput[i].stPwm.nFreq,                &stConfigTemp.stDigOutput[i].stPwm.nFreq,                ParamType::UInt16, 100, 0, 400}, \
     {0x2100 + (i), 8,  &stConfig.stDigOutput[i].stPwm.nSoftStartRampTime,   &stConfigTemp.stDigOutput[i].stPwm.nSoftStartRampTime,   ParamType::UInt16, 0, 0, 10000}, \
     {0x2100 + (i), 9,  &stConfig.stDigOutput[i].stPwm.nDutyCycleInputDenom, &stConfigTemp.stDigOutput[i].stPwm.nDutyCycleInputDenom, ParamType::UInt16, 100, 1, 5000}, \
-    {0x2100 + (i), 10, &stConfig.stDigOutput[i].stPwm.nMinDutyCycle,        &stConfigTemp.stDigOutput[i].stPwm.nMinDutyCycle,        ParamType::UInt16, 0, 0, 100}
+    {0x2100 + (i), 10, &stConfig.stDigOutput[i].stPwm.nMinDutyCycle,        &stConfigTemp.stDigOutput[i].stPwm.nMinDutyCycle,        ParamType::UInt16, 0, 0, 100}, \
+    {0x2100 + (i), 11, &stConfig.stDigOutput[i].stPwm.bVariableFreq,        &stConfigTemp.stDigOutput[i].stPwm.bVariableFreq,        ParamType::Bool,   0, 0, 1}, \
+    {0x2100 + (i), 12, &stConfig.stDigOutput[i].stPwm.nFreqInput,           &stConfigTemp.stDigOutput[i].stPwm.nFreqInput,           ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
+    {0x2100 + (i), 13, &stConfig.stDigOutput[i].stPwm.nFreqInputDenom,      &stConfigTemp.stDigOutput[i].stPwm.nFreqInputDenom,      ParamType::UInt16, 1, 1, 5000}
 #else
 #define DIGITAL_OUTPUT_PARAMS(i) \
     {0x2100 + (i), 0, &stConfig.stDigOutput[i].bEnabled,     &stConfigTemp.stDigOutput[i].bEnabled,    ParamType::Bool,   0, 0, 1}, \

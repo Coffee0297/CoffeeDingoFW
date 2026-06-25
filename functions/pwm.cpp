@@ -63,19 +63,35 @@ void Pwm::UpdateSoftStart() {
     }
 }
 
+// Effective PWM frequency: fixed nFreq, or — when bVariableFreq — derived from a signal
+// (Hz = signal / denom), clamped to the valid 15..400 Hz window.
+uint16_t Pwm::GetTargetFreq()
+{
+    if (pConfig->bVariableFreq && pConfig->nFreqInputDenom > 0 && pFreqInput != nullptr)
+    {
+        int32_t f = (int32_t)((*pFreqInput) / pConfig->nFreqInputDenom);
+        if (f < 15) f = 15;
+        if (f > 400) f = 400;
+        return (uint16_t)f;
+    }
+    return pConfig->nFreq;
+}
+
 void Pwm::UpdateFrequency()
 {
+    const uint16_t nFreq = GetTargetFreq();
+
     // Frequency within range and
     // (Frequency setting has changed or
     // PWM driver frequency != Frequency setting)
-    if (((pConfig->nFreq <= 400) && (pConfig->nFreq > 0)) &&
-        ((pConfig->nFreq != nLastFreq) ||
-        (m_pwm->period != (m_pwmCfg->frequency / pConfig->nFreq))))
+    if (((nFreq <= 400) && (nFreq > 0)) &&
+        ((nFreq != nLastFreq) ||
+        (m_pwm->period != (m_pwmCfg->frequency / nFreq))))
     {
-        pwmChangePeriod(m_pwm, m_pwmCfg->frequency / pConfig->nFreq);
+        pwmChangePeriod(m_pwm, m_pwmCfg->frequency / nFreq);
     }
 
-    nLastFreq = pConfig->nFreq;
+    nLastFreq = nFreq;
 }
 
 msg_t Pwm::Init()

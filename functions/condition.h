@@ -10,6 +10,7 @@ struct Config_Condition{
   uint16_t nInput;
   Operator eOperator;
   float fArg;
+  float fArgOff;   // hysteresis release threshold (relational ops). ==fArg → no hysteresis.
 };
 
 class Condition
