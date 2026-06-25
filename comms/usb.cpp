@@ -11,6 +11,31 @@
 /* Virtual serial port over USB.*/
 SerialUSBDriver SDU1;
 
+// Non-standard SLCAN accept-filter for the CAN->USB bridge. When >= 0, only this CAN id is forwarded
+// over USB; -1 (the default) forwards everything. The host sets it via the 'X' command (see UsbRxThread)
+// so a flooded bus doesn't pour across the USB link while it flashes / configures a module through this
+// board acting as the bridge. A standalone SLCAN adapter simply ignores the unknown 'X' command.
+static volatile int32_t gUsbSlcanFilterId = -1;
+
+// Parse an 'X' command: 'X' + up to 3 hex digits + CR sets the forward id; a bare 'X' clears it.
+static void SetUsbSlcanFilter(const uint8_t *buf, size_t len)
+{
+    int32_t id = 0;
+    uint8_t digits = 0;
+    for (size_t i = 1; i < len; i++)
+    {
+        uint8_t c = buf[i];
+        int8_t nib;
+        if (c >= '0' && c <= '9')      nib = c - '0';
+        else if (c >= 'a' && c <= 'f') nib = c - 'a' + 10;
+        else if (c >= 'A' && c <= 'F') nib = c - 'A' + 10;
+        else break;                     // CR / NUL / junk ends the id
+        id = (id << 4) | nib;
+        digits++;
+    }
+    gUsbSlcanFilterId = (digits > 0) ? (id & 0x7FF) : -1;
+}
+
 /*
  * Endpoints to be used for USBD1.
  */
@@ -345,6 +370,11 @@ void UsbTxThread(void *)
                 res = FetchTxUsbFrame(&msg);
                 if (res == MSG_OK)
                 {
+                    // Bridge accept-filter: when armed, still drain the frame from the mailbox but
+                    // only forward the one id the host asked for, so a flooded bus can't pour over USB.
+                    if (gUsbSlcanFilterId >= 0 && (int32_t)msg.SID != gUsbSlcanFilterId)
+                        continue;
+
                     uint8_t nData[22];
                     nData[0] = 't';
                     nData[1] = (msg.SID >> 8) & 0xF;
@@ -465,23 +495,33 @@ void UsbRxThread(void *)
 
                     if (rxIndex > 0)
                     {
-                        Parse(rxBuf, rxIndex, &msg);
-                        PostRxFrame(&msg);
-                    }
-
-                    if(stConfig.stDevice.bConnectUsbToCan)
-                    {
-                        //Copy data to CAN for data pass through
-                        //Don't send if it's a settings msg for this device
-                        if( (msg.SID != stConfig.stDevice.nBaseId + CONFIG_RX_OFFSET) && 
-                            (msg.SID != stConfig.stDevice.nBaseId + CONFIG_TX_OFFSET)) 
+                        if (rxBuf[0] == 'X')
                         {
-                            canTx.SID = msg.SID;
-                            canTx.IDE = msg.IDE;
-                            canTx.DLC = msg.DLC;
-                            for(size_t i = 0; i < msg.DLC; i++)
-                                canTx.data8[i] = msg.data8[i];
-                            PostTxFrame(&canTx);
+                            // dingo accept-filter command (non-standard SLCAN): clamp which CAN id this
+                            // bridge forwards over USB so a host can stop a flooded bus from pouring
+                            // across the link. Not a frame — don't parse / pass it through to CAN.
+                            SetUsbSlcanFilter(rxBuf, rxIndex);
+                        }
+                        else
+                        {
+                            Parse(rxBuf, rxIndex, &msg);
+                            PostRxFrame(&msg);
+
+                            if(stConfig.stDevice.bConnectUsbToCan)
+                            {
+                                //Copy data to CAN for data pass through
+                                //Don't send if it's a settings msg for this device
+                                if( (msg.SID != stConfig.stDevice.nBaseId + CONFIG_RX_OFFSET) &&
+                                    (msg.SID != stConfig.stDevice.nBaseId + CONFIG_TX_OFFSET))
+                                {
+                                    canTx.SID = msg.SID;
+                                    canTx.IDE = msg.IDE;
+                                    canTx.DLC = msg.DLC;
+                                    for(size_t i = 0; i < msg.DLC; i++)
+                                        canTx.data8[i] = msg.data8[i];
+                                    PostTxFrame(&canTx);
+                                }
+                            }
                         }
                     }
                     

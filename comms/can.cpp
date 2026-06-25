@@ -16,6 +16,26 @@ static bool bCanFilterEnabled = true;
 
 void ConfigureCanFilters();
 
+// --- No-ACK flood back-off ---------------------------------------------------------------------
+// We deliberately do NOT use CAN_MCR_NART (one-shot TX): it breaks relaying XCP frames through a
+// board acting as a CAN bridge — a one-shot transmit is dropped the instant the flash target is
+// mid-reset and momentarily misses an ACK. Instead we leave auto-retransmit ON and back off in
+// software. If our transmits stop completing (no peer is ACKing — this is the only live node, or
+// the bus is down), bxCAN would otherwise retransmit each frame at line rate (the "no-ACK flood").
+// The TX thread detects that (canTransmitTimeout can't get a free mailbox), aborts the stuck
+// transmits, and pauses the CYCLIC telemetry for a back-off window. Config replies and forwarded
+// (bridge) frames are never paused — they ride auto-retransmit and are delivered the moment a peer
+// (e.g. a flash target) ACKs, then the next cyclic round resumes.
+#define CAN_NOACK_FAIL_STREAK     3u    // consecutive TX timeouts that mean "nobody is ACKing"
+#define CAN_NOACK_BACKOFF_CYCLES  50u   // cyclic-TX rounds to skip (~50 x CAN_TX_CYCLIC_MSG_DELAY)
+static volatile uint16_t gNoAckBackoff = 0;
+
+static inline void CanAbortAllTx()
+{
+    // Abort all three TX mailboxes so unacked frames stop retransmitting at line rate.
+    CAND1.can->TSR |= CAN_TSR_ABRQ0 | CAN_TSR_ABRQ1 | CAN_TSR_ABRQ2;
+}
+
 // 256 not 128: with the hardware FPU enabled (M4F builds), exception entry pushes an
 // extended stack frame (~104 B) onto the active thread's stack. 128 B overflowed and
 // corrupted RAM, silencing CAN broadcasts on the CanBoard. See docs / CHANGELOG.
@@ -29,14 +49,23 @@ void CanCyclicTxThread(void *)
     while (1)
     {
 
-        for (uint8_t i = 0; i < NUM_TX_MSGS; i++)
+        if (gNoAckBackoff > 0)
         {
-            msg = TxMsgs[i]();
-            if (!msg.bSend)
-                continue;
-            msg.frame.IDE = CAN_IDE_STD;
-            msg.frame.RTR = CAN_RTR_DATA;
-            PostTxFrame(&msg.frame);
+            // No peer is ACKing — skip this telemetry round so we don't feed the no-ACK flood.
+            // Counts down to a periodic single round that re-probes whether a peer is back.
+            gNoAckBackoff--;
+        }
+        else
+        {
+            for (uint8_t i = 0; i < NUM_TX_MSGS; i++)
+            {
+                msg = TxMsgs[i]();
+                if (!msg.bSend)
+                    continue;
+                msg.frame.IDE = CAN_IDE_STD;
+                msg.frame.RTR = CAN_RTR_DATA;
+                PostTxFrame(&msg.frame);
+            }
         }
 
         if (chThdShouldTerminateX())
@@ -52,6 +81,7 @@ void CanTxThread(void *)
     chRegSetThreadName("CAN Tx");
 
     CANTxFrame msg;
+    uint8_t txFailStreak = 0;
 
     while (1)
     {
@@ -64,7 +94,20 @@ void CanTxThread(void *)
             {
                 msg.IDE = CAN_IDE_STD;
                 msg.RTR = CAN_RTR_DATA;
-                canTransmitTimeout(&CAND1, CAN_ANY_MAILBOX, &msg, TIME_MS2I(10));
+                if (canTransmitTimeout(&CAND1, CAN_ANY_MAILBOX, &msg, TIME_MS2I(10)) == MSG_OK)
+                {
+                    txFailStreak = 0;
+                }
+                else if (++txFailStreak >= CAN_NOACK_FAIL_STREAK)
+                {
+                    // No free mailbox after the timeout, repeatedly: all three are stuck
+                    // retransmitting unacked frames (no peer ACKing). Abort them and pause the
+                    // cyclic telemetry so the bus isn't flooded; auto-retransmit stays on so the
+                    // instant a peer ACKs, traffic flows again.
+                    CanAbortAllTx();
+                    gNoAckBackoff = CAN_NOACK_BACKOFF_CYCLES;
+                    txFailStreak = 0;
+                }
             }
             chThdSleepMicroseconds(CAN_TX_MSG_SPLIT);
         } while (res == MSG_OK);

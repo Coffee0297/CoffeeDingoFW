@@ -78,15 +78,24 @@ void CheckRequestMsgs(CANRxFrame *frame)
     }
 
     // Check for bootloader request (all boards). The "BOOTL" signature guards against
-    // accidental entry. RequestBootloader() is board-specific: on the CANBoard it enters the
-    // OpenBLT CAN bootloader (boards/cortex-m3/mcu_utils.cpp); on the PDMs (HAS_USB) it enters
-    // the USB-DFU system bootloader (boards/cortex-m4/mcu_utils.cpp).
+    // accidental entry. The handler is board-specific: on the CANBoard, RequestBootloader()
+    // enters the OpenBLT CAN bootloader (boards/cortex-m3/mcu_utils.cpp). On the PDMs (HAS_USB)
+    // byte 6 selects the path: 0 (default) = USB-DFU system bootloader, 1 = OpenBLT CAN update
+    // of the relocated app (boards/cortex-m4/mcu_utils.cpp).
     if ((frame->DLC == 8) &&
         (frame->data8[0] == static_cast<uint8_t>(MsgCmd::Bootloader)) &&
         (frame->data8[1] == 'B') && (frame->data8[2] == 'O') &&
         (frame->data8[3] == 'O') && (frame->data8[4] == 'T') && (frame->data8[5] == 'L'))
     {
+        #if HAS_USB
+        if (frame->data8[6] == 1)
+            RequestBootloaderCan(stConfig.stDevice.nBaseId,
+                                 static_cast<uint8_t>(stConfig.stDevice.eCanSpeed));
+        else
+            RequestBootloader();
+        #else
         RequestBootloader();
+        #endif
     }
 
     #if HAS_LUA

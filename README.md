@@ -47,11 +47,51 @@ expanded sleep, etc. are all **already in the base dingoFW**, not added here.
    digital outputs (DO1–DO4): enable, fixed/variable duty, 0–400 Hz, soft-start, min duty. Each output
    runs on its own free timer (TIM3/15/16/17) as a software-toggled timebase, so frequencies are
    independent (flash 53.9 % → 59.0 %).
+5. **OpenBLT CAN bootloader + firmware update over CAN** *(v5.5.104)* — a one-time SWD-flashed OpenBLT
+   (Feaser) XCP-over-CAN bootloader in the first 16 KB of flash. The application is relocated above it
+   and can then be reflashed **over CAN** from dingoConfig (via any SLCAN probe) — no SWD or USB after
+   the first install. The bootloader reads the module's base ID + CAN speed from the config sector at
+   runtime, so its XCP IDs (`base+12`/`base+13`) and bitrate follow the one firmware setting; the config
+   sector is never erased, so settings survive a reflash. The vector block is written **last**, so an
+   interrupted/brown-out update leaves the app invalid and the bootloader waiting (always re-flashable).
+   Lives in [`bootloader/`](bootloader/) (vendored OpenBLT, trimmed to the core + the STM32F3 port).
 
-> ✅ **Flashed and verified on a CanBoard** (v5.5.103, SWD via a Raspberry Pi Pico / CMSIS-DAP): boots
-> clean and CAN broadcasts work. The FPU switch initially silenced CAN by overflowing an undersized
-> CAN-thread stack — now fixed (stacks enlarged). The PWM outputs themselves still want a bench check
-> (scope DO1–DO4, watch the `0x64B` duty frame). See [CHANGELOG](CHANGELOG.md).
+### Firmware update over CAN (OpenBLT)
+
+**Workflow: SWD once, then CAN forever.** Flash the bootloader to a blank board one time over SWD; every
+application update after that goes over CAN from dingoConfig ("⬆ Over CAN" → pick the `.srec`).
+
+CANBoard (STM32F303K8, 64 KB) flash map:
+
+| Region | Sectors | Address | Size | Contents |
+|---|---|---|---|---|
+| Bootloader | 0–7 | `0x08000000` | 16 KB | OpenBLT (uses ~6.8 KB) — **SWD-flash once** |
+| Application | 8–30 | `0x08004000` | 46 KB | relocated app — **reflashed over CAN** |
+| Config | 31 | `0x0800F800` | 2 KB | persistent settings — never erased |
+
+Build the bootloader: `cd bootloader/canboard && make` → `bin/canboard_blt.hex` (SWD program once). The
+app build emits `build/<board>.srec` (the format the CAN flasher consumes). On the PDM/-Max the same
+OpenBLT-CAN bootloader (`bootloader/dingopdm/`) keeps USB-DFU working **alongside** CAN update: OpenBLT
+owns the reset vector and dispatches USB-DFU (`0xDEADBEEF`) to the STM32 ROM bootloader or stays for a
+CAN session (`0xB00710AD`).
+
+> ✅ **Validated on a dingoPDM-v7** (bootloader installed over USB-DFU; relocated app boots/runs
+> clean; app reflashed/connected **over CAN** via XCP; both USB-DFU paths — BOOT0 switch and the
+> software trigger — reach the ROM bootloader). dingoPDM-Max mirrors it (same bootloader + app base;
+> only config storage differs) and is build-verified, not yet hardware-tested.
+>
+> ⚠️ **Installing the bootloader overwrites flash sector 0** and relocates the app, so the board
+> runs this fork firmware afterwards (config resets to fork defaults). **The bootloader itself can
+> only be updated over USB-DFU** (it can't rewrite its own sector while running) — install it, and
+> later update *it*, via USB-DFU; only the *application* goes over CAN. Always keep a **read-out
+> backup of the original flash** and a **BOOT0 recovery path** (BOOT0 high → permanent STM32 ROM
+> USB-DFU, reflashable independent of flash contents) before installing on a board without SWD.
+
+> ✅ **Verified end-to-end on a CanBoard** (SWD via Raspberry Pi Pico / CMSIS-DAP + a Kvaser/SLCAN bus):
+> bootloader installed once over SWD, then the application reflashed **over CAN** from dingoConfig
+> (program → read-back verify → reboot into the new app), settings preserved, interrupted-flash
+> recovery confirmed. The v5.5.103 PWM outputs still want a bench check (scope DO1–DO4, `0x64B` duty
+> frame). See [CHANGELOG](CHANGELOG.md).
 
 # [**Documentation**](https://corygrant.github.io/dingoPDM/)
 

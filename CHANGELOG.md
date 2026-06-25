@@ -3,6 +3,78 @@
 Notable changes to this **dingoFW** fork (the dingoConfig feature set). Version is `MAJOR.MINOR.BUILD`
 from `core/device_config.h`; the `testing` CI build publishes it as a prerelease (`Testing v5.5.x`).
 
+## [5.5.104] — 2026-06-24 (testing prerelease)
+
+OpenBLT CAN bootloader + application relocation, so the app can be reflashed over CAN from dingoConfig
+("Update firmware over CAN") after a one-time SWD flash of the bootloader. No config-struct change.
+Verified end-to-end on a CANBoard (SWD-once → CAN-after, settings preserved, interrupted-flash recovery).
+
+### Added
+- **OpenBLT (Feaser) XCP-over-CAN bootloader** for the CANBoard, vendored under `bootloader/` (trimmed to
+  the core + the `ARMCM4_STM32F3` port; CAN-only). One-time SWD install (`bootloader/canboard/`,
+  `make` → `bin/canboard_blt.hex`); thereafter the app is flashed over CAN.
+  - **Runtime CAN config from the config sector**: the bootloader reads `nBaseId` (offset 2) and
+    `eCanSpeed` (offset 4) at startup, so its XCP command/response IDs (`base+12`/`base+13`) and bitrate
+    track the one firmware setting. Falls back to `0x640`/500 kbit if the sector is blank.
+  - **HSE-clocked** (crystal accuracy required for reliable CAN — the demo's HSI is not).
+  - **Vector block written last** (`FlashDone` reorder): an interrupted/brown-out CAN update leaves the
+    app invalid and the bootloader waiting — always re-flashable. App validity = vector-table presence.
+  - Application is **relocated** above the 16 KB bootloader: `flash0` `0x08000000` → `0x08004000`
+    (46 KB), config sector at `0x0800F800` untouched. `core/config.h` pins the config offsets the
+    bootloader reads (`static_assert`).
+- `RequestBootloader()` for the CANBoard (`boards/cortex-m3/mcu_utils.cpp`): sets a magic in CCM at
+  `0x10000FFC` and resets; the bootloader consumes it and stays in CAN-update mode. `MsgCmd::Bootloader`
+  (33) is now handled on all boards (was USB-only).
+- The application build emits `build/<board>.srec` (`SREC = $(CP) -O srec`) — the S-record the CAN
+  flasher consumes.
+- **OpenBLT CAN bootloader ported to the F446 PDMs** (`dingopdm_v7`, `dingopdmmax_v1`), vendored
+  under `bootloader/dingopdm/` (core + the `ARMCM4_STM32F4` port; CAN-only). One bootloader serves
+  both: 16 KB in flash sector 0, app relocated to sector 1 (`0x08004000`, sectors 1–6 = 368 KB),
+  sector 7 left for config. CAN on PB8/PB9 AF9, 144 MHz HSE clock (APB1 = 36 MHz). **USB-DFU is
+  kept** (decision #6): the app still enters it with the `0xDEADBEEF` reset-magic, but since OpenBLT
+  now owns the reset vector the dispatch moved into it — the bootloader's **reset handler** (before
+  crt0, from a pristine state) sees `0xDEADBEEF` → jumps to the STM32 ROM bootloader (USB-DFU), and a
+  non-matching value is left in place so `0xB00710AD` survives to `CpuUserProgramStartHook`, which
+  keeps the bootloader up for an XCP-over-CAN session. (Doing the ROM jump later, in `main()` after
+  crt0 had moved VTOR / enabled the FPU, faulted — that was found and fixed on hardware.) Because the PDMs
+  keep config in external FRAM (unreadable by the minimal bootloader), the app hands the bootloader
+  its base id + CAN speed in a reserved word at the top of SRAM at entry; cold-boot falls back to
+  the PDM default base `0x0DE`. New `RequestBootloaderCan()` + a cmd-33 sub-action (byte 6 = 1) on
+  the PDMs select CAN update vs USB-DFU; the CANBoard is unchanged. The PDM apps are now built `-Os`
+  (the `-O0` image does not fit the 368 KB app region) and the relocated app uses ChibiOS's default
+  reset handler (the `enter_bootloader.S` trampoline is dropped — OpenBLT owns reset).
+- **No-ACK CAN flood back-off** (`comms/can.cpp`) — when transmits stop being ACKed (this is the only
+  live node, or the bus is down), bxCAN would otherwise retransmit each frame at line rate (a bus
+  flood). `CAN_MCR_NART` (one-shot TX) stops it but **breaks bridged XCP flashing** — a forwarded
+  frame is dropped the instant the flash target is mid-reset and misses one ACK. So auto-retransmit
+  is kept and the TX thread instead aborts the stuck mailboxes and pauses *cyclic telemetry* after 3
+  consecutive no-ACK timeouts, resuming the moment a peer ACKs. Config replies and forwarded (bridge)
+  frames are never paused. Validated by flashing a CANBoard over CAN through the PDM bridge on a
+  Kvaser-saturated **3000 msg/s** bus.
+- **SLCAN `X` acceptance-filter command** (`comms/usb.cpp`) — lets the host tell a USB↔CAN bridge
+  which ID(s) to forward, so the bridge can drop a bus flood instead of relaying every frame to USB.
+
+### Fixed
+- **Keypad timeout reset wrote out of bounds** (`functions/keypad/keypad.cpp`): the reset loop ran to
+  `KEYPAD_MAX_BUTTONS` (20) while indexing `fDialVal` (2) and `fAnalogVal` (4), overrunning both —
+  harmless at `-O0` but real UB that the new PDM `-Os` build both warns on and may miscompile. Now
+  each array is reset to its own bound.
+
+### Notes
+- ✅ **PDM bootloader port validated on a dingoPDM-v7** (2026-06-24): bootloader installed over
+  USB-DFU; the relocated app boots and runs (telemetry clean, **0 bus errors**); an **OpenBLT
+  CAN-update session connected over XCP** on the runtime-derived IDs `0x0EA/0x0EB`, confirming the
+  FRAM→RAM base-id handoff, and `PROGRAM_RESET` returned to the app; and **both USB-DFU paths reach
+  the ROM bootloader cleanly** — the BOOT0 switch and the software trigger (`0xDEADBEEF`, dispatched
+  in the bootloader's reset handler). dingoPDM-Max is a mirror (same bootloader + app base; only
+  config storage differs) — build-verified, not yet hardware-tested.
+- The **bootloader itself can only be updated over USB-DFU** — it can't erase/rewrite its own
+  sector 0 while executing from it, so its flash map excludes that sector. Application updates go
+  over CAN; a bootloader change (rare) needs USB-DFU (BOOT0 or the software trigger).
+- ⚠️ Installing OpenBLT relocates the app, so the device runs this fork firmware afterwards; its
+  stored config resets to fork defaults on first boot (base `0x0DE` / 500 kbit unchanged). Keep a
+  read-out backup of the original flash and a BOOT0 path before installing on any board.
+
 ## [5.5.103] — 2026-06-24 (testing prerelease)
 
 CANBoard digital-output PWM. **Breaking** — config struct changed (`CONFIG_VERSION` 0x000B → 0x000C),
