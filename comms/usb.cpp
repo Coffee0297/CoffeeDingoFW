@@ -17,6 +17,20 @@ SerialUSBDriver SDU1;
 // board acting as the bridge. A standalone SLCAN adapter simply ignores the unknown 'X' command.
 static volatile int32_t gUsbSlcanFilterId = -1;
 
+// One hex nibble (0-15) to its ASCII character.
+static inline uint8_t HexNib(uint8_t v) { return v < 0xA ? (uint8_t)(v + '0') : (uint8_t)(v + '7'); }
+
+// Reply to the dingo 'I' identify command: emit 'I' + this board's CAN base id (3 hex) + CR straight back
+// over USB. Lets a host learn which board is acting as the USB<->CAN bridge so it flashes THIS board over
+// USB (the bridge can't be reflashed over the link it provides) and every other module over CAN. The reply
+// goes only over USB, never onto CAN; a standalone SLCAN adapter ignores 'I' and never answers.
+static void SendUsbIdentify()
+{
+    uint16_t base = stConfig.stDevice.nBaseId & 0x7FF;
+    uint8_t reply[5] = { 'I', HexNib((base >> 8) & 0xF), HexNib((base >> 4) & 0xF), HexNib(base & 0xF), '\r' };
+    chnWriteTimeout(&SDU1, reply, sizeof(reply), TIME_MS2I(10));
+}
+
 // Parse an 'X' command: 'X' + up to 3 hex digits + CR sets the forward id; a bare 'X' clears it.
 static void SetUsbSlcanFilter(const uint8_t *buf, size_t len)
 {
@@ -501,6 +515,12 @@ void UsbRxThread(void *)
                             // bridge forwards over USB so a host can stop a flooded bus from pouring
                             // across the link. Not a frame — don't parse / pass it through to CAN.
                             SetUsbSlcanFilter(rxBuf, rxIndex);
+                        }
+                        else if (rxBuf[0] == 'I')
+                        {
+                            // dingo identify command (non-standard SLCAN): report this bridge's base id over
+                            // USB so the host knows which board is the bridge. Not a frame — never onto CAN.
+                            SendUsbIdentify();
                         }
                         else
                         {
