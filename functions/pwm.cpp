@@ -51,7 +51,10 @@ void Pwm::Update()
 
 uint8_t Pwm::GetTargetDutyCycle() {
     if (pConfig->bVariableDutyCycle && pConfig->nDutyCycleInputDenom > 0) {
-        uint8_t dc = (uint8_t)((*pInput) / pConfig->nDutyCycleInputDenom);
+        float pct = (*pInput) / pConfig->nDutyCycleInputDenom;   // signal ÷ denom = duty %
+        if (pct > 100.0f) pct = 100.0f;                          // saturate at 100% (was uncapped → overshoot)
+        if (pct < 0.0f) pct = 0.0f;
+        uint8_t dc = (uint8_t)pct;
         if (dc < pConfig->nMinDutyCycle)
             dc = pConfig->nMinDutyCycle;
         return dc;
