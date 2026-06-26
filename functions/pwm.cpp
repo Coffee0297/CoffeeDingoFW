@@ -26,9 +26,21 @@ void Pwm::Update()
         if (!bSoftStartComplete) {
             UpdateSoftStart();
         }
-        // After soft start completes, continue updating duty cycle if variable
+        // After soft start completes, track the variable-duty source.
         else if (pConfig->bVariableDutyCycle) {
-            nDutyCycle = GetTargetDutyCycle();
+            uint8_t target = GetTargetDutyCycle();
+            if (pConfig->bRampDutyChanges && pConfig->nSoftStartRampTime > 0) {
+                // Slew toward the new target at the soft-start rate (a full 0..100% change
+                // takes nSoftStartRampTime), so duty changes ramp instead of jumping.
+                float step = 100.0f * PWM_UPDATE_TIME / (float)pConfig->nSoftStartRampTime;
+                if (fDutyActual + step < target)      fDutyActual += step;
+                else if (fDutyActual - step > target) fDutyActual -= step;
+                else                                  fDutyActual = target;
+                nDutyCycle = (uint16_t)(fDutyActual + 0.5f);
+            } else {
+                nDutyCycle = target;
+                fDutyActual = target;
+            }
         }
     }
 
@@ -51,6 +63,7 @@ void Pwm::InitSoftStart() {
     fSoftStartStep = GetTargetDutyCycle() / (float)pConfig->nSoftStartRampTime;
     bSoftStartComplete = false;
     nSoftStartTime = SYS_TIME;
+    fDutyActual = pConfig->nMinDutyCycle;   // slew starts from the min-duty floor
 }
 
 void Pwm::UpdateSoftStart() {
@@ -60,6 +73,7 @@ void Pwm::UpdateSoftStart() {
     if (nDutyCycle >= targetDuty) {
         nDutyCycle = targetDuty;
         bSoftStartComplete = true;
+        fDutyActual = nDutyCycle;   // hand off to the slew tracker at the reached duty
     }
 }
 

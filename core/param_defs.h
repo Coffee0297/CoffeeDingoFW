@@ -49,7 +49,8 @@
     {0x1000 + (i), 20, &stConfig.stOutput[i].nOpenLoadTime,              &stConfigTemp.stOutput[i].nOpenLoadTime,              ParamType::UInt16, 1000, 0, 60000}, \
     {0x1000 + (i), 21, &stConfig.stOutput[i].stPwm.bVariableFreq,        &stConfigTemp.stOutput[i].stPwm.bVariableFreq,        ParamType::Bool,   0, 0, 1}, \
     {0x1000 + (i), 22, &stConfig.stOutput[i].stPwm.nFreqInput,           &stConfigTemp.stOutput[i].stPwm.nFreqInput,           ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
-    {0x1000 + (i), 23, &stConfig.stOutput[i].stPwm.nFreqInputDenom,      &stConfigTemp.stOutput[i].stPwm.nFreqInputDenom,      ParamType::UInt16, 1, 1, 5000}
+    {0x1000 + (i), 23, &stConfig.stOutput[i].stPwm.nFreqInputDenom,      &stConfigTemp.stOutput[i].stPwm.nFreqInputDenom,      ParamType::UInt16, 1, 1, 5000}, \
+    {0x1000 + (i), 24, &stConfig.stOutput[i].stPwm.bRampDutyChanges,     &stConfigTemp.stOutput[i].stPwm.bRampDutyChanges,     ParamType::Bool,   0, 0, 1}
 #endif
 
 //=============================================================================
@@ -223,7 +224,8 @@
     {0x2100 + (i), 10, &stConfig.stDigOutput[i].stPwm.nMinDutyCycle,        &stConfigTemp.stDigOutput[i].stPwm.nMinDutyCycle,        ParamType::UInt16, 0, 0, 100}, \
     {0x2100 + (i), 11, &stConfig.stDigOutput[i].stPwm.bVariableFreq,        &stConfigTemp.stDigOutput[i].stPwm.bVariableFreq,        ParamType::Bool,   0, 0, 1}, \
     {0x2100 + (i), 12, &stConfig.stDigOutput[i].stPwm.nFreqInput,           &stConfigTemp.stDigOutput[i].stPwm.nFreqInput,           ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
-    {0x2100 + (i), 13, &stConfig.stDigOutput[i].stPwm.nFreqInputDenom,      &stConfigTemp.stDigOutput[i].stPwm.nFreqInputDenom,      ParamType::UInt16, 1, 1, 5000}
+    {0x2100 + (i), 13, &stConfig.stDigOutput[i].stPwm.nFreqInputDenom,      &stConfigTemp.stDigOutput[i].stPwm.nFreqInputDenom,      ParamType::UInt16, 1, 1, 5000}, \
+    {0x2100 + (i), 14, &stConfig.stDigOutput[i].stPwm.bRampDutyChanges,     &stConfigTemp.stDigOutput[i].stPwm.bRampDutyChanges,     ParamType::Bool,   0, 0, 1}
 #else
 #define DIGITAL_OUTPUT_PARAMS(i) \
     {0x2100 + (i), 0, &stConfig.stDigOutput[i].bEnabled,     &stConfigTemp.stDigOutput[i].bEnabled,    ParamType::Bool,   0, 0, 1}, \

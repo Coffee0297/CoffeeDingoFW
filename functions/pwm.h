@@ -24,6 +24,7 @@ struct Config_PwmOutput{
   bool bVariableFreq;          // PWM frequency follows a signal instead of nFreq
   uint16_t nFreqInput;         // VarMap index of the frequency source
   uint16_t nFreqInputDenom;    // Hz = signal / denom, clamped to 15..400
+  bool bRampDutyChanges;       // with soft-start: ramp ongoing duty changes (slew) at the soft-start rate
 };
 
 class Pwm
@@ -93,6 +94,7 @@ private:
     void UpdateFrequency();
 
     uint16_t nDutyCycle;
+    float fDutyActual;        // slew accumulator for ramped variable-duty changes
     uint16_t nLastFreq;
 
     bool bChannelEnabled;
