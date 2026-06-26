@@ -83,18 +83,22 @@ void SendAllParams(bool modifiedOnly) {
 void CheckCrc() {
     CANTxFrame tx;
 
-    nCheckCrc = 0xFFFFFFFF; // Reset CRC for new batch
+    // Hardened full-config signature: ORDER-INDEPENDENT and self-describing. Each param contributes
+    // a standalone CRC over its identity (index+subindex) AND value, XOR-combined. XOR is commutative,
+    // so the host and firmware no longer have to iterate params in the same order to agree, and
+    // including the identity bytes means a missing/extra param changes the signature (a param-set
+    // difference is detected, not silently equal). The host computes the identical value in CalcCrc().
+    uint32_t acc = 0;
     for (int i = 0; i < NUM_PARAMS; i++) {
         uint32_t value = ReadParam(&stParams[i]);
-        EncodeParamRsp(&tx, static_cast<uint8_t>(MsgCmd::ReadAllRsp), 
+        EncodeParamRsp(&tx, static_cast<uint8_t>(MsgCmd::ReadAllRsp),
                         stParams[i].nIndex, stParams[i].nSubIndex, value);
-        nCheckCrc = CalculateCRC32Partial(&tx.data8[4], 4, nCheckCrc);
+        acc ^= CalculateCRC32(&tx.data8[1], 7); // index(2) + subindex(1) + value(4), finalized per param
     }
-    nCheckCrc = ~nCheckCrc; // Finalize CRC after all params sent
-    
-    EncodeParamRsp(&tx, static_cast<uint8_t>(MsgCmd::CheckCrcRsp), 0, 0, nCheckCrc); // End of params marker, return number of params sent and CRC
-    PostTxFrame(&tx);
+    nCheckCrc = acc;
 
+    EncodeParamRsp(&tx, static_cast<uint8_t>(MsgCmd::CheckCrcRsp), 0, 0, nCheckCrc); // End of params marker, return CRC
+    PostTxFrame(&tx);
 }
 
 void SetAllDefaultParams(bool temp) {
