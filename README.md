@@ -93,6 +93,52 @@ CAN session (`0xB00710AD`).
 > recovery confirmed. The v5.5.103 PWM outputs still want a bench check (scope DO1–DO4, `0x64B` duty
 > frame). See [CHANGELOG](CHANGELOG.md).
 
+### Batch SWD flashing (`flash-canboard.ps1`)
+
+[`flash-canboard.ps1`](flash-canboard.ps1) drives the **SWD-once** step above in a loop — for the
+one-time bootloader install, or for programming a batch of blank boards off the reel.
+
+```powershell
+.\flash-canboard.ps1 -Hex C:/path/to/canboard_v2_FW_v0-5-8.hex          # batch loop
+.\flash-canboard.ps1 -Hex bootloader/canboard/bin/canboard_blt.hex -Once  # one board
+.\flash-canboard.ps1 -SelfTest                                            # no hardware needed
+```
+
+Per board: wait for SWD → read all 64 KB back → require every byte `0xFF` → `pyocd load -e sector`
+(so the config sector at `0x0800F800` survives) → beep → wait for unplug → repeat. A board that
+**isn't blank is skipped, not overwritten**, unless `-Force`. High beep = pass, low = fail/skip.
+
+| Flag | Default | |
+|---|---|---|
+| `-Hex` | *(required)* | one or more images; `.hex`/`.elf` carry their load addresses, a raw `.bin` needs `@0x08000000` appended |
+| `-Target` | `stm32f303k8` | pyocd target name (needs pack `Keil.STM32F3xx_DFP`) |
+| `-Frequency` | `1M` | SWD clock; lower to `500k`/`250k` on long or unshielded pigtails |
+| `-Retries` | `2` | flash attempts before calling the board bad |
+| `-Force` | off | reflash a board that isn't blank |
+| `-Once` | off | do one board and exit, instead of looping |
+| `-SelfTest` | — | assert the script's parsing logic and exit |
+
+Requires `pyocd` on `PATH` and a CMSIS-DAP probe (a Raspberry Pi Debugprobe/Pico works). Multiple
+images must not overlap: a **standalone** firmware links its vectors at `0x08000000` and must be
+flashed *alone*, never alongside `canboard_blt.hex` which claims the same address. Check where an
+image actually lands with `arm-none-eabi-objdump -h <file.elf>`.
+
+Two pyocd traps the script works around — worth knowing before scripting this yourself:
+
+- **`pyocd cmd` exits `0` even when SWD gets no ACK.** Board presence must be judged on its *output*
+  (the `Core <n> (...)` line), never on `$LASTEXITCODE`, or you get phantom "connected" boards.
+  `pyocd load` does exit non-zero correctly.
+- **The commander strips `\` as an escape**, so `savemem 0x08000000 65536 C:\Users\...\dump.bin`
+  prints `Saved 65536 bytes` while writing to a mangled drive-relative path. Pass forward slashes.
+
+`No ACK` across every connect mode *and* every clock from 2 MHz down to 100 kHz almost always means
+the **target is unpowered** — the Debugprobe supplies no target power. Check that, and the shared
+ground, before chasing `-Frequency`.
+
+> ⚠️ Verified so far: probe detection, board detection, 64 KB readback, blank-check refusal, clean
+> exit. The **successful-write path has not yet been exercised on a blank board** — run
+> `-Once` on one known-blank board before trusting a batch.
+
 # [**Documentation**](https://corygrant.github.io/dingoPDM/)
 
 # [**Store**](https://dingo-electronics.square.site/product/dingopdm/1)
