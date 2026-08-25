@@ -93,35 +93,68 @@ CAN session (`0xB00710AD`).
 > recovery confirmed. The v5.5.103 PWM outputs still want a bench check (scope DO1–DO4, `0x64B` duty
 > frame). See [CHANGELOG](CHANGELOG.md).
 
-### Batch SWD flashing (`flash-canboard.ps1`)
+### Batch SWD flashing (`flash-dingo.ps1`)
 
-[`flash-canboard.ps1`](flash-canboard.ps1) drives the **SWD-once** step above in a loop — for the
-one-time bootloader install, or for programming a batch of blank boards off the reel.
+[`flash-dingo.ps1`](flash-dingo.ps1) drives the **SWD-once** step above in a loop — for the
+one-time bootloader install, or for programming a batch of blank boards off the reel. Handles both
+**CANBoard v2** (STM32F303K8) and **dingoPDM v7 / -Max v1** (STM32F446).
 
 ```powershell
-.\flash-canboard.ps1 -Hex C:/path/to/canboard_v2_FW_v0-5-8.hex          # batch loop
-.\flash-canboard.ps1 -Hex bootloader/canboard/bin/canboard_blt.hex -Once  # one board
-.\flash-canboard.ps1 -SelfTest                                            # no hardware needed
+.\flash-dingo.ps1 -Hex C:/path/to/canboard_v2_FW_v0-5-8.hex            # batch loop
+.\flash-dingo.ps1 -Hex C:/path/to/dingopdm_v7_FW_v0-5-8.hex            # PDM, same script
+.\flash-dingo.ps1 -Hex bootloader/canboard/bin/canboard_blt.hex -Once  # one board
+.\flash-dingo.ps1 -SelfTest                                            # no hardware needed
 ```
 
-Per board: wait for SWD → read all 64 KB back → require every byte `0xFF` → `pyocd load -e sector`
-(so the config sector at `0x0800F800` survives) → beep → wait for unplug → repeat. A board that
-**isn't blank is skipped, not overwritten**, unless `-Force`. High beep = pass, low = fail/skip.
+Per board: wait for SWD → **identify the MCU** → **check the image belongs on it** → read all of
+flash back → require every byte `0xFF` → `pyocd load -e sector` (so the persistent config sector
+survives) → beep → wait for unplug → repeat. A board that **isn't blank is skipped, not
+overwritten**, unless `-Force`. High beep = pass, low = fail/skip.
+
+**The board is identified, never assumed.** Its `DBGMCU_IDCODE` (`0xE0042000`) gives the `DEV_ID`,
+which selects the pyocd target, and the part's own flash-size register gives its real capacity:
+
+| `DEV_ID` | Part | Board | pyocd target | pack |
+|---|---|---|---|---|
+| `0x438` | STM32F303x6/x8 | CANBoard v2 | `stm32f303k8` | `Keil.STM32F3xx_DFP` |
+| `0x421` | STM32F446 | dingoPDM v7 / -Max v1 | `stm32f446re` | `Keil.STM32F4xx_DFP` |
+
+Before writing anything it refuses the flash if the image doesn't belong on the detected part:
+
+- **filename names a different board** — `dingopdm_*.hex` on a CANBoard, or `canboard_*.hex` on a PDM
+- **image doesn't fit** the part's real flash size — the 162 KB PDM firmware cannot land on a 64 KB F303
+- **two images overlap** — e.g. a standalone firmware at `0x08000000` passed alongside
+  `canboard_blt.hex`, which claims the same address
+
+`-IgnoreMismatch` overrides, `-Target` forces a pyocd target. It also prompts once at startup to
+confirm the image and board before a batch (`-Yes` skips).
+
+**Contact time matters if you hand-hold the probe.** Measured on a dingoPDM (162 KB image): **23 s →
+13 s**, by blank-checking only the span the image occupies (159 KB, not the whole 512 KB chip) and
+defaulting to a 4 MHz SWD clock. The remaining ~4.4 s is F446 erase time — flash-controller bound,
+and pyocd offers no way to skip erasing already-blank sectors.
+
+> ⚠️ Never pipe this script through `Select-Object -First N` or `head`. That closes the upstream
+> pipeline early and **kills it mid-write**, leaving a half-programmed board in CPU lockup.
+> Recovery is `-Force` with the full image.
 
 | Flag | Default | |
 |---|---|---|
 | `-Hex` | *(required)* | one or more images; `.hex`/`.elf` carry their load addresses, a raw `.bin` needs `@0x08000000` appended |
-| `-Target` | `stm32f303k8` | pyocd target name (needs pack `Keil.STM32F3xx_DFP`) |
-| `-Frequency` | `1M` | SWD clock; lower to `500k`/`250k` on long or unshielded pigtails |
+| `-Target` | *auto from IDCODE* | override the detected pyocd target |
+| `-Frequency` | `4M` | SWD clock; falls back `2M`→`1M`→`500k` automatically if the target won't answer |
+| `-Fast` | off | verify by CRC32 instead of a full readback — quicker, weaker guarantee |
 | `-Retries` | `2` | flash attempts before calling the board bad |
 | `-Force` | off | reflash a board that isn't blank |
+| `-IgnoreMismatch` | off | flash even if the image looks wrong for the board — last resort |
+| `-Yes` | off | skip the one-time confirmation prompt |
 | `-Once` | off | do one board and exit, instead of looping |
-| `-SelfTest` | — | assert the script's parsing logic and exit |
+| `-SelfTest` | — | assert the script's parsing and mismatch logic, then exit |
 
-Requires `pyocd` on `PATH` and a CMSIS-DAP probe (a Raspberry Pi Debugprobe/Pico works). Multiple
-images must not overlap: a **standalone** firmware links its vectors at `0x08000000` and must be
-flashed *alone*, never alongside `canboard_blt.hex` which claims the same address. Check where an
-image actually lands with `arm-none-eabi-objdump -h <file.elf>`.
+Requires `pyocd` on `PATH` and a CMSIS-DAP probe (a Raspberry Pi Debugprobe/Pico works). Install
+the device packs once: `pyocd pack install stm32f303k8 stm32f446re`. Only `.hex` extents can be
+parsed — pass a `.hex` if you want the fit and overlap checks. Confirm where any image lands with
+`arm-none-eabi-objdump -h <file.elf>`.
 
 Two pyocd traps the script works around — worth knowing before scripting this yourself:
 
@@ -135,9 +168,16 @@ Two pyocd traps the script works around — worth knowing before scripting this 
 the **target is unpowered** — the Debugprobe supplies no target power. Check that, and the shared
 ground, before chasing `-Frequency`.
 
-> ⚠️ Verified so far: probe detection, board detection, 64 KB readback, blank-check refusal, clean
-> exit. The **successful-write path has not yet been exercised on a blank board** — run
-> `-Once` on one known-blank board before trusting a batch.
+> ✅ **Verified on a dingoPDM v7** (STM32F446, Raspberry Pi Debugprobe): board identified from
+> `DEV_ID 0x421` with 512 KB read from the part's own flash-size register; a CANBoard image was
+> refused on it by name; the correct image flashed and verified, checked independently by reading
+> the SP, reset vector and image tail back off the chip; a half-programmed board in lockup was
+> recovered with `-Force`. Also verified off-hardware: Intel-HEX extent parsing (against
+> `canboard_blt.hex`, `build/canboard_v2.hex` and both v0.5.8 release images) and the
+> mismatch/fit/overlap guards.
+>
+> ⚠️ **Not yet exercised: the CANBoard/F303 write path** — detection and blank-check refusal are
+> proven there, writing is not. Run `-Once` on one known-blank CANBoard before trusting a batch.
 
 # [**Documentation**](https://corygrant.github.io/dingoPDM/)
 
