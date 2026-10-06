@@ -55,7 +55,8 @@ CANTxMsg TxMsg2()
     stMsg.frame.data8[0] = (GetRotarySwitchPos(1) << 4) + GetRotarySwitchPos(0);
     stMsg.frame.data8[1] = (GetRotarySwitchPos(3) << 4) + GetRotarySwitchPos(2);
     stMsg.frame.data8[2] = GetRotarySwitchPos(4);
-    stMsg.frame.data8[3] = (GetFlasherVal(3) << 3) + (GetFlasherVal(2) << 2) +
+    stMsg.frame.data8[3] = ((GetTimers() & 0x0F) << 4) +                  // Timer 1-4 outputs in the upper nibble (bits 28-31)
+                           (GetFlasherVal(3) << 3) + (GetFlasherVal(2) << 2) +
                            (GetFlasherVal(1) << 1) + GetFlasherVal(0);
     stMsg.frame.data8[4] = (GetDigInputVal(7) << 7) + (GetDigInputVal(6) << 6) + (GetDigInputVal(5) << 5) + (GetDigInputVal(4) << 4) + 
                            (GetDigInputVal(3) << 3) + (GetDigInputVal(2) << 2) + (GetDigInputVal(1) << 1) + GetDigInputVal(0);
@@ -114,8 +115,8 @@ CANTxMsg TxMsg5()
     //=======================================================
     stMsg.frame.SID = stConfig.stDevice.nBaseId + CYCLIC_TX_OFFSET + 5;
     stMsg.frame.DLC = 8; // Bytes to send
-    Dbc::EncodeFloat(stMsg.frame.data8, GetCanInVal(0), 0, 32, GetCanInFactor(0), GetCanInOffset(0), GetCanInByteOrder(0));
-    Dbc::EncodeFloat(stMsg.frame.data8, GetCanInVal(1), 32, 32, GetCanInFactor(1), GetCanInOffset(1), GetCanInByteOrder(1));
+    Dbc::EncodeFloat(stMsg.frame.data8, GetCanInVal(0), 0, 32, GetCanInFactor(0), GetCanInOffset(0), ByteOrder::LittleEndian);
+    Dbc::EncodeFloat(stMsg.frame.data8, GetCanInVal(1), 32, 32, GetCanInFactor(1), GetCanInOffset(1), ByteOrder::LittleEndian);
 
     stMsg.bSend = GetCanInEnable(0) || GetCanInEnable(1);
 
@@ -130,8 +131,8 @@ CANTxMsg TxMsg6()
     //=======================================================
     stMsg.frame.SID = stConfig.stDevice.nBaseId + CYCLIC_TX_OFFSET + 6;
     stMsg.frame.DLC = 8; // Bytes to send
-    Dbc::EncodeFloat(stMsg.frame.data8, GetCanInVal(2), 0, 32, GetCanInFactor(2), GetCanInOffset(2), GetCanInByteOrder(2));
-    Dbc::EncodeFloat(stMsg.frame.data8, GetCanInVal(3), 32, 32, GetCanInFactor(3), GetCanInOffset(3), GetCanInByteOrder(3));
+    Dbc::EncodeFloat(stMsg.frame.data8, GetCanInVal(2), 0, 32, GetCanInFactor(2), GetCanInOffset(2), ByteOrder::LittleEndian);
+    Dbc::EncodeFloat(stMsg.frame.data8, GetCanInVal(3), 32, 32, GetCanInFactor(3), GetCanInOffset(3), ByteOrder::LittleEndian);
 
     stMsg.bSend = GetCanInEnable(2) || GetCanInEnable(3);
 
@@ -146,8 +147,8 @@ CANTxMsg TxMsg7()
     //=======================================================
     stMsg.frame.SID = stConfig.stDevice.nBaseId + CYCLIC_TX_OFFSET + 7;
     stMsg.frame.DLC = 8; // Bytes to send
-    Dbc::EncodeFloat(stMsg.frame.data8, GetCanInVal(4), 0, 32, GetCanInFactor(4), GetCanInOffset(4), GetCanInByteOrder(4));
-    Dbc::EncodeFloat(stMsg.frame.data8, GetCanInVal(5), 32, 32, GetCanInFactor(5), GetCanInOffset(5), GetCanInByteOrder(5));
+    Dbc::EncodeFloat(stMsg.frame.data8, GetCanInVal(4), 0, 32, GetCanInFactor(4), GetCanInOffset(4), ByteOrder::LittleEndian);
+    Dbc::EncodeFloat(stMsg.frame.data8, GetCanInVal(5), 32, 32, GetCanInFactor(5), GetCanInOffset(5), ByteOrder::LittleEndian);
 
     stMsg.bSend = GetCanInEnable(4) || GetCanInEnable(5);
 
@@ -162,8 +163,8 @@ CANTxMsg TxMsg8()
     //=======================================================
     stMsg.frame.SID = stConfig.stDevice.nBaseId + CYCLIC_TX_OFFSET + 8;
     stMsg.frame.DLC = 8; // Bytes to send
-    Dbc::EncodeFloat(stMsg.frame.data8, GetCanInVal(6), 0, 32, GetCanInFactor(6), GetCanInOffset(6), GetCanInByteOrder(6));
-    Dbc::EncodeFloat(stMsg.frame.data8, GetCanInVal(7), 32, 32, GetCanInFactor(7), GetCanInOffset(7), GetCanInByteOrder(7));
+    Dbc::EncodeFloat(stMsg.frame.data8, GetCanInVal(6), 0, 32, GetCanInFactor(6), GetCanInOffset(6), ByteOrder::LittleEndian);
+    Dbc::EncodeFloat(stMsg.frame.data8, GetCanInVal(7), 32, 32, GetCanInFactor(7), GetCanInOffset(7), ByteOrder::LittleEndian);
 
     stMsg.bSend = GetCanInEnable(6) || GetCanInEnable(7);
 

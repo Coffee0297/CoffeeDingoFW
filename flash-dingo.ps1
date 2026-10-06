@@ -19,7 +19,23 @@ at 0x08000000 plus an app relocated to 0x08004000 (CANBoard) / 0x08004000 +368K 
   -Hex bootloader/canboard/bin/canboard_blt.hex,build/canboard_v2.hex
 Check where an image lands with:  arm-none-eabi-objdump -h <file.elf>
 
-'-e sector' erases only the sectors written, so the persistent config sector survives a reflash.
+ERASE SCOPE -- '-e sector' erases every SECTOR an image touches, in full. Not just the bytes
+written, and not only on -Force: -Force merely skips the blank check, it changes nothing about
+erasing. What gets erased follows the image's address span and the part's sector map:
+
+  * A STANDALONE image starts at 0x08000000, so it erases and REPLACES any OpenBLT bootloader
+    there. That board loses CAN update -- SWD/DFU only afterwards. Flash the relocated app
+    instead (0x08004000) and sector 0 is untouched, keeping "SWD once, then CAN forever".
+  * F446 sectors run 16/16/16/16/64/128/128/128 KB, so the 159 KB PDM image reaches into
+    sector 5 and erases 256 KB -- ~98 KB beyond the image. Anything in 0x08028000-0x0803FFFF
+    is destroyed even though nothing is written there.
+  * Config survives in both boards: PDM sector 7 (0x08060000) is past the erase, and the
+    CANBoard's 2 KB sector 31 (0x0800F800) sits above its 62 KB image.
+
+VERIFY -- pyocd does NOT read the image back after programming ('--trust-crc' only decides which
+pages to skip BEFORE writing). This script therefore re-reads the image span itself and compares
+it to the .hex byte for byte, and only reports PASS when that matches. A non-.hex image cannot be
+compared, and says so rather than claiming a verify it did not do.
 
 "No ACK" on every mode and every clock usually means the board is UNPOWERED -- the Debugprobe
 does not supply target power. Check that, and the shared ground, before chasing -Frequency.
@@ -78,11 +94,14 @@ function Get-FirstProgrammedOffset([byte[]]$Bytes) {
     return -1
 }
 
-# Parse an Intel HEX file into its absolute address extent and payload size, so an image can be
-# checked against the part it is about to be written to. $null for formats we can't read.
+# Parse an Intel HEX file into its address extent AND its bytes, so the image can be checked
+# against the part before writing and compared against the chip afterwards. $null for formats we
+# can't read. Data/Mask are indexed from Start; Mask marks the addresses the file actually
+# defines, so gaps between records are never compared.
 function Get-HexExtent([string]$Path) {
     if ($Path -notmatch '\.hex$') { return $null }
     $lo = [uint32]::MaxValue; $hi = [uint32]0; $bytes = 0; $upper = [uint32]0
+    $records = [Collections.Generic.List[object]]::new()
     foreach ($line in [IO.File]::ReadLines($Path)) {
         if ($line -notmatch '^:[0-9A-Fa-f]{10}') { continue }
         $len  = [Convert]::ToInt32($line.Substring(1, 2), 16)
@@ -94,12 +113,48 @@ function Get-HexExtent([string]$Path) {
                 if ($abs -lt $lo) { $lo = $abs }
                 if (($abs + $len) -gt $hi) { $hi = $abs + $len }
                 $bytes += $len
+                $payload = [byte[]]::new($len)
+                for ($k = 0; $k -lt $len; $k++) {
+                    $payload[$k] = [Convert]::ToByte($line.Substring(9 + ($k * 2), 2), 16)
+                }
+                $records.Add(@{ Addr = $abs; Payload = $payload })
             }
             4 { $upper = [uint32]([Convert]::ToInt32($line.Substring(9, 4), 16)) -shl 16 }  # extended linear address
         }
     }
     if ($hi -eq 0) { return $null }
-    return @{ Start = $lo; End = $hi; Bytes = $bytes }
+    $data = [byte[]]::new($hi - $lo)
+    $mask = [bool[]]::new($hi - $lo)
+    foreach ($r in $records) {
+        $at = $r.Addr - $lo
+        for ($k = 0; $k -lt $r.Payload.Length; $k++) {
+            $data[$at + $k] = $r.Payload[$k]
+            $mask[$at + $k] = $true
+        }
+    }
+    return @{ Start = $lo; End = $hi; Bytes = $bytes; Data = $data; Mask = $mask }
+}
+
+# Compare a flash readback against what the image files say should be there. Only addresses the
+# files actually define are checked, so record gaps are ignored. pyocd does NOT verify after
+# programming -- '--trust-crc' only decides which pages to skip BEFORE writing -- so without this
+# a "flashed" board is unconfirmed.
+# Returns @{ Ok; Checked; BadCount; FirstBad } ($null address when everything matched).
+function Test-FlashAgainstImages($Images, [long]$From, [byte[]]$Actual) {
+    $checked = 0; $bad = 0; $firstBad = $null
+    foreach ($img in $Images) {
+        for ($i = 0; $i -lt $img.Mask.Length; $i++) {
+            if (-not $img.Mask[$i]) { continue }
+            $idx = ($img.Start + $i) - $From
+            if ($idx -lt 0 -or $idx -ge $Actual.Length) { continue }
+            $checked++
+            if ($Actual[$idx] -ne $img.Data[$i]) {
+                $bad++
+                if ($null -eq $firstBad) { $firstBad = $img.Start + $i }
+            }
+        }
+    }
+    return @{ Ok = ($bad -eq 0 -and $checked -gt 0); Checked = $checked; BadCount = $bad; FirstBad = $firstBad }
 }
 
 # Does this image belong on this part? Returns a list of reasons it does not.
@@ -196,6 +251,22 @@ if ($SelfTest) {
     if (Get-ImageComplaints $f446 @($big) | Where-Object { $_ -match 'past this part' }) { throw 'SelfTest: same image wrongly rejected on the 512K part' }
     if (-not (Get-ImageComplaints $f446 @($at0) | Where-Object { $_ -match "names 'canboard'" })) { throw 'SelfTest: CANBoard image not caught by name on a PDM' }
 
+    # --- the post-flash verify: pyocd does not read back, so this is the only real check ---
+    $img = Get-HexExtent $at0                       # 16 bytes at 0x08000000
+    if ($img.Data.Length -ne 16 -or -not $img.Mask[0]) { throw 'SelfTest: hex bytes not captured' }
+    if ($img.Data[0] -ne 0x00 -or $img.Data[3] -ne 0x20) { throw 'SelfTest: hex payload decoded wrong' }
+    $good = [byte[]]::new(32); [Array]::Copy($img.Data, $good, 16)
+    $v = Test-FlashAgainstImages @($img) $img.Start $good
+    if (-not $v.Ok -or $v.Checked -ne 16) { throw "SelfTest: verify rejected a correct readback ($($v.BadCount) bad)" }
+    $wrong = $good.Clone(); $wrong[5] = $good[5] -bxor 0xFF
+    $v = Test-FlashAgainstImages @($img) $img.Start $wrong
+    if ($v.Ok) { throw 'SelfTest: verify accepted a corrupted readback' }
+    if ($v.BadCount -ne 1 -or $v.FirstBad -ne ($img.Start + 5)) { throw "SelfTest: verify misreported the bad byte ($($v.BadCount) at $($v.FirstBad))" }
+    # A gap between records must never be compared: mask it out and corrupt it.
+    $img.Mask[7] = $false
+    $wrong2 = $good.Clone(); $wrong2[7] = 0xAA
+    if (-not (Test-FlashAgainstImages @($img) $img.Start $wrong2).Ok) { throw 'SelfTest: verify compared an undefined gap byte' }
+
     Remove-Item $tmp, $dir -Recurse -ErrorAction SilentlyContinue
     'SelfTest OK'; exit 0
 }
@@ -280,6 +351,7 @@ foreach ($f in $Hex) {
 # @() is load-bearing: a single extent would otherwise be a bare hashtable, whose .Count is its
 # key count (3), not 1 -- which silently sent every single-image run down the whole-flash path.
 $extents = @($Hex | ForEach-Object { Get-HexExtent ($_ -replace '@.*$', '') } | Where-Object { $_ })
+$expected = if ($extents.Count -eq @($Hex).Count) { $extents } else { $null }
 if ($extents.Count -eq @($Hex).Count) {
     # [long] casts matter: Measure-Object hands back a Double, which the X8 format specifier
     # cannot render at all.
@@ -346,6 +418,7 @@ while ($true) {
         $confirmed = $true
     }
 
+    $verify = $null
     try {
         # The flash readback is also the liveness check, so a marginal link cannot pass a probe
         # step and then fail the real one.
@@ -369,21 +442,39 @@ while ($true) {
                 if ($offset -ge 0) { Write-Host 'Not blank, -Force given: reflashing.' -ForegroundColor Yellow }
                 $flashed = $false
                 foreach ($attempt in 1..$Retries) {
-                    # 'pyocd load' DOES exit nonzero on failure, and verifies by readback
-                    # unless --trust-crc -- so here the exit code is trustworthy.
-                    # '-e sector' erases only what is written, sparing the config sector.
+                    # 'pyocd load' exits nonzero if programming itself fails, but it does NOT
+                    # read the image back afterwards -- '--trust-crc' only decides which pages to
+                    # skip BEFORE writing. The verify below is what actually confirms the board.
+                    # '-e sector' erases every SECTOR the image touches, in full -- not just the
+                    # bytes written. See the erase notes in the header.
                     if ($Fast) { pyocd load -t $tgt -M $mode -f $script:clock -e sector --trust-crc @Hex }
                     else       { pyocd load -t $tgt -M $mode -f $script:clock -e sector @Hex }
-                    if ($LASTEXITCODE -eq 0) { $flashed = $true; break }
-                    Write-Host "  attempt $attempt/$Retries failed, retrying..." -ForegroundColor Yellow
+                    if ($LASTEXITCODE -ne 0) {
+                        Write-Host "  attempt $attempt/$Retries failed to program, retrying..." -ForegroundColor Yellow
+                        continue
+                    }
+                    # --- read the image span back and compare it to the files, byte for byte ---
+                    if ($null -eq $expected) {
+                        Write-Host '  programmed, but image bytes are unknown (not a .hex) -- cannot verify' -ForegroundColor Yellow
+                        $flashed = $true; break
+                    }
+                    if (-not (Read-Flash $tgt $mode $from $size $dump)) {
+                        Write-Host "  attempt $attempt/$Retries programmed but could not read back, retrying..." -ForegroundColor Yellow
+                        continue
+                    }
+                    $v = Test-FlashAgainstImages $expected $from ([IO.File]::ReadAllBytes($dump))
+                    if ($v.Ok) { $flashed = $true; $verify = $v; break }
+                    Write-Host ("  attempt {0}/{1} VERIFY FAILED: {2:N0} of {3:N0} bytes wrong, first at 0x{4:X8}" -f `
+                        $attempt, $Retries, $v.BadCount, $v.Checked, $v.FirstBad) -ForegroundColor Yellow
                 }
                 if ($flashed) {
                     $count++
-                    Write-Host ("PASS  {0} #{1} flashed + verified at {2:HH:mm:ss}" -f $part.Board, $count, (Get-Date)) -ForegroundColor Green
+                    $what = if ($verify) { "{0:N0} bytes verified" -f $verify.Checked } else { 'NOT verified' }
+                    Write-Host ("PASS  {0} #{1} flashed, {2}, at {3:HH:mm:ss}" -f $part.Board, $count, $what, (Get-Date)) -ForegroundColor Green
                     [Console]::Beep(880, 150)
                 }
                 else {
-                    Write-Host "FAIL  $Retries attempts failed -- board NOT programmed" -ForegroundColor Red
+                    Write-Host "FAIL  $Retries attempts failed -- board is NOT correctly programmed" -ForegroundColor Red
                     [Console]::Beep(220, 400)
                 }
             }

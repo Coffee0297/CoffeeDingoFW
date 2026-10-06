@@ -16,10 +16,13 @@
     {0x0000, 3, &stConfig.stDevice.bCanFilterEnabled,  &stConfigTemp.stDevice.bCanFilterEnabled, ParamType::Bool,   0, 0, 1}, \
     {0x0000, 4, &stConfig.stDevice.bConnectUsbToCan,   &stConfigTemp.stDevice.bConnectUsbToCan,  ParamType::Bool,   1, 0, 1}, \
     {0x0000, 5, &stConfig.stDevice.nSleepTimeoutMs,    &stConfigTemp.stDevice.nSleepTimeoutMs,   ParamType::UInt16, 30000, 1000, 60000}, \
-    {0x0000, 6, &stConfig.stDevice.bSleepInputEnabled, &stConfigTemp.stDevice.bSleepInputEnabled, ParamType::Bool, 0, 0, 1}, \
-    {0x0000, 7, &stConfig.stDevice.nSleepInput,        &stConfigTemp.stDevice.nSleepInput,       ParamType::UInt16, 0, 0, NUM_DIG_INPUTS}, \
-    {0x0000, 8, &stConfig.stDevice.bSleepInputActiveHigh, &stConfigTemp.stDevice.bSleepInputActiveHigh, ParamType::Bool, 0, 0, 1}, \
-    {0x0000, 9, &stConfig.stDevice.bSleepIgnoreAlwaysOn,  &stConfigTemp.stDevice.bSleepIgnoreAlwaysOn,  ParamType::Bool, 1, 0, 1}
+    {0x0000, 9, &stConfig.stDevice.bSleepIgnoreAlwaysOn,  &stConfigTemp.stDevice.bSleepIgnoreAlwaysOn,  ParamType::Bool, 1, 0, 1}, \
+    {0x0000, 10, &stConfig.stDevice.nForceSleepInput,  &stConfigTemp.stDevice.nForceSleepInput,  ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
+    {0x0000, 11, &stConfig.stDevice.nMuteTxInput,      &stConfigTemp.stDevice.nMuteTxInput,      ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
+    {0x0000, 12, &stConfig.stDevice.nWakeDigInputMask, &stConfigTemp.stDevice.nWakeDigInputMask, ParamType::UInt8,  (1u << NUM_DIG_INPUTS) - 1, 0, (1u << NUM_DIG_INPUTS) - 1}, \
+    {0x0000, 13, &stConfig.stDevice.bWakeOnCan,        &stConfigTemp.stDevice.bWakeOnCan,        ParamType::Bool,   1, 0, 1}
+// Sub-indices 6-8 (the digital-input sleep trigger of CONFIG_VERSION 0x000E) are retired, not
+// reused, so an older dingoConfig writing them gets "param not found" instead of a silent re-purpose.
 
 //=============================================================================
 // Output Parameters - Base 0x1000
@@ -43,7 +46,7 @@
     {0x1000 + (i), 14, &stConfig.stOutput[i].stPwm.nSoftStartRampTime,   &stConfigTemp.stOutput[i].stPwm.nSoftStartRampTime,   ParamType::UInt16, 0, 0, 10000}, \
     {0x1000 + (i), 15, &stConfig.stOutput[i].stPwm.nDutyCycleInputDenom, &stConfigTemp.stOutput[i].stPwm.nDutyCycleInputDenom, ParamType::UInt16, 100, 1, 5000}, \
     {0x1000 + (i), 16, &stConfig.stOutput[i].stPwm.nMinDutyCycle,        &stConfigTemp.stOutput[i].stPwm.nMinDutyCycle,        ParamType::UInt16, 0, 0, 100}, \
-    {0x1000 + (i), 17, &stConfig.stOutput[i].nPrimaryOutput,             &stConfigTemp.stOutput[i].nPrimaryOutput,             ParamType::Int8,  I8(-1), I8(-1), VAR_MAP_SIZE - 1}, \
+    {0x1000 + (i), 17, &stConfig.stOutput[i].nPrimaryOutput,             &stConfigTemp.stOutput[i].nPrimaryOutput,             ParamType::Int8,  I8(-1), I8(-1), NUM_OUTPUTS - 1}, /* -1 = unpaired; VAR_MAP_SIZE-1 let 128..258 wrap negative on the int8 and index stOutput[] out of bounds */ \
     {0x1000 + (i), 18, &stConfig.stOutput[i].fWarnLimit,                 &stConfigTemp.stOutput[i].fWarnLimit,                 ParamType::Float,  F(0.0f), F(0.0f), F(100.0f)}, \
     {0x1000 + (i), 19, &stConfig.stOutput[i].fOpenLoadLimit,             &stConfigTemp.stOutput[i].fOpenLoadLimit,             ParamType::Float,  F(0.0f), F(0.0f), F(100.0f)}, \
     {0x1000 + (i), 20, &stConfig.stOutput[i].nOpenLoadTime,              &stConfigTemp.stOutput[i].nOpenLoadTime,              ParamType::UInt16, 1000, 0, 60000}, \
@@ -135,6 +138,43 @@
     {0x1700 + (i), 2, &stConfig.stFlasher[i].nFlashOnTime,  &stConfigTemp.stFlasher[i].nFlashOnTime,  ParamType::UInt16, 500, 0, 5000}, \
     {0x1700 + (i), 3, &stConfig.stFlasher[i].nFlashOffTime, &stConfigTemp.stFlasher[i].nFlashOffTime, ParamType::UInt16, 500, 0, 5000}, \
     {0x1700 + (i), 4, &stConfig.stFlasher[i].bSingleCycle,  &stConfigTemp.stFlasher[i].bSingleCycle,  ParamType::Bool,   0, 0, 1}
+
+//=============================================================================
+// Table Parameters - Base 0x1A00 (8x8 bilinear lookup, dingoConfig #58)
+// sub 0-4 header, 5-12 X axis, 13-20 Y axis, 21-84 cells (row-major, 21 + y*8 + x)
+//=============================================================================
+#if NUM_TABLES > 0
+#define TABLE_AXIS_PARAM(i, sub, arr, k) \
+    {0x1A00 + (i), (sub) + (k), &stConfig.stTable[i].arr[k], &stConfigTemp.stTable[i].arr[k], ParamType::Float, F(0.0f), F(-1e9f), F(1e9f)}
+#define TABLE_CELL_PARAM(i, r, c) \
+    {0x1A00 + (i), 21 + (r) * TABLE_AXIS_MAX + (c), &stConfig.stTable[i].fCell[r][c], &stConfigTemp.stTable[i].fCell[r][c], ParamType::Float, F(0.0f), F(-1e9f), F(1e9f)}
+#define TABLE_AXIS_PARAMS(i, sub, arr) \
+    TABLE_AXIS_PARAM(i, sub, arr, 0), TABLE_AXIS_PARAM(i, sub, arr, 1), TABLE_AXIS_PARAM(i, sub, arr, 2), TABLE_AXIS_PARAM(i, sub, arr, 3), \
+    TABLE_AXIS_PARAM(i, sub, arr, 4), TABLE_AXIS_PARAM(i, sub, arr, 5), TABLE_AXIS_PARAM(i, sub, arr, 6), TABLE_AXIS_PARAM(i, sub, arr, 7)
+#define TABLE_ROW_PARAMS(i, r) \
+    TABLE_CELL_PARAM(i, r, 0), TABLE_CELL_PARAM(i, r, 1), TABLE_CELL_PARAM(i, r, 2), TABLE_CELL_PARAM(i, r, 3), \
+    TABLE_CELL_PARAM(i, r, 4), TABLE_CELL_PARAM(i, r, 5), TABLE_CELL_PARAM(i, r, 6), TABLE_CELL_PARAM(i, r, 7)
+#define TABLE_PARAMS(i) \
+    {0x1A00 + (i), 0, &stConfig.stTable[i].bEnabled, &stConfigTemp.stTable[i].bEnabled, ParamType::Bool,   0, 0, 1}, \
+    {0x1A00 + (i), 1, &stConfig.stTable[i].nXInput,  &stConfigTemp.stTable[i].nXInput,  ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
+    {0x1A00 + (i), 2, &stConfig.stTable[i].nYInput,  &stConfigTemp.stTable[i].nYInput,  ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
+    {0x1A00 + (i), 3, &stConfig.stTable[i].nXSize,   &stConfigTemp.stTable[i].nXSize,   ParamType::UInt8,  2, 1, TABLE_AXIS_MAX}, \
+    {0x1A00 + (i), 4, &stConfig.stTable[i].nYSize,   &stConfigTemp.stTable[i].nYSize,   ParamType::UInt8,  1, 1, TABLE_AXIS_MAX}, \
+    TABLE_AXIS_PARAMS(i, 5, fXAxis), \
+    TABLE_AXIS_PARAMS(i, 13, fYAxis), \
+    TABLE_ROW_PARAMS(i, 0), TABLE_ROW_PARAMS(i, 1), TABLE_ROW_PARAMS(i, 2), TABLE_ROW_PARAMS(i, 3), \
+    TABLE_ROW_PARAMS(i, 4), TABLE_ROW_PARAMS(i, 5), TABLE_ROW_PARAMS(i, 6), TABLE_ROW_PARAMS(i, 7)
+#endif
+
+//=============================================================================
+// Timer Parameters - Base 0x1B00 (FW #61)
+//=============================================================================
+#define TIMER_PARAMS(i) \
+    {0x1B00 + (i), 0, &stConfig.stTimer[i].bEnabled, &stConfigTemp.stTimer[i].bEnabled, ParamType::Bool,   0, 0, 1}, \
+    {0x1B00 + (i), 1, &stConfig.stTimer[i].nInput,   &stConfigTemp.stTimer[i].nInput,   ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
+    {0x1B00 + (i), 2, &stConfig.stTimer[i].eEdge,    &stConfigTemp.stTimer[i].eEdge,    ParamType::Enum,   static_cast<uint32_t>(InputEdge::Rising), 0, 1}, \
+    {0x1B00 + (i), 3, &stConfig.stTimer[i].eMode,    &stConfigTemp.stTimer[i].eMode,    ParamType::Enum,   static_cast<uint32_t>(TimerMode::OnDelay), 0, 2}, \
+    {0x1B00 + (i), 4, &stConfig.stTimer[i].nPreset,  &stConfigTemp.stTimer[i].nPreset,  ParamType::UInt32, 1000, 0, 3600000}
 
 //=============================================================================
 // Starter Parameters - Base 0x1800 (single instance)
@@ -266,7 +306,7 @@
     {0x3000 + (i), 1,  &stConfig.stKeypad[i].nNodeId,                 &stConfigTemp.stKeypad[i].nNodeId,                  ParamType::UInt8,  0, 0, 127}, \
     {0x3000 + (i), 2,  &stConfig.stKeypad[i].bTimeoutEnabled,         &stConfigTemp.stKeypad[i].bTimeoutEnabled,          ParamType::Bool,   0, 0, 1}, \
     {0x3000 + (i), 3,  &stConfig.stKeypad[i].nTimeout,                &stConfigTemp.stKeypad[i].nTimeout,                 ParamType::UInt16, 0, 0, 60000}, \
-    {0x3000 + (i), 4,  &stConfig.stKeypad[i].eModel,                  &stConfigTemp.stKeypad[i].eModel,                   ParamType::Enum,   static_cast<uint8_t>(KeypadModel::Blink12Key), 0, 13}, \
+    {0x3000 + (i), 4,  &stConfig.stKeypad[i].eModel,                  &stConfigTemp.stKeypad[i].eModel,                   ParamType::Enum,   static_cast<uint8_t>(KeypadModel::Blink12Key), 0, 24}, /* Grayhill models are 20..24 — the old 0..13 cap made them unconfigurable */ \
     {0x3000 + (i), 5,  &stConfig.stKeypad[i].nBacklightBrightness,    &stConfigTemp.stKeypad[i].nBacklightBrightness,     ParamType::UInt8,  63, 0, 63}, \
     {0x3000 + (i), 6,  &stConfig.stKeypad[i].nDimBacklightBrightness, &stConfigTemp.stKeypad[i].nDimBacklightBrightness,  ParamType::UInt8,  32, 0, 63}, \
     {0x3000 + (i), 7,  &stConfig.stKeypad[i].nBacklightColor,         &stConfigTemp.stKeypad[i].nBacklightColor,          ParamType::UInt8,  0, 0, 9}, \

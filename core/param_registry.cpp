@@ -35,6 +35,14 @@ const ParamInfo stParams[] = {
     // Flashers (0x1700+)
     ALL_FLASHER_PARAMS,
 
+    #if NUM_TABLES > 0
+    // Tables (0x1A00+)
+    ALL_TABLE_PARAMS,
+    #endif
+
+    // Timers (0x1B00+)
+    ALL_TIMER_PARAMS,
+
     #if HAS_STARTER_DISABLE > 0
     // Starter (0x1800)
     STARTER_PARAMS(),

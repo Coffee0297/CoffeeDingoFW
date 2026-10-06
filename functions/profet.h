@@ -94,6 +94,9 @@ public:
     }
 
     void Update(bool bOutEnabled);
+    // Sleep entry: switch the load off now. The control loop stops in stop mode, so an output left on
+    // (a forced sleep can arrive with outputs on) would run with no current protection.
+    void ForceOff();
 
     float GetCurrent() { return fCurrent; }
     ProfetState GetState() { return eState; }              // raw machine state (Off/On/Overcurrent/Fault)
@@ -104,10 +107,10 @@ public:
     uint16_t GetOcCount() { return nOcCount; }
     uint8_t GetDutyCycle()
     {
-        if (eState == ProfetState::On)
-            return pwm.GetDutyCycle();
+        if (eState != ProfetState::On)
+            return 0;
 
-        return 0;
+        return bTestPwm ? nTestDuty : pwm.GetDutyCycle();
     };
 
     Profet *pPrimary = nullptr;   // non-null if this output is a follower
@@ -115,6 +118,12 @@ public:
 
     bool IsPwmEnabled() { return pwm.IsEnabled(); }
     uint16_t GetFrequency() { return pConfig->stPwm.nFreq; }
+
+    // Bench test override (MsgCmd::OutputTest): force the output on (mode 1) or PWM at a duty +
+    // frequency (mode 2) for nHoldSec, ignoring its input. Protection (limits, fault) stays active.
+    // Expires on its own; mode 0 releases early.
+    void SetTest(uint8_t nMode, uint8_t nDuty, uint16_t nFreq, uint8_t nHoldSec);
+    bool TestActive();
 
     float fOutput;
     float fCurrent;
@@ -156,6 +165,15 @@ private:
 
     Pwm pwm;
     uint16_t nPwmReadDelay = 0;
+
+    // Bench test state (see SetTest). nTestMode is written last from the CAN RX thread and read by the
+    // 500 Hz control loop; a single torn cycle is harmless for a test.
+    uint8_t nTestMode = 0;     // 0 none, 1 on, 2 pwm
+    uint8_t nTestDuty = 0;
+    uint16_t nTestFreq = 100;
+    uint32_t nTestEnd = 0;     // ms (SYS_TIME) at which the override expires
+    bool bTest = false;        // override active this cycle
+    bool bTestPwm = false;     // override is PWM (also selects the synchronized current read)
 
     void FollowerUpdate();
     void HandleDsel();

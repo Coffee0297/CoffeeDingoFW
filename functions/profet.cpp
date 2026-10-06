@@ -27,7 +27,19 @@ void Profet::Update(bool bOutEnabled)
         return;
     }
 
-    if ((*pInput) && bOutEnabled)
+    // Bench test override: while a test holds, the output ignores its input (mode 1 solid on, mode 2
+    // PWM at the requested duty/frequency). When it ends, an output that was On drops to Off for one
+    // cycle so the normal path re-arms cleanly (soft-start, duty, frequency). A tripped/faulted
+    // state is never touched by the test.
+    bool bTestNow = TestActive();
+    if (!bTestNow)
+        nTestMode = 0;
+    if (bTest && !bTestNow && eState == ProfetState::On)
+        eState = ProfetState::Off;
+    bTest = bTestNow;
+    bTestPwm = bTest && nTestMode == 2;
+
+    if (((*pInput) || bTest) && bOutEnabled)
         eReqState = ProfetState::On;
     else
         eReqState = ProfetState::Off;
@@ -69,8 +81,21 @@ void Profet::Update(bool bOutEnabled)
         break;
 
     case ProfetState::On:
-        if (pwm.IsEnabled())
+        if (bTestPwm)
+        {
+            // Same path a follower uses on a PWM primary: start the timer if this output's own PWM
+            // is off, then run the test duty/frequency.
+            pwm.EnsureStarted();
+            pwm.OverrideFrequency(nTestFreq);
+            pwm.SetDutyCycle(nTestDuty);
             pwm.On();
+        }
+        else if (pwm.IsEnabled())
+        {
+            if (bTest)
+                pwm.SetDutyCycle(100);   // test "on" on a PWM output = full duty
+            pwm.On();
+        }
         else
             palSetLine(m_in);
 
@@ -138,7 +163,10 @@ void Profet::Update(bool bOutEnabled)
         break;
     }
 
-    pwm.Update();
+    // The regular PWM update (soft-start, variable duty, frequency tracking) would fight the test
+    // override every cycle, so it pauses while a test holds; the one-cycle Off at test end restarts it.
+    if (!bTest)
+        pwm.Update();
 
     // Peak-hold: track the highest current seen since the last report. The control loop
     // runs at 500Hz so this catches inrush/short spikes the 10Hz CAN broadcast would miss.
@@ -253,7 +281,7 @@ void Profet::HandleDsel()
 
 void Profet::MeasureCurrent()
 {
-    if (pwm.IsEnabled() && eState == ProfetState::On)
+    if ((pwm.IsEnabled() || bTestPwm) && eState == ProfetState::On)
     {
         // Assign to local vars to prevent CNT rolling over and slipping past check
         // Example:
@@ -315,6 +343,43 @@ void Profet::CalculateCurrent()
             fCurrent = 0;
         break;
     }
+}
+
+void Profet::ForceOff()
+{
+    pwm.Off();
+    palClearLine(m_in);
+    if (eState != ProfetState::Fault)   // a fault stays a fault
+        eState = ProfetState::Off;
+    eReported = eState;
+    fOutput = 0;
+    fOvercurrent = 0;
+}
+
+bool Profet::TestActive()
+{
+    return nTestMode != 0 && (int32_t)(nTestEnd - SYS_TIME) > 0;
+}
+
+void Profet::SetTest(uint8_t nMode, uint8_t nDuty, uint16_t nFreq, uint8_t nHoldSec)
+{
+    if (nMode == 0 || nMode > 2)
+    {
+        nTestMode = 0;
+        return;
+    }
+
+    if (nDuty > 100) nDuty = 100;
+    if (nFreq == 0) nFreq = pConfig->stPwm.nFreq > 0 ? pConfig->stPwm.nFreq : 100;   // 0 = this output's own frequency
+    if (nFreq < 15) nFreq = 15;                                                      // same window as Pwm::GetTargetFreq
+    if (nFreq > 400) nFreq = 400;
+    if (nHoldSec == 0) nHoldSec = 1;
+    if (nHoldSec > 30) nHoldSec = 30;
+
+    nTestDuty = nDuty;
+    nTestFreq = nFreq;
+    nTestEnd = SYS_TIME + (uint32_t)nHoldSec * 1000u;
+    nTestMode = nMode;   // last — makes the override visible to the control loop
 }
 
 #endif

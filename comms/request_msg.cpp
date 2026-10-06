@@ -17,6 +17,10 @@ extern volatile bool gLuaReload;   // set here on upload-complete; LuaThread rel
 #endif
 #if NUM_OUTPUTS > 0
 #include "overload_log.h"
+#include "profet.h"
+#endif
+#if NUM_DIG_OUTPUTS > 0
+#include "digital_output.h"
 #endif
 
 void CheckRequestMsgs(CANRxFrame *frame)
@@ -211,6 +215,31 @@ void CheckRequestMsgs(CANRxFrame *frame)
         PostTxFrame(&tx);
     }
     #endif // NUM_OUTPUTS > 0
+
+    #if NUM_OUTPUTS > 0 || NUM_DIG_OUTPUTS > 0
+    // Output bench test: [cmd, out, mode, duty, freqLo, freqHi, holdSec, 0]. Only an enabled output is
+    // accepted (a PDM output then runs under its current limits); a release (mode 0) always is. A board
+    // has either Profet outputs (PDM) or digital outputs (CANBoard) — the index addresses whichever it has.
+    if (frame->DLC == 8 && frame->data8[0] == static_cast<uint8_t>(MsgCmd::OutputTest))
+    {
+        uint8_t n = frame->data8[1];
+        uint8_t mode = frame->data8[2];
+        uint16_t freq = (uint16_t)(frame->data8[4] | (frame->data8[5] << 8));
+        bool ok = false;
+        #if NUM_OUTPUTS > 0
+        ok = (n < NUM_OUTPUTS) && (mode == 0 || stConfig.stOutput[n].bEnabled);
+        if (ok) pf[n].SetTest(mode, frame->data8[3], freq, frame->data8[6]);
+        #elif NUM_DIG_OUTPUTS > 0
+        ok = (n < NUM_DIG_OUTPUTS) && (mode == 0 || stConfig.stDigOutput[n].bEnabled);
+        if (ok) digOut[n].SetTest(mode, frame->data8[3], freq, frame->data8[6]);
+        #endif
+        CANTxFrame tx; tx.SID = stConfig.stDevice.nBaseId + CONFIG_TX_OFFSET;
+        tx.IDE = CAN_IDE_STD; tx.DLC = 8;
+        for (uint8_t i = 0; i < 7; i++) tx.data8[i] = frame->data8[i];
+        tx.data8[7] = ok ? 1 : 0;
+        PostTxFrame(&tx);
+    }
+    #endif
 
     // Check for version request
     if ((frame->DLC == 8) &&

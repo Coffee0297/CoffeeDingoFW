@@ -16,15 +16,15 @@ dingoPDM is an Infineon Profet based Power Distribution Module.
 
 This fork adds the firmware features driven by the **dingoConfig** configurator
 ([CoffeeDingoConfig](https://github.com/Coffee0297/CoffeeDingoConfig)). Those features need **this
-firmware build** (**v5.5.101**, the `testing` prerelease) to work — they're new CAN commands and config
-params, so an older/stock build won't expose them. The tool expects firmware **≥ 5.5.100** and shows a
+firmware build** (**v5.5.107**, the `testing` prerelease) to work — they're new CAN commands and config
+params, so an older/stock build won't expose them. The tool expects firmware **≥ 5.5.107** and shows a
 "firmware needs updating" notice below that.
 
 ### What this fork actually adds to the firmware
 
-Diffed against the dingoFW `testing` base this forked from. **Only these three are new** — the on/off
-analog switch, the basic analog rotary, Lua 5.5, the CanBoard itself, the overload/trip log, PWM,
-expanded sleep, etc. are all **already in the base dingoFW**, not added here.
+Diffed against the dingoFW `testing` base this forked from. **Only these are new** — the on/off
+analog switch, the basic analog rotary, Lua 5.5, the CanBoard itself, the overload/trip log, PWM, the
+basic auto-sleep, etc. are all **already in the base dingoFW**, not added here.
 
 1. **Analog input — per-position *calibrated* multi-position decode** *(v5.5.101)* — the base had a
    uniform offset/step rotary; this adds decoding from per-position **calibrated voltages** (up to
@@ -55,6 +55,31 @@ expanded sleep, etc. are all **already in the base dingoFW**, not added here.
    sector is never erased, so settings survive a reflash. The vector block is written **last**, so an
    interrupted/brown-out update leaves the app invalid and the bootloader waiting (always re-flashable).
    Lives in [`bootloader/`](bootloader/) (vendored OpenBLT, trimmed to the core + the STM32F3 port).
+
+6. **Timer function** *(v5.5.107, upstream #61)* — 8 per PDM, 4 per CANBoard. One input, a preset and a
+   mode: **on-delay** (TON), **off-delay** (TOF) or **pulse** (TP); the active level is selectable so a
+   timer can run while something is *off* ("ignition off for 30 s"). Params `0x1B00+`; outputs in the var
+   map and on CAN (PDM Msg 3 byte 7, CANBoard Msg 2 bits 28–31).
+7. **2-axis lookup table** *(v5.5.107, dingoConfig #58)* — 2 per PDM/-Max (none on the CANBoard — no room
+   in its 2 KB config sector), up to **8×8** cells with **bilinear interpolation** and edge clamping; one
+   row = a 1-D curve (fan duty vs temperature). Params `0x1A00+`; outputs broadcast as float32 in the new
+   PDM **Msg 27 (`base+29`)**, so a PDM now owns `base .. base+29`.
+8. **Expanded sleep** *(v5.5.107, upstream #52 as agreed there)* — a **force-sleep** var-map input (sleep
+   now, local decision, no handshake), a **mute-TX** input (withhold the cyclic telemetry so a fleet can
+   fall silent and let every CAN-idle timer run out), and configurable **wake sources** (per-digital-input
+   mask + CAN; USB always wakes). Replaces the 5.5.106 digital-input-only trigger.
+9. **Output bench test** *(v5.5.107)* — `MsgCmd::OutputTest (48)` forces a PDM output or a CANBoard digital
+   output **on** or **PWM at a duty + frequency** for a bounded hold (1–30 s, re-sent by the tool while the test runs) so wiring and
+   loads can be checked without touching the output's rule. Current limits / fault handling stay active;
+   only an enabled output is accepted.
+
+### Simulating the firmware off the car
+
+The real `.elf` images can be run on a PC under [Renode](https://renode.io) with every module on one virtual CAN bus
+and dingoConfig connected through a bridge, so firmware and project changes can be validated before anything is
+flashed in the vehicle. [`docs/simulator.md`](docs/simulator.md) is the build guide: what the firmware needs from
+the machine (memory map, bxCAN, ADC, the I2C FRAM / MCP9808, the CANBoard flash config sector), the peripheral
+models to write, the machine scripts, the host bridge options, the validation runs worth scripting, and the limits.
 
 ### Firmware update over CAN (OpenBLT)
 
@@ -129,10 +154,37 @@ Before writing anything it refuses the flash if the image doesn't belong on the 
 `-IgnoreMismatch` overrides, `-Target` forces a pyocd target. It also prompts once at startup to
 confirm the image and board before a batch (`-Yes` skips).
 
+#### What gets erased, and what a "PASS" actually proves
+
+**`-Force` only skips the blank check.** It changes nothing about erasing. Erase scope follows the
+image's address span and the part's sector map — `-e sector` erases every sector an image *touches*,
+**in full**, not merely the bytes written:
+
+| | erases | consequence |
+|---|---|---|
+| **standalone image** (`*_FW_*.hex`, links at `0x08000000`) | sector 0 upward | **replaces any OpenBLT bootloader** — that board is SWD/DFU-only afterwards, no more CAN update |
+| **relocated app** (`build/*.hex` at `0x08004000`) | sector 1 / sector 8 upward | bootloader in sector 0 **survives** — keeps "SWD once, then CAN forever" |
+
+F446 sectors run 16/16/16/16/64/**128**/128/128 KB, so the 159 KB PDM image reaches into sector 5
+and erases **256 KB — about 98 KB beyond the image**. Anything living in `0x08028000`–`0x0803FFFF`
+is destroyed even though nothing is written there. Observed directly:
+`Erased 262144 bytes (6 sectors), programmed 162816 bytes`.
+
+**Config survives in both cases**, which is why the sector map matters: the PDM keeps config in
+sector 7 at `0x08060000`, past where the erase stops; the CANBoard's 2 KB sector 31 at `0x0800F800`
+sits above the end of its 62 KB image.
+
+**pyocd does not verify what it wrote.** `--trust-crc` only decides which pages to *skip before*
+writing — there is no post-program readback anywhere in `pyocd load`. So this script re-reads the
+image span off the chip itself and compares it to the `.hex` **byte for byte**, and reports
+`PASS … 162,568 bytes verified` only when that matches. A failed compare retries, then fails the
+board loudly. A non-`.hex` image can't be compared and says `NOT verified` rather than pretending.
+
 **Contact time matters if you hand-hold the probe.** Measured on a dingoPDM (162 KB image): **23 s →
 13 s**, by blank-checking only the span the image occupies (159 KB, not the whole 512 KB chip) and
 defaulting to a 4 MHz SWD clock. The remaining ~4.4 s is F446 erase time — flash-controller bound,
-and pyocd offers no way to skip erasing already-blank sectors.
+and pyocd offers no way to skip erasing already-blank sectors. The byte-for-byte verify adds one
+more read of the image span (~1.5 s at 4 MHz); that is the cost of knowing the board is complete.
 
 > ⚠️ Never pipe this script through `Select-Object -First N` or `head`. That closes the upstream
 > pipeline early and **kills it mid-write**, leaving a half-programmed board in CPU lockup.

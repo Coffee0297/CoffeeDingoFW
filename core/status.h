@@ -49,6 +49,13 @@ float GetCounterVal(uint8_t nCounter);
 
 uint32_t GetConditions();
 
+bool GetAnyTimerEnable();
+bool GetTimerVal(uint8_t nTimer);
+uint8_t GetTimers();   // bit i = timer i+1 output (NUM_TIMERS <= 8)
+
+bool GetAnyTableEnable();
+float GetTableVal(uint8_t nTable);
+
 bool GetKeypadEnable(uint8_t nKeypad);
 uint32_t GetKeypadButtons(uint8_t nKeypad);
 float GetKeypadDialVal(uint8_t nKeypad, uint8_t nDial);

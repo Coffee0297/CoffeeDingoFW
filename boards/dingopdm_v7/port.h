@@ -28,6 +28,8 @@
 #define NUM_WIPER_SPEED_MAP 8
 #define NUM_COUNTERS 4
 #define NUM_CONDITIONS 32
+#define NUM_TIMERS 8
+#define NUM_TABLES 2
 #define NUM_KEYPADS 2
 #define HAS_WIPERS TRUE
 #define HAS_STARTER_DISABLE TRUE
@@ -46,7 +48,7 @@
 #define VAR_MAP_SIZE ( \
     VAR_MAP_SYS_VARS + \
     (NUM_DIG_INPUTS * 1) + \
-    (NUM_ANALOG_INPUTS * 4) + \
+    (NUM_ANALOG_INPUTS * 5) + \
     (NUM_DIG_OUTPUTS * 1) + \
     (NUM_CAN_INPUTS * 2) + \
     (NUM_VIRT_INPUTS * 1) + \
@@ -56,7 +58,9 @@
     (NUM_COUNTERS * 1) + \
     VAR_MAP_WIPER_VARS + \
     (NUM_KEYPADS * (KEYPAD_MAX_BUTTONS + KEYPAD_MAX_DIALS + KEYPAD_MAX_ANALOG_INPUTS)) + \
-    (NUM_LUA_OUTPUTS * 1) \
+    (NUM_LUA_OUTPUTS * 1) + \
+    (NUM_TIMERS * 1) + \
+    (NUM_TABLES * 1) \
 )
 
 #define MAILBOX_SIZE 128
@@ -69,7 +73,7 @@
 #define CONFIG_FLASH_OFFSET (CONFIG_SECTOR * 2048U)
 #define CONFIG_FLASH        getBaseFlash(&EFLD1)
 
-#define NUM_TX_MSGS 27
+#define NUM_TX_MSGS 28   // +Msg 27: table outputs (base+29)
 #define DEFAULT_BASE_ID 0x0DE
 
 // Lua: embedded interpreter enabled on this board.

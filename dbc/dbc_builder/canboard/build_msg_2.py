@@ -16,6 +16,10 @@ def build_msg_2(base_id):
 
     flash_sigs = create_duplicate_signals("Flash", 4, 1, 24, 1, 1, 0)
     message.signals.extend(flash_sigs)
+
+    # Timer 1-4 outputs (FW #61) in the upper nibble of byte 3, bit 28 = Timer 1
+    timer_sigs = create_duplicate_signals("Timer", 4, 1, 28, 1, 1, 0)
+    message.signals.extend(timer_sigs)
     
     dig_in_sigs = create_duplicate_signals("DigitalInput", 8, 1, 32, 1, 1, 0)
     message.signals.extend(dig_in_sigs)

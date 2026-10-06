@@ -15,6 +15,10 @@
 #include "flasher.h"
 #include "counter.h"
 #include "condition.h"
+#include "timer.h"
+#if NUM_TABLES > 0
+#include "table.h"
+#endif
 #include "mailbox.h"
 #include "msg.h"
 #include "error.h"
@@ -48,6 +52,10 @@ VirtualInput virtIn[NUM_VIRT_INPUTS];
 Flasher flasher[NUM_FLASHERS];
 Counter counter[NUM_COUNTERS];
 Condition condition[NUM_CONDITIONS];
+Timer timer[NUM_TIMERS];
+#if NUM_TABLES > 0
+Table table[NUM_TABLES];
+#endif
 #if HAS_WIPERS > 0
 Wiper wiper;
 #endif
@@ -314,6 +322,15 @@ void States()
     if (eState == DeviceState::Sleep)
     {
         bSleepRequest = false;
+        // A forced sleep (FW #52) can arrive with outputs on. In stop mode the control loop is halted,
+        // so a load left switched on would run with no current protection — shut everything off first.
+        #if NUM_OUTPUTS > 0
+        for (uint8_t i = 0; i < NUM_OUTPUTS; i++)
+            pf[i].ForceOff();
+        #endif
+        // Let CanTxThread flush the frames already queued (the last status round) before the
+        // transceiver goes to standby, otherwise they are lost or half-sent.
+        chThdSleepMilliseconds(100);
         palSetLine(LINE_CAN_STANDBY); // CAN disabled
         EnterSleep();
     }
@@ -447,9 +464,19 @@ void CyclicUpdate()
         counter[i].Update();
     #endif
 
-    #if NUM_CONDITIONS > 0    
+    #if NUM_CONDITIONS > 0
     for (uint8_t i = 0; i < NUM_CONDITIONS; i++)
         condition[i].Update();
+    #endif
+
+    #if NUM_TIMERS > 0
+    for (uint8_t i = 0; i < NUM_TIMERS; i++)
+        timer[i].Update(SYS_TIME);
+    #endif
+
+    #if NUM_TABLES > 0
+    for (uint8_t i = 0; i < NUM_TABLES; i++)
+        table[i].Update();
     #endif
 
     #if NUM_KEYPADS > 0
@@ -578,9 +605,22 @@ void InitVarMap()
     #if HAS_LUA
     // Lua output slots (written by setLuaOut(n,v) from the Lua program). An output,
     // virtual input, CAN output, etc. is driven by Lua by setting its nInput to one
-    // of these indices. This block is intentionally last so existing indices are stable.
+    // of these indices. Kept after every pre-Lua block so those indices stay stable.
     for (uint16_t i = 0; i < NUM_LUA_OUTPUTS; i++)
         pVarMap[index++] = &fLuaOut[i];
+    #endif
+
+    // Timers (FW #61) and tables (#58) are appended AFTER the Lua slots on purpose: every
+    // index that existed before them — including saved "Lua Out N" output bindings — is unchanged.
+    // New function blocks go after these. dingoConfig's VarMap mirrors this order.
+    #if NUM_TIMERS > 0
+    for (uint8_t i = 0; i < NUM_TIMERS; i++)
+        pVarMap[index++] = &timer[i].fVal;
+    #endif
+
+    #if NUM_TABLES > 0
+    for (uint8_t i = 0; i < NUM_TABLES; i++)
+        pVarMap[index++] = &table[i].fVal;
     #endif
 
     //VarMap size must match the expected size

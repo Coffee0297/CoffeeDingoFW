@@ -10,6 +10,10 @@ class VirtualInput;
 class Flasher;
 class Counter;
 class Condition;
+class Timer;
+#if NUM_TABLES > 0
+class Table;
+#endif
 
 #if NUM_DIG_INPUTS > 0
 class Digital_Input;
@@ -40,6 +44,10 @@ extern VirtualInput virtIn[NUM_VIRT_INPUTS];
 extern Flasher flasher[NUM_FLASHERS];
 extern Counter counter[NUM_COUNTERS];
 extern Condition condition[NUM_CONDITIONS];
+extern Timer timer[NUM_TIMERS];
+#if NUM_TABLES > 0
+extern Table table[NUM_TABLES];
+#endif
 
 #if NUM_DIG_INPUTS > 0
 extern Digital_Input digIn[NUM_DIG_INPUTS];

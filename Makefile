@@ -170,6 +170,8 @@ CPPSRC = $(ALLCPPSRC) \
 				 functions/condition.cpp \
 				 functions/counter.cpp \
 				 functions/flasher.cpp \
+				 functions/table.cpp \
+				 functions/timer.cpp \
 				 functions/input.cpp \
 				 functions/virtual_input.cpp \
 				 utils/crc.cpp \

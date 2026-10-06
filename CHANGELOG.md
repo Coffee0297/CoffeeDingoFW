@@ -3,6 +3,79 @@
 Notable changes to this **dingoFW** fork (the dingoConfig feature set). Version is `MAJOR.MINOR.BUILD`
 from `core/device_config.h`; the `testing` CI build publishes it as a prerelease (`Testing v5.5.x`).
 
+## [5.5.107] — 2026-10-05
+
+Timer functions (upstream dingoFW #61), 2-axis lookup tables (dingoConfig #58) and the expanded sleep
+model agreed in dingoFW #52 (force-sleep / mute-TX signals + configurable wake sources). **Breaking** —
+config struct changed (`CONFIG_VERSION` 0x000E → 0x000F), so devices load defaults on first boot after
+flashing. Needs **dingoConfig ≥ 0.7.0** (new params, var-map entries and frames). Build-verified on all
+three boards; not yet flashed to hardware.
+
+### Added
+- **Output bench test** (`MsgCmd::OutputTest = 48`, PDM/-Max Profet outputs and CANBoard digital outputs) —
+  the tool can force an output **on**, or
+  **PWM at a duty + frequency**, for a bounded hold (1–30 s; the tool re-sends while the test runs, so a
+  dropped link releases it by itself). The output ignores its input but keeps its current limits and
+  fault handling (PDM), and only an enabled output is accepted. Frame `[48, out, mode (0 off / 1 on / 2 pwm),
+  duty %, freqLo, freqHi, holdSec, 0]`; the reply echoes bytes 0–6 with byte 7 = accepted.
+- **Timer function** (`functions/timer.*`, params `0x1B00+`, 8 per PDM / 4 per CANBoard). One var-map
+  input, a preset (ms, up to 1 h) and a mode: **on-delay** (TON — output on once the input has been
+  active for the preset, off with the input), **off-delay** (TOF — follows the input on, holds for the
+  preset after it drops) or **pulse** (TP — one preset-long pulse per activation, retriggerable). `eEdge`
+  picks the active level (Rising = input true, Falling = input false) so a timer can run while something
+  is *off* — "ignition off for 30 s" is a falling-edge on-delay. Output is in the var map, so it drives
+  outputs, conditions, CAN outputs or the new force-sleep input.
+- **Lookup table function** (`functions/table.*`, params `0x1A00+`, 2 per PDM/-Max; none on the
+  CANBoard — a 328-byte table doesn't fit its 2 KB config sector). Up to **8×8** cells, X/Y from the var
+  map, **bilinear interpolation**, edge values held outside the axis range; `nYSize = 1` makes a 1-D
+  curve. Param layout: sub 0–4 header, 5–12 X axis, 13–20 Y axis, 21–84 cells (row-major). Outputs are
+  broadcast in a new PDM **Msg 27 (`base+29`)** as two float32 LE — the PDM's CAN footprint is now
+  `base .. base+29` (`NUM_TX_MSGS` 28).
+- **Timer outputs on CAN**: PDM Msg 3 byte 7 (bits 56–63, was 0) and CANBoard Msg 2 upper nibble of
+  byte 3 (bits 28–31). DBC builders + `dbc/*_0.5.1.dbc` regenerated.
+- **Expanded sleep (FW #52)** — the decision stays local to each module, no inter-module handshake:
+  - `nForceSleepInput` (0x0000:10) — a var-map signal that forces sleep *now*, ignoring the idle rules and
+    the auto-sleep enable (a digital ignition input, a CAN "sleep now" input, a Timer…). USB connected
+    still blocks it (the #36 soft-lock) and a 1 s boot grace lets inputs settle after a wake.
+  - `nMuteTxInput` (0x0000:11) — a var-map signal that withholds the cyclic telemetry so a fleet can go
+    quiet on cue and every module's CAN-idle timer can expire. Config replies, bridge frames and user CAN
+    outputs are not muted.
+  - `nWakeDigInputMask` (0x0000:12) + `bWakeOnCan` (0x0000:13) — which digital inputs (per-pin bits) and
+    whether CAN traffic re-arm as wake sources. USB always wakes.
+  - Sleep entry now switches **every output off** and gives the CAN TX thread 100 ms to flush before the
+    transceiver goes to standby: a forced sleep can arrive with outputs on, and in stop mode nothing
+    would protect the load (same step upstream `development` takes).
+  - Replaces the 5.5.106 digital-input-only sleep trigger (`bSleepInputEnabled` / `nSleepInput` /
+    `bSleepInputActiveHigh`, subs 6–8 — retired, not reused, so an old tool writing them gets "param not
+    found" instead of a silently re-purposed value).
+- `static_assert` that `DeviceConfig` (+CRC) still fits the 2 KB config flash sector on boards without
+  FRAM — a struct that outgrew it would silently program past the sector.
+- `tests/host_selftest.cpp` — a host-side (plain `g++`) check of the pure Timer/Table logic; same cases as
+  dingoConfig's `LookupTableTests` / `table.test.js` so the three implementations can't drift.
+
+### Fixed
+- **`primaryOutput` param range** was `-1..VAR_MAP_SIZE-1` on an `int8_t`: a value of 128..258 wrapped negative and
+  `stOutput[]` was indexed out of bounds. Now `-1..NUM_OUTPUTS-1` (`core/param_defs.h`).
+- **Keypad model param range** was `0..13`, so the Grayhill models (`20..24` in `KeypadModel`) could never be written;
+  now `0..24`.
+- **DBC drift**: `OutputState` now lists `Warning` (4) and `OpenLoad` (5); the CANBoard DBC advertised 32 CAN inputs,
+  16 virtual inputs and 32 conditions for a board that has 8 of each (`dbc/dbc_builder/canboard`), regenerated.
+
+### Changed
+- **CAN-input value re-broadcast is always little-endian** (PDM Msg 7–22, CANBoard Msg 5–8). It used
+  the input's own byte order, so a Motorola (big-endian) CAN input was re-encoded as a sawtooth from bit 0
+  that spilled into the neighbouring value's bytes — undecodable. The input's byte order only describes
+  the frame it *listens* to; the telemetry container is a fixed LE int32 (dingoConfig #59 follow-up).
+- Var-map order: timers and tables are appended **after** the Lua output slots (not before), so every
+  pre-existing index — including saved "Lua Out N" output bindings — is unchanged. New blocks go after.
+- `VAR_MAP_SIZE`: PDM/-Max +10 (8 timers + 2 tables); CANBoard +4. The PDM analog term is now `×5` like
+  the CANBoard's (it was `×4`, harmless with 0 analog inputs, but one less trap).
+
+### Notes
+- `build/` is shared between boards: run `rm -rf build/obj build/lst` (or `make clean`) when switching
+  `BOARD=`, or stale objects from the previous board get linked (the CANBoard then fails with "cannot move
+  location counter backwards" from the PDM's 128 KB of RAM structures).
+
 ## [5.5.104] — 2026-06-25
 
 OpenBLT CAN bootloader + application relocation, so the app can be reflashed over CAN from dingoConfig

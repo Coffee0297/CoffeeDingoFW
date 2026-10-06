@@ -52,6 +52,14 @@ BO_ 225 dingoPdmMaxMsg1: 8 Vector__XXX
  SG_ OutputCurrent_1 : 0|16@1+ (0.1,0) [0|0] "A" Vector__XXX
 
 BO_ 227 dingoPdmMaxMsg3: 8 Vector__XXX
+ SG_ Timer_8 : 63|1@1+ (1,0) [0|0] "" Vector__XXX
+ SG_ Timer_7 : 62|1@1+ (1,0) [0|0] "" Vector__XXX
+ SG_ Timer_6 : 61|1@1+ (1,0) [0|0] "" Vector__XXX
+ SG_ Timer_5 : 60|1@1+ (1,0) [0|0] "" Vector__XXX
+ SG_ Timer_4 : 59|1@1+ (1,0) [0|0] "" Vector__XXX
+ SG_ Timer_3 : 58|1@1+ (1,0) [0|0] "" Vector__XXX
+ SG_ Timer_2 : 57|1@1+ (1,0) [0|0] "" Vector__XXX
+ SG_ Timer_1 : 56|1@1+ (1,0) [0|0] "" Vector__XXX
  SG_ Flasher_4 : 51|1@1+ (1,0) [0|0] "" Vector__XXX
  SG_ Flasher_3 : 50|1@1+ (1,0) [0|0] "" Vector__XXX
  SG_ Flasher_2 : 49|1@1+ (1,0) [0|0] "" Vector__XXX
@@ -287,6 +295,10 @@ BO_ 250 dingoPdmMaxMsg26: 8 Vector__XXX
  SG_ Keypad1Dial_2 : 16|16@1+ (1,0) [0|0] "" Vector__XXX
  SG_ Keypad1Dial_1 : 0|16@1+ (1,0) [0|0] "" Vector__XXX
 
+BO_ 251 dingoPdmMaxMsg27: 8 Vector__XXX
+ SG_ Table_2 : 32|32@1- (1,0) [0|0] "" Vector__XXX
+ SG_ Table_1 : 0|32@1- (1,0) [0|0] "" Vector__XXX
+
 
 
 
@@ -298,10 +310,11 @@ VAL_ 224 PDMType 0 "dingoPDM" 1 "dingoPDM-Max" ;
 VAL_ 224 DeviceState 0 "Run" 1 "Sleep" 2 "Overtemp" 3 "Error" ;
 VAL_ 227 WiperState 0 "Park" 1 "Parking" 2 "Slow" 3 "Fast" 4 "Intermit Pause" 5 "Intermit On" 6 "Wash" 7 "Swipe" ;
 VAL_ 227 WiperSpeed 0 "Park" 1 "Slow" 2 "Fast" 3 "Intermit Speed 1" 4 "Intermit Speed 2" 5 "Intermit Speed 3" 6 "Intermit Speed 4" 7 "Intermit Speed 5" 8 "Intermit Speed 6" ;
-VAL_ 227 OutputState_4 0 "Off" 1 "On" 2 "Overcurrent" 3 "Fault" ;
-VAL_ 227 OutputState_3 0 "Off" 1 "On" 2 "Overcurrent" 3 "Fault" ;
-VAL_ 227 OutputState_2 0 "Off" 1 "On" 2 "Overcurrent" 3 "Fault" ;
-VAL_ 227 OutputState_1 0 "Off" 1 "On" 2 "Overcurrent" 3 "Fault" ;
-
+VAL_ 227 OutputState_4 0 "Off" 1 "On" 2 "Overcurrent" 3 "Fault" 4 "Warning" 5 "OpenLoad" ;
+VAL_ 227 OutputState_3 0 "Off" 1 "On" 2 "Overcurrent" 3 "Fault" 4 "Warning" 5 "OpenLoad" ;
+VAL_ 227 OutputState_2 0 "Off" 1 "On" 2 "Overcurrent" 3 "Fault" 4 "Warning" 5 "OpenLoad" ;
+VAL_ 227 OutputState_1 0 "Off" 1 "On" 2 "Overcurrent" 3 "Fault" 4 "Warning" 5 "OpenLoad" ;
+SIG_VALTYPE_ 251 Table_1 : 1;
+SIG_VALTYPE_ 251 Table_2 : 1;
 
 

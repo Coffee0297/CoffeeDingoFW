@@ -65,6 +65,10 @@ BO_ 1604 CANBoardMsg2: 8 Vector__XXX
  SG_ DigitalInput_3 : 34|1@1+ (1,0) [0|0] "" Vector__XXX
  SG_ DigitalInput_2 : 33|1@1+ (1,0) [0|0] "" Vector__XXX
  SG_ DigitalInput_1 : 32|1@1+ (1,0) [0|0] "" Vector__XXX
+ SG_ Timer_4 : 31|1@1+ (1,0) [0|0] "" Vector__XXX
+ SG_ Timer_3 : 30|1@1+ (1,0) [0|0] "" Vector__XXX
+ SG_ Timer_2 : 29|1@1+ (1,0) [0|0] "" Vector__XXX
+ SG_ Timer_1 : 28|1@1+ (1,0) [0|0] "" Vector__XXX
  SG_ Flash_4 : 27|1@1+ (1,0) [0|0] "" Vector__XXX
  SG_ Flash_3 : 26|1@1+ (1,0) [0|0] "" Vector__XXX
  SG_ Flash_2 : 25|1@1+ (1,0) [0|0] "" Vector__XXX
@@ -76,14 +80,6 @@ BO_ 1604 CANBoardMsg2: 8 Vector__XXX
  SG_ RotarySwitch_1 : 0|4@1+ (1,0) [0|0] "" Vector__XXX
 
 BO_ 1605 CANBoardMsg3: 8 Vector__XXX
- SG_ VirtualInput_16 : 47|1@1+ (1,0) [0|0] "" Vector__XXX
- SG_ VirtualInput_15 : 46|1@1+ (1,0) [0|0] "" Vector__XXX
- SG_ VirtualInput_14 : 45|1@1+ (1,0) [0|0] "" Vector__XXX
- SG_ VirtualInput_13 : 44|1@1+ (1,0) [0|0] "" Vector__XXX
- SG_ VirtualInput_12 : 43|1@1+ (1,0) [0|0] "" Vector__XXX
- SG_ VirtualInput_11 : 42|1@1+ (1,0) [0|0] "" Vector__XXX
- SG_ VirtualInput_10 : 41|1@1+ (1,0) [0|0] "" Vector__XXX
- SG_ VirtualInput_9 : 40|1@1+ (1,0) [0|0] "" Vector__XXX
  SG_ VirtualInput_8 : 39|1@1+ (1,0) [0|0] "" Vector__XXX
  SG_ VirtualInput_7 : 38|1@1+ (1,0) [0|0] "" Vector__XXX
  SG_ VirtualInput_6 : 37|1@1+ (1,0) [0|0] "" Vector__XXX
@@ -92,30 +88,6 @@ BO_ 1605 CANBoardMsg3: 8 Vector__XXX
  SG_ VirtualInput_3 : 34|1@1+ (1,0) [0|0] "" Vector__XXX
  SG_ VirtualInput_2 : 33|1@1+ (1,0) [0|0] "" Vector__XXX
  SG_ VirtualInput_1 : 32|1@1+ (1,0) [0|0] "" Vector__XXX
- SG_ CANInput_32 : 31|1@1+ (1,0) [0|0] "" Vector__XXX
- SG_ CANInput_31 : 30|1@1+ (1,0) [0|0] "" Vector__XXX
- SG_ CANInput_30 : 29|1@1+ (1,0) [0|0] "" Vector__XXX
- SG_ CANInput_29 : 28|1@1+ (1,0) [0|0] "" Vector__XXX
- SG_ CANInput_28 : 27|1@1+ (1,0) [0|0] "" Vector__XXX
- SG_ CANInput_27 : 26|1@1+ (1,0) [0|0] "" Vector__XXX
- SG_ CANInput_26 : 25|1@1+ (1,0) [0|0] "" Vector__XXX
- SG_ CANInput_25 : 24|1@1+ (1,0) [0|0] "" Vector__XXX
- SG_ CANInput_24 : 23|1@1+ (1,0) [0|0] "" Vector__XXX
- SG_ CANInput_23 : 22|1@1+ (1,0) [0|0] "" Vector__XXX
- SG_ CANInput_22 : 21|1@1+ (1,0) [0|0] "" Vector__XXX
- SG_ CANInput_21 : 20|1@1+ (1,0) [0|0] "" Vector__XXX
- SG_ CANInput_20 : 19|1@1+ (1,0) [0|0] "" Vector__XXX
- SG_ CANInput_19 : 18|1@1+ (1,0) [0|0] "" Vector__XXX
- SG_ CANInput_18 : 17|1@1+ (1,0) [0|0] "" Vector__XXX
- SG_ CANInput_17 : 16|1@1+ (1,0) [0|0] "" Vector__XXX
- SG_ CANInput_16 : 15|1@1+ (1,0) [0|0] "" Vector__XXX
- SG_ CANInput_15 : 14|1@1+ (1,0) [0|0] "" Vector__XXX
- SG_ CANInput_14 : 13|1@1+ (1,0) [0|0] "" Vector__XXX
- SG_ CANInput_13 : 12|1@1+ (1,0) [0|0] "" Vector__XXX
- SG_ CANInput_12 : 11|1@1+ (1,0) [0|0] "" Vector__XXX
- SG_ CANInput_11 : 10|1@1+ (1,0) [0|0] "" Vector__XXX
- SG_ CANInput_10 : 9|1@1+ (1,0) [0|0] "" Vector__XXX
- SG_ CANInput_9 : 8|1@1+ (1,0) [0|0] "" Vector__XXX
  SG_ CANInput_8 : 7|1@1+ (1,0) [0|0] "" Vector__XXX
  SG_ CANInput_7 : 6|1@1+ (1,0) [0|0] "" Vector__XXX
  SG_ CANInput_6 : 5|1@1+ (1,0) [0|0] "" Vector__XXX
@@ -126,30 +98,6 @@ BO_ 1605 CANBoardMsg3: 8 Vector__XXX
  SG_ CANInput_1 : 0|1@1+ (1,0) [0|0] "" Vector__XXX
 
 BO_ 1606 CANBoardMsg4: 8 Vector__XXX
- SG_ ConditionResult_32 : 63|1@1+ (1,0) [0|0] "" Vector__XXX
- SG_ ConditionResult_31 : 62|1@1+ (1,0) [0|0] "" Vector__XXX
- SG_ ConditionResult_30 : 61|1@1+ (1,0) [0|0] "" Vector__XXX
- SG_ ConditionResult_29 : 60|1@1+ (1,0) [0|0] "" Vector__XXX
- SG_ ConditionResult_28 : 59|1@1+ (1,0) [0|0] "" Vector__XXX
- SG_ ConditionResult_27 : 58|1@1+ (1,0) [0|0] "" Vector__XXX
- SG_ ConditionResult_26 : 57|1@1+ (1,0) [0|0] "" Vector__XXX
- SG_ ConditionResult_25 : 56|1@1+ (1,0) [0|0] "" Vector__XXX
- SG_ ConditionResult_24 : 55|1@1+ (1,0) [0|0] "" Vector__XXX
- SG_ ConditionResult_23 : 54|1@1+ (1,0) [0|0] "" Vector__XXX
- SG_ ConditionResult_22 : 53|1@1+ (1,0) [0|0] "" Vector__XXX
- SG_ ConditionResult_21 : 52|1@1+ (1,0) [0|0] "" Vector__XXX
- SG_ ConditionResult_20 : 51|1@1+ (1,0) [0|0] "" Vector__XXX
- SG_ ConditionResult_19 : 50|1@1+ (1,0) [0|0] "" Vector__XXX
- SG_ ConditionResult_18 : 49|1@1+ (1,0) [0|0] "" Vector__XXX
- SG_ ConditionResult_17 : 48|1@1+ (1,0) [0|0] "" Vector__XXX
- SG_ ConditionResult_16 : 47|1@1+ (1,0) [0|0] "" Vector__XXX
- SG_ ConditionResult_15 : 46|1@1+ (1,0) [0|0] "" Vector__XXX
- SG_ ConditionResult_14 : 45|1@1+ (1,0) [0|0] "" Vector__XXX
- SG_ ConditionResult_13 : 44|1@1+ (1,0) [0|0] "" Vector__XXX
- SG_ ConditionResult_12 : 43|1@1+ (1,0) [0|0] "" Vector__XXX
- SG_ ConditionResult_11 : 42|1@1+ (1,0) [0|0] "" Vector__XXX
- SG_ ConditionResult_10 : 41|1@1+ (1,0) [0|0] "" Vector__XXX
- SG_ ConditionResult_9 : 40|1@1+ (1,0) [0|0] "" Vector__XXX
  SG_ ConditionResult_8 : 39|1@1+ (1,0) [0|0] "" Vector__XXX
  SG_ ConditionResult_7 : 38|1@1+ (1,0) [0|0] "" Vector__XXX
  SG_ ConditionResult_6 : 37|1@1+ (1,0) [0|0] "" Vector__XXX

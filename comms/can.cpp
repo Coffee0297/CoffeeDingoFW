@@ -30,6 +30,17 @@ void ConfigureCanFilters();
 #define CAN_NOACK_BACKOFF_CYCLES  50u   // cyclic-TX rounds to skip (~50 x CAN_TX_CYCLIC_MSG_DELAY)
 static volatile uint16_t gNoAckBackoff = 0;
 
+// --- Mute (FW #52 "MuteTxCAN") -------------------------------------------------------------------
+// While the var-map signal picked as nMuteTxInput is true the cyclic telemetry is withheld, so a
+// fleet can fall silent on cue and let every module's CAN-idle sleep timer run out. Only the
+// cyclic frames are muted: config replies, forwarded (bridge) frames and user CAN outputs still go.
+extern float *pVarMap[VAR_MAP_SIZE];
+static inline bool CyclicTxMuted()
+{
+    const uint16_t n = stConfig.stDevice.nMuteTxInput;
+    return n != 0 && n < VAR_MAP_SIZE && pVarMap[n] != nullptr && *pVarMap[n] != 0.0f;
+}
+
 static inline void CanAbortAllTx()
 {
     // Abort all three TX mailboxes so unacked frames stop retransmitting at line rate.
@@ -54,6 +65,10 @@ void CanCyclicTxThread(void *)
             // No peer is ACKing — skip this telemetry round so we don't feed the no-ACK flood.
             // Counts down to a periodic single round that re-probes whether a peer is back.
             gNoAckBackoff--;
+        }
+        else if (CyclicTxMuted())
+        {
+            // Muted by config (nMuteTxInput asserted) — skip this telemetry round.
         }
         else
         {

@@ -8,6 +8,10 @@
 #include "condition.h"
 #include "flasher.h"
 #include "virtual_input.h"
+#include "timer.h"
+#if NUM_TABLES > 0
+#include "table.h"
+#endif
 #if NUM_OUTPUTS > 0
 #include "profet.h"
 #endif
@@ -37,6 +41,10 @@ extern VirtualInput virtIn[NUM_VIRT_INPUTS];
 extern Flasher flasher[NUM_FLASHERS];
 extern Counter counter[NUM_COUNTERS];
 extern Condition condition[NUM_CONDITIONS];
+extern Timer timer[NUM_TIMERS];
+#if NUM_TABLES > 0
+extern Table table[NUM_TABLES];
+#endif
 #if NUM_OUTPUTS > 0
 extern Profet pf[NUM_OUTPUTS];
 #endif
@@ -67,6 +75,10 @@ void ApplyAllConfig()
     ApplyConfig(Flasher::nBaseIndex);
     ApplyConfig(Counter::nBaseIndex);
     ApplyConfig(Condition::nBaseIndex);
+    ApplyConfig(Timer::nBaseIndex);
+    #if NUM_TABLES > 0
+    ApplyConfig(Table::nBaseIndex);
+    #endif
     #if NUM_OUTPUTS > 0
     ApplyConfig(Profet::nBaseIndex);
     #endif
@@ -155,6 +167,20 @@ void ApplyConfig(uint16_t nIndex)
         for (uint8_t i = 0; i < NUM_CONDITIONS; i++)
             condition[i].SetConfig(&stConfig.stCondition[i]);
     }
+
+    if (nBaseIndex == Timer::nBaseIndex)
+    {
+        for (uint8_t i = 0; i < NUM_TIMERS; i++)
+            timer[i].SetConfig(&stConfig.stTimer[i]);
+    }
+
+    #if NUM_TABLES > 0
+    if (nBaseIndex == Table::nBaseIndex)
+    {
+        for (uint8_t i = 0; i < NUM_TABLES; i++)
+            table[i].SetConfig(&stConfig.stTable[i]);
+    }
+    #endif
 
     #if NUM_OUTPUTS > 0
     if (nBaseIndex == Profet::nBaseIndex)

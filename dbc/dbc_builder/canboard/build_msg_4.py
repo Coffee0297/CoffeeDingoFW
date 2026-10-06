@@ -14,7 +14,7 @@ def build_msg_4(base_id):
     counter_val_sigs = create_duplicate_signals("CounterValue", 4, 1, 0, 8, 1, 0)
     message.signals.extend(counter_val_sigs)
     
-    condition_result_sigs = create_duplicate_signals("ConditionResult", 32, 1, 32, 1, 1, 0)
+    condition_result_sigs = create_duplicate_signals("ConditionResult", 8, 1, 32, 1, 1, 0)   # NUM_CONDITIONS 8
     message.signals.extend(condition_result_sigs)
     
     return message

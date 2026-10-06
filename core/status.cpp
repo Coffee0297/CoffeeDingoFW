@@ -7,6 +7,10 @@
 #include "flasher.h"
 #include "counter.h"
 #include "condition.h"
+#include "timer.h"
+#if NUM_TABLES > 0
+#include "table.h"
+#endif
 #if NUM_OUTPUTS > 0
 #include "profet.h"
 #endif
@@ -311,12 +315,64 @@ bool GetAnyConditionEnable()
 uint32_t GetConditions()
 {
     uint32_t result = 0;
-    
+
     for (uint8_t i = 0; i < NUM_CONDITIONS; i++) {
         result |= (((uint32_t)condition[i].fVal & 0x01) << i);
     }
-    
+
     return result;
+}
+
+bool GetAnyTimerEnable()
+{
+    for (uint8_t i = 0; i < NUM_TIMERS; i++)
+    {
+        if (stConfig.stTimer[i].bEnabled)
+            return true;
+    }
+    return false;
+}
+
+bool GetTimerVal(uint8_t nTimer)
+{
+    if (nTimer >= NUM_TIMERS)
+        return false;
+
+    return timer[nTimer].fVal != 0.0f;
+}
+
+uint8_t GetTimers()
+{
+    uint8_t result = 0;
+
+    for (uint8_t i = 0; i < NUM_TIMERS && i < 8; i++) {
+        result |= (((uint8_t)timer[i].fVal & 0x01) << i);
+    }
+
+    return result;
+}
+
+bool GetAnyTableEnable()
+{
+    #if NUM_TABLES > 0
+    for (uint8_t i = 0; i < NUM_TABLES; i++)
+    {
+        if (stConfig.stTable[i].bEnabled)
+            return true;
+    }
+    #endif
+    return false;
+}
+
+float GetTableVal(uint8_t nTable)
+{
+    #if NUM_TABLES > 0
+    if (nTable < NUM_TABLES)
+        return table[nTable].fVal;
+    #else
+    (void)nTable;
+    #endif
+    return 0;
 }
 
 #if NUM_KEYPADS > 0

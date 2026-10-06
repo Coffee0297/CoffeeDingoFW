@@ -74,6 +74,12 @@ enum class MsgCmd : uint8_t
     OvlData = 46,           // [cmd, idx, offHi, offLo] -> reply [cmd, idx, offHi, offLo, b0..b3] (4 sample bytes @ 0.5A)
     OvlClear = 47,          // [cmd] -> clear the log
 
+    // Output bench test (wiring check from the tool). [cmd, out (0-based), mode, duty %, freqLo, freqHi, holdSec, 0]
+    // mode 0 = release, 1 = solid on, 2 = PWM at duty/freq. Reply echoes bytes 0-6, [7] = accepted.
+    // The override expires after holdSec (1..30) on its own — the tool re-sends while the test runs —
+    // and only an enabled output is accepted, so the test runs under that output's current limits.
+    OutputTest = 48,
+
     Invalid = 0xFF
 };
 
@@ -167,6 +173,16 @@ enum class InputPull : uint8_t
     None,
     Up,
     Down
+};
+
+//=============================================================================
+// Timer (FW #61)
+//=============================================================================
+enum class TimerMode : uint8_t
+{
+    OnDelay,    // TON: output on after the input has been active for the preset
+    OffDelay,   // TOF: output follows the input on, stays on for the preset after it drops
+    Pulse       // TP : one output pulse of the preset length per activation
 };
 
 //=============================================================================

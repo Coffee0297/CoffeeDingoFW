@@ -9,6 +9,7 @@
 
 #if CAN_SLEEP
 #define SLEEP_REQUEST_DELAY 2000   // FW #52: wait after a sleep request so other modules settle
+#define SLEEP_BOOT_GRACE_MS 1000   // let inputs debounce / CAN inputs arrive before honouring force-sleep
 
 // Static variables that were in pdm.cpp
 static uint8_t nNumOutputsOn;
@@ -17,10 +18,9 @@ static uint32_t nAllOutputsOffTime;
 static bool bLastUsbConnected;
 static uint32_t nUsbDisconnectedTime;
 
-// Sleep-request coordination + input-driven sleep (FW #52)
+// Sleep-request coordination (FW #52)
 static bool bSleepPending;          // a request is in its settle window
 static uint32_t nSleepPendingTime;  // when the request started
-static bool bSleepInputWake;        // last sleep was input-driven -> only the sleep input wakes
 
 // External variables from pdm.cpp that we need access to
 extern DeviceConfig stConfig;
@@ -46,17 +46,12 @@ static uint8_t CountOutputsOn()
     return n;
 }
 
-#if NUM_DIG_INPUTS > 0
-// True when the configured sleep input is in its "sleep" state.
-static bool SleepInputInSleepState()
+// True while the var-map signal picked as the force-sleep input is asserted (0 = unused).
+static bool ForceSleepAsserted()
 {
-    if (!stConfig.stDevice.bSleepInputEnabled) return false;
-    uint16_t idx = stConfig.stDevice.nSleepInput;
-    if (idx < 1 || idx > NUM_DIG_INPUTS) return false;
-    bool high = digIn[idx - 1].fVal != 0.0f;
-    return stConfig.stDevice.bSleepInputActiveHigh ? high : !high;
+    const uint16_t n = stConfig.stDevice.nForceSleepInput;
+    return n != 0 && n < VAR_MAP_SIZE && pVarMap[n] != nullptr && *pVarMap[n] != 0.0f;
 }
-#endif
 
 bool CheckEnterSleep()
 {
@@ -82,19 +77,16 @@ bool CheckEnterSleep()
 
     uint32_t nTimeout = stConfig.stDevice.nSleepTimeoutMs ? stConfig.stDevice.nSleepTimeoutMs : SLEEP_TIMEOUT;
 
-    // ---- 1. Sleep-input function (FW #52) ------------------------------------------
-    // A configured digital input drives sleep directly, ignoring the CAN-idle and
-    // outputs-on restrictions. USB is still required to be disconnected (USB activity
-    // instantly wakes the MCU -> reset -> stale COM port, the #36 soft-lock). When this
-    // path fires only the sleep input is armed as a wake source (see EnterSleep).
-#if NUM_DIG_INPUTS > 0
-    bSleepInputWake = false;
-    if (SleepInputInSleepState() && !GetUsbConnected())
-    {
-        bSleepInputWake = true;
+    // ---- 1. Force sleep (FW #52) ----------------------------------------------------
+    // Any var-map signal — a digital input (ignition), a CAN input (a fleet "sleep now"
+    // message), a Timer output, a virtual input — forces sleep immediately, ignoring the
+    // CAN-idle and outputs-on restrictions and the auto-sleep enable. The decision stays
+    // local to this module: no handshake with anyone. USB must be unplugged (USB activity
+    // instantly wakes the MCU -> reset -> stale COM port, the #36 soft-lock). A short boot
+    // grace lets debounce / CAN inputs settle so a half-read pin can't put a freshly woken
+    // module straight back to sleep.
+    if (ForceSleepAsserted() && !GetUsbConnected() && sys > SLEEP_BOOT_GRACE_MS)
         return true;
-    }
-#endif
 
     // ---- 2. Automatic sleep --------------------------------------------------------
     // No outputs on, no CAN traffic, no USB, for the configured timeout.
@@ -130,10 +122,10 @@ bool CheckEnterSleep()
     return bEnterSleep || bRequestSleep;
 }
 
-void EnableLineEventWithPull(ioline_t line, InputPull pull) 
+void EnableLineEventWithPull(ioline_t line, InputPull pull)
 {
     uint32_t eventMode = PAL_EVENT_MODE_BOTH_EDGES;
-    
+
     switch(pull) {
         case InputPull::Up:
             eventMode |= PAL_STM32_PUPDR_PULLUP;
@@ -145,7 +137,7 @@ void EnableLineEventWithPull(ioline_t line, InputPull pull)
             eventMode |= PAL_STM32_PUPDR_FLOATING;
             break;
     }
-    
+
     palEnableLineEvent(line, eventMode);
 }
 
@@ -159,31 +151,25 @@ static void ArmUsbWake()
 
 void EnterSleep()
 {
-    // Set wakeup sources
+    // Wake sources are configurable (FW #52): each digital input has its own checkbox
+    // (nWakeDigInputMask) and CAN traffic can be excluded (bWakeOnCan) so a module parked on
+    // a chattering bus — or one meant to wake only from its ignition pin — stays asleep.
+    // USB is always armed so plugging in for config always recovers the module.
 
 #if NUM_DIG_INPUTS > 0
-    // Input-driven sleep: only the sleep input wakes (FW #52 "no waking on other inputs or
-    // CAN"). USB is still armed so plugging in for config always recovers the module.
-    if (bSleepInputWake)
-    {
-        uint16_t idx = stConfig.stDevice.nSleepInput;
-        if (idx >= 1 && idx <= NUM_DIG_INPUTS)
-            EnableLineEventWithPull(digIn[idx - 1].GetLine(), stConfig.stDigInput[idx - 1].ePull);
-        ArmUsbWake();
-        EnterStopMode();
-        return;
-    }
-
-    // Default: wake on any digital input (per-input line + configured pull).
     for (uint8_t i = 0; i < NUM_DIG_INPUTS; i++)
-        EnableLineEventWithPull(digIn[i].GetLine(), stConfig.stDigInput[i].ePull);
+    {
+        if (stConfig.stDevice.nWakeDigInputMask & (1u << i))
+            EnableLineEventWithPull(digIn[i].GetLine(), stConfig.stDigInput[i].ePull);
+    }
 #endif
 
-    // CAN receive detection
-    palSetLineMode(LINE_CAN_RX, PAL_MODE_INPUT);
-    palEnableLineEvent(LINE_CAN_RX, PAL_EVENT_MODE_BOTH_EDGES | PAL_STM32_PUPDR_FLOATING);
+    if (stConfig.stDevice.bWakeOnCan)
+    {
+        palSetLineMode(LINE_CAN_RX, PAL_MODE_INPUT);
+        palEnableLineEvent(LINE_CAN_RX, PAL_EVENT_MODE_BOTH_EDGES | PAL_STM32_PUPDR_FLOATING);
+    }
 
-    // USB detection
     ArmUsbWake();
 
     EnterStopMode();

@@ -11,6 +11,10 @@
 #include "can_output.h"
 #include "counter.h"
 #include "condition.h"
+#include "timer.h"
+#if NUM_TABLES > 0
+#include "table.h"
+#endif
 #if NUM_OUTPUTS > 0
 #include "profet.h"
 #endif
@@ -33,7 +37,7 @@
 #include "analog_input.h"
 #endif  
 
-#define CONFIG_VERSION 0x000E //Increment when config structure changes
+#define CONFIG_VERSION 0x000F //Increment when config structure changes
 
 struct Config_Device{
   uint16_t nConfigVersion;
@@ -46,11 +50,12 @@ struct Config_Device{
   bool bConnectUsbToCan;
   uint16_t nSleepTimeoutMs;     // auto-sleep delay after outputs off / USB out / CAN idle (was hardcoded SLEEP_TIMEOUT)
 
-  // Expanded sleep (FW #52)
-  bool bSleepInputEnabled;      // a digital input directly controls sleep (ignores CAN/outputs restrictions)
-  uint16_t nSleepInput;         // 1-based digital input that drives sleep (0 = none)
-  bool bSleepInputActiveHigh;   // input level that means "go to sleep" (true=high, false=low)
+  // Expanded sleep (FW #52). Sleep/wake policy lives in config, no inter-module handshake:
   bool bSleepIgnoreAlwaysOn;    // ignore always-on outputs when checking "no outputs on" (else sleep never happens)
+  uint16_t nForceSleepInput;    // var-map index: while true the module sleeps NOW (USB must be unplugged). 0 = unused
+  uint16_t nMuteTxInput;        // var-map index: while true the cyclic CAN broadcasts stop. 0 = unused
+  uint8_t  nWakeDigInputMask;   // bit i set = digital input i+1 is armed as a wake source
+  bool     bWakeOnCan;          // CAN traffic wakes the module (USB always does)
 };
 
 #if HAS_LUA
@@ -70,6 +75,10 @@ struct DeviceConfig{
   Config_CanOutput stCanOutput[NUM_CAN_OUTPUTS];
   Config_Counter stCounter[NUM_COUNTERS];
   Config_Condition stCondition[NUM_CONDITIONS];
+  Config_Timer stTimer[NUM_TIMERS];
+  #if NUM_TABLES > 0
+  Config_Table stTable[NUM_TABLES];
+  #endif
 
   #if NUM_DIG_INPUTS > 0
   Config_DigInput stDigInput[NUM_DIG_INPUTS];
@@ -105,6 +114,12 @@ struct DeviceConfig{
 static_assert(offsetof(DeviceConfig, stDevice) == 0, "config blob must start with Config_Device");
 static_assert(offsetof(Config_Device, nBaseId) == 2, "bootloader expects nBaseId at config offset 2");
 static_assert(offsetof(Config_Device, eCanSpeed) == 4, "bootloader expects eCanSpeed at config offset 4");
+
+// Boards without external FRAM keep the config (+ its CRC) in one 2 KB flash sector — a struct
+// that outgrows it would silently program past the sector. Fail the build instead.
+#if !HAS_EXT_MEMORY
+static_assert(sizeof(DeviceConfig) + sizeof(uint32_t) <= 2048, "DeviceConfig no longer fits the 2 KB config flash sector");
+#endif
 
 extern DeviceConfig stConfig;
 extern DeviceConfig stConfigTemp; // Used for staging new config before applying
