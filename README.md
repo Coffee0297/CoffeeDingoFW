@@ -75,11 +75,10 @@ basic auto-sleep, etc. are all **already in the base dingoFW**, not added here.
 
 ### Simulating the firmware off the car
 
-The real `.elf` images can be run on a PC under [Renode](https://renode.io) with every module on one virtual CAN bus
-and dingoConfig connected through a bridge, so firmware and project changes can be validated before anything is
-flashed in the vehicle. [`docs/simulator.md`](docs/simulator.md) is the build guide: what the firmware needs from
-the machine (memory map, bxCAN, ADC, the I2C FRAM / MCP9808, the CANBoard flash config sector), the peripheral
-models to write, the machine scripts, the host bridge options, the validation runs worth scripting, and the limits.
+The real `.elf` images run on a PC under [Renode](https://renode.io) in
+[CoffeeDingoSim](https://github.com/Coffee0297/CoffeeDingoSim): every module on one virtual CAN bus, loads and
+switches on a graphical canvas, and dingoConfig connected through an SLCAN bridge, so firmware and project changes
+can be validated before anything is flashed in a vehicle.
 
 ### Firmware update over CAN (OpenBLT)
 
