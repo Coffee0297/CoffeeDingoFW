@@ -12,6 +12,10 @@ static uint32_t nFilterIds[STM32_CAN_MAX_FILTERS * 2];
 static bool bFilterExtended[STM32_CAN_MAX_FILTERS * 2];
 
 static uint32_t nLastCanRxTime;
+// Diagnostics (read with a debugger / the simulator): frames taken from the bxCAN FIFOs, and frames
+// dropped because the RX mailbox was full.
+volatile uint32_t gCanRxFrames = 0;
+volatile uint32_t gCanRxMailboxDrops = 0;
 static bool bCanFilterEnabled = true;
 
 void ConfigureCanFilters();
@@ -145,13 +149,18 @@ void CanRxThread(void *)
 
     while (true)
     {
-
-        msg_t res = canReceiveTimeout(&CAND1, CAN_ANY_MAILBOX, &msg, TIME_IMMEDIATE);
-        if (res == MSG_OK)
+        // Drain EVERY frame waiting in the hardware FIFOs, then sleep. Reading one frame per wake-up
+        // (the tickless sleep is at least CH_CFG_ST_TIMEDELTA ticks = 200 us) fell behind back-to-back
+        // frames on a busy 500 kbit/s bus (~240 us apart) and the 3-deep bxCAN FIFO overran.
+        msg_t res;
+        while ((res = canReceiveTimeout(&CAND1, CAN_ANY_MAILBOX, &msg, TIME_IMMEDIATE)) == MSG_OK)
         {
             nLastCanRxTime = SYS_TIME;
+            gCanRxFrames++;
 
             res = PostRxFrame(&msg);
+            if (res != MSG_OK)
+                gCanRxMailboxDrops++;
 
             if(stConfig.stDevice.bConnectUsbToCan)
             {
@@ -198,7 +207,9 @@ msg_t InitCan(Config_Device *conf)
         return ret;
     canCyclicTxThreadRef = chThdCreateStatic(waCanCyclicTxThread, sizeof(waCanCyclicTxThread), NORMALPRIO + 1, CanCyclicTxThread, nullptr);
     canTxThreadRef = chThdCreateStatic(waCanTxThread, sizeof(waCanTxThread), NORMALPRIO + 1, CanTxThread, nullptr);
-    canRxThreadRef = chThdCreateStatic(waCanRxThread, sizeof(waCanRxThread), NORMALPRIO + 1, CanRxThread, nullptr);
+    // RX above the TX threads: it only moves a frame into the mailbox, and waiting behind a TX burst lets
+    // the 3-deep hardware FIFO overflow.
+    canRxThreadRef = chThdCreateStatic(waCanRxThread, sizeof(waCanRxThread), NORMALPRIO + 2, CanRxThread, nullptr);
 
     return HAL_RET_SUCCESS;
 }

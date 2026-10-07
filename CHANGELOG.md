@@ -3,6 +3,20 @@
 Notable changes to this **dingoFW** fork (the dingoConfig feature set). Version is `MAJOR.MINOR.BUILD`
 from `core/device_config.h`; the `testing` CI build publishes it as a prerelease (`Testing v5.5.x`).
 
+## [Unreleased]
+
+### Fixed
+- **CAN receive overruns on a busy bus** (`comms/can.cpp`). The RX thread read one frame per wake-up and
+  the tickless sleep between wake-ups is at least `CH_CFG_ST_TIMEDELTA` ticks (200 µs), so back-to-back
+  frames (~240 µs apart at 500 kbit/s) overran the 3-deep bxCAN FIFO. It now drains every waiting frame
+  per wake-up and runs one priority above the CAN TX threads. Found in CoffeeDingoSim: a 604-frame
+  WriteAll reached a CANBoard as 550 frames.
+- **CANBoard RX mailbox 16 → 48 frames**, held in CCM (`RX_MAILBOX_SIZE`, `comms/mailbox.cpp`) so main
+  SRAM is not touched (the heap grows from 680 to 1136 B). Other boards keep `MAILBOX_SIZE`.
+
+### Added
+- Diagnostic counters `gCanRxFrames` / `gCanRxMailboxDrops` (read with a debugger or the simulator).
+
 ## [5.5.107] — 2026-10-05
 
 Timer functions (upstream dingoFW #61), 2-axis lookup tables (dingoConfig #58) and the expanded sleep

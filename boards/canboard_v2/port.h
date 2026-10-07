@@ -71,6 +71,7 @@
 #define CONFIG_FLASH        getBaseFlash(&EFLD1)
 
 #define MAILBOX_SIZE 16
+#define RX_MAILBOX_SIZE 48   // RX buffers live in CCM (comms/mailbox.cpp); bus bursts outran 16
 #define DEVICE_THREAD_STACK 512
 
 #define NUM_TX_MSGS 10

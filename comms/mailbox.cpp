@@ -2,18 +2,26 @@
 #include "ch.hpp"
 #include "port.h"
 
-static chibios_rt::Mailbox<CANRxFrame*, MAILBOX_SIZE> rxMb;
+// The RX side can be deeper than TX: a busy bus delivers frames in bursts faster than the device thread
+// (2 ms loop) drains them. Boards short on SRAM put the RX buffers in CCM (CPU-only, which they are).
+#ifndef RX_MAILBOX_SIZE
+#define RX_MAILBOX_SIZE MAILBOX_SIZE
+#endif
+#ifndef CCM_BSS
+#define CCM_BSS
+#endif
+static chibios_rt::Mailbox<CANRxFrame*, RX_MAILBOX_SIZE> rxMb CCM_BSS;   // the constructor initialises it
 static chibios_rt::Mailbox<CANTxFrame*, MAILBOX_SIZE> txMb;
 static chibios_rt::Mailbox<CANTxFrame*, MAILBOX_SIZE> txUsbMb;
 
 //Mailbox buffer of CAN frames
 //Not managed by mailbox
-CANRxFrame rxFrames[MAILBOX_SIZE];
+CANRxFrame rxFrames[RX_MAILBOX_SIZE] CCM_BSS;   // contents only valid while rxMsgUsed[i]
 CANTxFrame txFrames[MAILBOX_SIZE];
 CANTxFrame txUsbFrames[MAILBOX_SIZE];
 
 //Used to manage the memory used by the mailbox
-bool rxMsgUsed[MAILBOX_SIZE];
+bool rxMsgUsed[RX_MAILBOX_SIZE];   // zeroed .bss: must not live in NOLOAD CCM
 bool txMsgUsed[MAILBOX_SIZE];
 bool txUsbMsgUsed[MAILBOX_SIZE];
 
@@ -107,7 +115,7 @@ msg_t FetchTxUsbFrame(CANTxFrame *frame)
 msg_t PostRxFrame(CANRxFrame *frame)
 {
     rxMutex.lock();
-    for (int i = 0; i < MAILBOX_SIZE; i++) {
+    for (int i = 0; i < RX_MAILBOX_SIZE; i++) {
         if (!rxMsgUsed[i]) {
             rxFrames[i] = *frame;
             rxMsgUsed[i] = true;
@@ -130,7 +138,7 @@ msg_t FetchRxFrame(CANRxFrame *frame)
     msg_t result = rxMb.fetch(&rxFrame, TIME_IMMEDIATE);
     if (result == MSG_OK) {
         rxMutex.lock();
-        for (int i = 0; i < MAILBOX_SIZE; i++) {
+        for (int i = 0; i < RX_MAILBOX_SIZE; i++) {
             if (rxFrame == &rxFrames[i]) {
                 rxMsgUsed[i] = false;
                 break;
