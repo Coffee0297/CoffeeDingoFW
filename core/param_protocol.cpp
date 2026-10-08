@@ -147,8 +147,14 @@ MsgCmd ProcessParamMsg(CANRxFrame *rx, uint16_t *nIndex) {
             if (param && WriteParam(param, msg.nValue)) {
                 uint32_t value = ReadParam(param);
                 EncodeParamRsp(&tx, static_cast<uint8_t>(MsgCmd::Write), msg.nIndex, msg.nSubIndex, value);
-                PostTxFrame(&tx);
+            } else if (param) {
+                // Refused (out of range): say so, with the value the module kept, instead of staying silent
+                // (dingoConfig reported such writes as done and its project drifted from the device).
+                EncodeParamRsp(&tx, static_cast<uint8_t>(MsgCmd::WriteAllOutOfRange), msg.nIndex, msg.nSubIndex, ReadParam(param));
+            } else {
+                EncodeParamRsp(&tx, static_cast<uint8_t>(MsgCmd::WriteAllParamNotFound), msg.nIndex, msg.nSubIndex, msg.nValue);
             }
+            PostTxFrame(&tx);
             break;
         }
 

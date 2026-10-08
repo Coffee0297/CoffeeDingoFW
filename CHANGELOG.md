@@ -6,6 +6,9 @@ from `core/device_config.h`; the `testing` CI build publishes it as a prerelease
 ## [Unreleased]
 
 ### Fixed
+- **A refused single param Write now says so** (`core/param_protocol.cpp`). An out-of-range value used to get
+  no reply at all, so dingoConfig reported it as written and its project drifted from the module. It now
+  answers `WriteAllOutOfRange` (26) with the value the module kept, or `WriteAllParamNotFound` (25).
 - **Stale Lua error after a good reload** (`lua/lua_port.cpp`). `LuaLoadString` only ever set the last error,
   so after a broken upload was replaced by a working one, dingoConfig kept showing the old parse error.
 - **CAN receive overruns on a busy bus** (`comms/can.cpp`). The RX thread read one frame per wake-up and
