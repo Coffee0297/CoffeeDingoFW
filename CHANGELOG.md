@@ -6,6 +6,8 @@ from `core/device_config.h`; the `testing` CI build publishes it as a prerelease
 ## [Unreleased]
 
 ### Fixed
+- **Stale Lua error after a good reload** (`lua/lua_port.cpp`). `LuaLoadString` only ever set the last error,
+  so after a broken upload was replaced by a working one, dingoConfig kept showing the old parse error.
 - **CAN receive overruns on a busy bus** (`comms/can.cpp`). The RX thread read one frame per wake-up and
   the tickless sleep between wake-ups is at least `CH_CFG_ST_TIMEDELTA` ticks (200 µs), so back-to-back
   frames (~240 µs apart at 500 kbit/s) overran the 3-deep bxCAN FIFO. It now drains every waiting frame
