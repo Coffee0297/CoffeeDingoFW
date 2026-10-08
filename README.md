@@ -1,86 +1,108 @@
-[![Donate](https://img.shields.io/badge/Donate-PayPal-blue.svg)](https://www.paypal.com/donate/?hosted_button_id=HDE8YCVY9NR2L) 
-[![GitHub Release](https://img.shields.io/github/v/release/corygrant/dingoPDM_FW?include_prereleases&display_name=tag)](https://github.com/corygrant/dingoPDM_FW/releases)
-![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/corygrant/dingoPDM_FW/total)
-[![GitHub last commit](https://img.shields.io/github/last-commit/corygrant/dingoPDM_FW)](https://github.com/corygrant/DingoPDM_FW/commits/master/)
-[![GitHub Issues or Pull Requests](https://img.shields.io/github/issues/corygrant/dingoPDM_FW)](https://github.com/corygrant/DingoPDM_FW/issues)
-[![Website](https://img.shields.io/website?url=https%3A%2F%2Fcorygrant.github.io%2FdingoPDM%2F&label=docs)](https://corygrant.github.io/dingoPDM/)
-![Discord](https://img.shields.io/discord/1243358184266010667?label=discord)
+[![GitHub Release](https://img.shields.io/github/v/release/Coffee0297/CoffeeDingoFW?display_name=tag)](https://github.com/Coffee0297/CoffeeDingoFW/releases)
+[![Upstream](https://img.shields.io/badge/fork%20of-corygrant%2FdingoFW-lightgrey)](https://github.com/corygrant/dingoFW)
+[![Website](https://img.shields.io/website?url=https%3A%2F%2Fcorygrant.github.io%2FdingoPDM%2F&label=hardware%20docs)](https://corygrant.github.io/dingoPDM/)
 
-# dingoFW
+# CoffeeDingoFW
 
-Firmware repo for dingoPDM, dingoPDM-Max, CANBoard and other dingoFW based devices. 
+Firmware for the **dingoPDM v7**, **dingoPDM-Max v1** and **CANBoard v2**: a fork of
+[corygrant/dingoFW](https://github.com/corygrant/dingoFW) that adds firmware updates over CAN, embedded Lua,
+PWM inputs, timers, lookup tables, an on-board trip log and a set of CAN robustness fixes. The dingoPDM is an
+Infineon Profet based power distribution module; the CANBoard adds analog/digital inputs and four low-side
+outputs to the same CAN bus. ChibiOS RT on an STM32F446 (PDMs) or STM32F303 (CANBoard).
 
-dingoPDM is an Infineon Profet based Power Distribution Module. 
+It is configured with **[CoffeeDingoConfig](https://github.com/Coffee0297/CoffeeDingoConfig)** (≥ v0.8.0 for
+v5.5.108) and can be run off the car, unchanged, in **[CoffeeDingoSim](https://github.com/Coffee0297/CoffeeDingoSim)**:
+the screenshot below is this firmware running seven modules of a whole vehicle on a PC.
 
-## This fork — dingoConfig feature set
+![Seven modules running this firmware in CoffeeDingoSim](docs/img/sim-overview.png)
 
-This fork adds the firmware features driven by the **dingoConfig** configurator
-([CoffeeDingoConfig](https://github.com/Coffee0297/CoffeeDingoConfig)). Those features need **this
-firmware build** (**v5.5.107**, the `testing` prerelease) to work — they're new CAN commands and config
-params, so an older/stock build won't expose them. The tool expects firmware **≥ 5.5.107** and shows a
-"firmware needs updating" notice below that.
+**Latest release: [v5.5.108](https://github.com/Coffee0297/CoffeeDingoFW/releases)** (`CONFIG_VERSION` 0x0011),
+see the [CHANGELOG](CHANGELOG.md). Flashing it over a different config version resets the module's saved
+settings to defaults: deploy your project again from dingoConfig afterwards.
 
-### What this fork actually adds to the firmware
+## Compared with the original dingoFW
 
-Diffed against the dingoFW `testing` base this forked from. **Only these are new** — the on/off
-analog switch, the basic analog rotary, Lua 5.5, the CanBoard itself, the overload/trip log, PWM, the
-basic auto-sleep, etc. are all **already in the base dingoFW**, not added here.
+The fork branched from upstream `master` at `06cb9e3` (2026-05-16). Upstream issue numbers (#52, #61) were
+design discussions there, not merged code. ✅ = present, ❌ = absent.
 
-1. **Analog input — per-position *calibrated* multi-position decode** *(v5.5.101)* — the base had a
-   uniform offset/step rotary; this adds decoding from per-position **calibrated voltages** (up to
-   **10 positions**), so *uneven* steps (wiper/blinker stalks) work. Each position has a tolerance
-   window; a reading outside every window reports **"no position"**.
-2. **Analog input — linear sensor scaling** *(v5.5.101)* — map the input millivolts to engineering units
-   (`scaled = gain·mV + offset`) for a pressure/temperature/etc. sensor. The scaled value is published in
-   the variable map, so **outputs and conditions can use it** (e.g. a fan driven by a temperature sensor).
-3. **CanBoard built for the STM32F303K8T6 as the Cortex-M4F it is** *(v5.5.101)* — the base built the
-   CanBoard as `cortex-m3` / soft-float / `-O0`; this enables the **hardware FPU**, size-optimises it
-   (`-Os`), and moves the config staging buffer into the 4 KB **CCM**. That's what frees the room for the
-   two analog features (flash 101.5 % → 53.9 %; heap 448 B → 1600 B).
-   The FPU isn't cosmetic: the analog scaling (`gain·mV+offset`), calibrated decode, and the PWM
-   duty/soft-start-ramp math all run **every control loop**, and in soft-float those libgcc float
-   helpers (~2.5 KB) are exactly what overflowed the 64 KB flash and would slow the 2 ms loop — the
-   hardware FPU makes them single-cycle. Catch: FPU-on enlarges the exception stack frame (~104 B), which
-   is why the CAN thread stacks had to grow in v5.5.103 (the bug that first silenced CAN on real hardware).
-4. **CanBoard digital-output PWM** *(v5.5.103)* — the base PWM is tied to the PDM's Profet outputs
-   (`NUM_OUTPUTS`), which the CanBoard doesn't have. This brings the same PWM model to the CanBoard's 4
-   digital outputs (DO1–DO4): enable, fixed/variable duty, 0–400 Hz, soft-start, min duty. Each output
-   runs on its own free timer (TIM3/15/16/17) as a software-toggled timebase, so frequencies are
-   independent (flash 53.9 % → 59.0 %).
-5. **OpenBLT CAN bootloader + firmware update over CAN** *(v5.5.104)* — a one-time SWD-flashed OpenBLT
-   (Feaser) XCP-over-CAN bootloader in the first 16 KB of flash. The application is relocated above it
-   and can then be reflashed **over CAN** from dingoConfig (via any SLCAN probe) — no SWD or USB after
-   the first install. The bootloader reads the module's base ID + CAN speed from the config sector at
-   runtime, so its XCP IDs (`base+12`/`base+13`) and bitrate follow the one firmware setting; the config
-   sector is never erased, so settings survive a reflash. The vector block is written **last**, so an
-   interrupted/brown-out update leaves the app invalid and the bootloader waiting (always re-flashable).
-   Lives in [`bootloader/`](bootloader/) (vendored OpenBLT, trimmed to the core + the STM32F3 port).
+| Feature | Original | This fork | Notes |
+|---|---|---|---|
+| Boards dingoPDM v7, dingoPDM-Max v1, CANBoard v2 | ✅ | ✅ | |
+| PT-DPDM4 board, NeoPixel LEDs | ✅ | ❌ | Added upstream after the fork point |
+| Firmware update over USB DFU | ✅ | ✅ | BOOT0 or the software trigger |
+| **Firmware update over CAN** (OpenBLT XCP bootloader) | ❌ | ✅ | Bootloader installed once (SWD/DFU), then every app update over CAN from dingoConfig |
+| **Embedded Lua** (PDMs) with CAN tx/rx, timers, 32 output slots | ❌ | ✅ | Lua 5.5, `lua/`; upload, read-back and error read-back over CAN |
+| **PWM input** on digital inputs (duty %, Hz, glitch filter) | ❌ | ✅ | v5.5.108; frequency capped per board from its input circuit |
+| Analog: calibrated multi-position switch (≤ 10 positions), linear sensor scaling | ❌ | ✅ | Replaces the uniform offset/step rotary |
+| Outputs: current limit, inrush, reset modes, PWM, soft start | ✅ | ✅ | |
+| PWM output frequency from a signal, duty slew | ❌ | ✅ | |
+| PWM on the CANBoard's DO1–DO4 | ❌ | ✅ | One timer per output |
+| Warn limit / open-load detection | ❌ | ✅ | Report only; the output keeps running |
+| **Trip log** with the current waveform around each trip | ❌ | ✅ | Read over CAN |
+| Output bench test (force on / PWM for a bounded hold) | ❌ | ✅ | |
+| Conditions, counters, flashers, virtual inputs, CAN in/out, keypads, wiper, starter | ✅ | ✅ | |
+| Condition hysteresis (separate release point) | ❌ | ✅ | |
+| **Timers** (on-delay / off-delay / pulse) | ❌ | ✅ | |
+| **Lookup tables** (up to 8×8, bilinear) | ❌ | ✅ | PDMs |
+| Auto-sleep | ✅ | ✅ | |
+| Force-sleep / mute-TX inputs, per-pin wake sources, outputs off on sleep | ❌ (`development` branch only) | ✅ | |
+| CAN: full RX FIFO drain, 48-frame CANBoard mailbox, no-ACK retransmit back-off | ❌ | ✅ | No more frame loss on a busy bus |
+| Param protocol: WriteAll, CheckCrc | ✅ | ✅ | |
+| Refused single param write gets a reply | ❌ | ✅ | Upstream stays silent |
+| CANBoard built as Cortex-M4F (hardware FPU, `-Os`, CCM) | ❌ | ✅ | Frees the flash for the features above |
+| Host self-test, SWD batch flasher | ❌ | ✅ | `tests/host_selftest.cpp`, `flash-dingo.ps1` |
 
-6. **Timer function** *(v5.5.107, upstream #61)* — 8 per PDM, 4 per CANBoard. One input, a preset and a
-   mode: **on-delay** (TON), **off-delay** (TOF) or **pulse** (TP); the active level is selectable so a
-   timer can run while something is *off* ("ignition off for 30 s"). Params `0x1B00+`; outputs in the var
-   map and on CAN (PDM Msg 3 byte 7, CANBoard Msg 2 bits 28–31).
-7. **2-axis lookup table** *(v5.5.107, dingoConfig #58)* — 2 per PDM/-Max (none on the CANBoard — no room
-   in its 2 KB config sector), up to **8×8** cells with **bilinear interpolation** and edge clamping; one
-   row = a 1-D curve (fan duty vs temperature). Params `0x1A00+`; outputs broadcast as float32 in the new
-   PDM **Msg 27 (`base+29`)**, so a PDM now owns `base .. base+29`.
-8. **Expanded sleep** *(v5.5.107, upstream #52 as agreed there)* — a **force-sleep** var-map input (sleep
-   now, local decision, no handshake), a **mute-TX** input (withhold the cyclic telemetry so a fleet can
-   fall silent and let every CAN-idle timer run out), and configurable **wake sources** (per-digital-input
-   mask + CAN; USB always wakes). Replaces the 5.5.106 digital-input-only trigger.
-9. **Output bench test** *(v5.5.107)* — `MsgCmd::OutputTest (48)` forces a PDM output or a CANBoard digital
-   output **on** or **PWM at a duty + frequency** for a bounded hold (1–30 s, re-sent by the tool while the test runs) so wiring and
-   loads can be checked without touching the output's rule. Current limits / fault handling stay active;
-   only an enabled output is accepted.
+The original's unreleased `development` work since the fork point (multi-bus draft, params in their own
+thread, live CAN filter updates, chunked FRAM writes) is not in this fork. The two `CONFIG_VERSION` lines are
+independent (upstream 0x0006/0x0007, here 0x0011), so moving a module between the two resets its config.
 
-### Simulating the firmware off the car
+## Guide
 
-The real `.elf` images run on a PC under [Renode](https://renode.io) in
-[CoffeeDingoSim](https://github.com/Coffee0297/CoffeeDingoSim): every module on one virtual CAN bus, loads and
-switches on a graphical canvas, and dingoConfig connected through an SLCAN bridge, so firmware and project changes
-can be validated before anything is flashed in a vehicle.
+### 1. Get the firmware
+Download the files for your board from the [releases](https://github.com/Coffee0297/CoffeeDingoFW/releases)
+(`.bin` / `.hex` for USB or SWD, `.srec` for CAN), or build it:
 
-### Firmware update over CAN (OpenBLT)
+```bash
+# ARM GNU toolchain on PATH (arm-none-eabi-gcc 13.x). Build from bash, not cmd.exe.
+make clean && make BOARD=dingopdm_v7      # or dingopdmmax_v1, canboard_v2
+# -> build/<board>.bin / .hex / .elf / .srec
+g++ -std=c++20 -DDINGO_HOST_TEST -I functions -I core tests/host_selftest.cpp functions/table.cpp functions/timer.cpp -o build/host_selftest && build/host_selftest
+```
+
+### 2. Flash a module
+- **dingoPDM / -Max over USB:** hold BOOT0 (or use dingoConfig's *Flash over USB*), the board appears in DFU,
+  dingoConfig writes the `.bin`.
+- **First install of the CAN bootloader:** once per board over SWD or USB DFU (see
+  [Firmware update over CAN](#firmware-update-over-can-openblt) below). A batch of blank boards:
+  [`flash-dingo.ps1`](#batch-swd-flashing-flash-dingops1).
+- **Every update after that, over CAN:** dingoConfig ▸ System ▸ *Flash over CAN* ▸ pick the `.srec`. No USB,
+  the module stays in the car, and an interrupted update can simply be run again.
+
+### 3. Configure it
+Everything is set from dingoConfig and stored on the module (FRAM on the PDMs, a flash sector on the
+CANBoard). Typical building blocks:
+
+| You want | Build it from |
+|---|---|
+| A light on a switch | Digital input (or CAN input from a CANBoard) → output rule |
+| A light on a multi-position knob | CANBoard analog input as a calibrated rotary → condition per position → output |
+| Fan on above 90 °C, off below 85 °C | Analog input with linear scaling → condition with hysteresis → output (or PWM duty from a lookup table) |
+| Indicators / hazards | Flasher, or Lua for synchronised clocks across modules |
+| Fuel pump prime + run, after-run fans | Timers (pulse, off-delay) |
+| Switch an output at x % of an incoming PWM signal | Digital input in PWM mode → condition on *PWM Duty* → output |
+| Copy an incoming PWM to an output | Digital input in PWM mode → output with variable duty from *PWM Duty* |
+| Anything else | Lua on the PDM: read any signal with `readVar`, drive outputs with `setLuaOut`, talk CAN with `txCan`/`onCanRx` |
+
+**PWM input limits** (from the board schematics): dingoPDM inputs are 4.7 kΩ + 10 nF, good to about 1 kHz from
+a driven 12 V source but only ~100 Hz from an open collector on the internal pull-up (add an external pull-up
+for more); CANBoard inputs are a bare 10 kΩ, good to ~5 kHz but unfiltered, so use the glitch filter on long
+harness runs.
+
+### 4. Test before the car
+Run the build in [CoffeeDingoSim](https://github.com/Coffee0297/CoffeeDingoSim) with your dingoConfig project:
+the same `.elf` on a virtual bus, with bulbs, motors, switches and knobs you can operate on screen.
+
+## Firmware update over CAN (OpenBLT)
 
 **Workflow: SWD once, then CAN forever.** Flash the bootloader to a blank board one time over SWD; every
 application update after that goes over CAN from dingoConfig ("⬆ Over CAN" → pick the `.srec`).
@@ -117,7 +139,7 @@ CAN session (`0xB00710AD`).
 > recovery confirmed. The v5.5.103 PWM outputs still want a bench check (scope DO1–DO4, `0x64B` duty
 > frame). See [CHANGELOG](CHANGELOG.md).
 
-### Batch SWD flashing (`flash-dingo.ps1`)
+## Batch SWD flashing (`flash-dingo.ps1`)
 
 [`flash-dingo.ps1`](flash-dingo.ps1) drives the **SWD-once** step above in a loop — for the
 one-time bootloader install, or for programming a batch of blank boards off the reel. Handles both
@@ -153,7 +175,7 @@ Before writing anything it refuses the flash if the image doesn't belong on the 
 `-IgnoreMismatch` overrides, `-Target` forces a pyocd target. It also prompts once at startup to
 confirm the image and board before a batch (`-Yes` skips).
 
-#### What gets erased, and what a "PASS" actually proves
+### What gets erased, and what a "PASS" actually proves
 
 **`-Force` only skips the blank check.** It changes nothing about erasing. Erase scope follows the
 image's address span and the part's sector map — `-e sector` erases every sector an image *touches*,
@@ -230,9 +252,9 @@ ground, before chasing `-Frequency`.
 > ⚠️ **Not yet exercised: the CANBoard/F303 write path** — detection and blank-check refusal are
 > proven there, writing is not. Run `-Once` on one known-blank CANBoard before trusting a batch.
 
-# [**Documentation**](https://corygrant.github.io/dingoPDM/)
+## Hardware
 
-# [**Store**](https://dingo-electronics.square.site/product/dingopdm/1)
+Hardware documentation: [corygrant.github.io/dingoPDM](https://corygrant.github.io/dingoPDM/) · Store: [dingo-electronics](https://dingo-electronics.square.site/product/dingopdm/1)
 
 ## Disclaimer
 Please note that this product has been designed by a hobbyist, not a professional. It is intended for off-road and testing use only. Users should operate the product at their own discretion and risk. The designer explicitly disclaims any responsibility for damage or injury that may result from the use of this product.
