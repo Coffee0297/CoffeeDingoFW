@@ -5,6 +5,13 @@ from `core/device_config.h`; the `testing` CI build publishes it as a prerelease
 
 ## [Unreleased]
 
+## [5.5.108] — 2026-10-08
+
+PWM inputs on every digital input, an explicit reply to refused parameter writes, and a CAN receive path
+that no longer drops frames on a busy bus. Pairs with **dingoConfig v0.8.0**. **`CONFIG_VERSION` 0x000F →
+0x0011: flashing resets the saved config to defaults, so deploy it again from dingoConfig.** Verified in
+CoffeeDingoSim with a 7-module vehicle scene and by the host self-test, **not yet on hardware**.
+
 ### Fixed
 - **A refused single param Write now says so** (`core/param_protocol.cpp`). An out-of-range value used to get
   no reply at all, so dingoConfig reported it as written and its project drifted from the module. It now
