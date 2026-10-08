@@ -60,7 +60,8 @@
     VAR_MAP_WIPER_VARS + \
     (NUM_KEYPADS * (KEYPAD_MAX_BUTTONS + KEYPAD_MAX_DIALS + KEYPAD_MAX_ANALOG_INPUTS)) + \
     (NUM_TIMERS * 1) + \
-    (NUM_TABLES * 1) \
+    (NUM_TABLES * 1) + \
+    (NUM_DIG_INPUTS * 2) \
 )
 
 // Last 2KB sector of flash (sector 31, 0x0800F800)

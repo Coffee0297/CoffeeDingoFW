@@ -623,6 +623,15 @@ void InitVarMap()
         pVarMap[index++] = &table[i].fVal;
     #endif
 
+    // Digital-input PWM measurement (duty %, Hz), appended after the tables for the same reason.
+    #if NUM_DIG_INPUTS > 0
+    for (uint8_t i = 0; i < NUM_DIG_INPUTS; i++)
+    {
+        pVarMap[index++] = &digIn[i].fDuty;
+        pVarMap[index++] = &digIn[i].fFreq;
+    }
+    #endif
+
     //VarMap size must match the expected size
     if (index != VAR_MAP_SIZE)
         Error::SetFatalError(FatalErrorType::ErrVarMap, MsgSrc::Init);

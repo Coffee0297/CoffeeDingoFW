@@ -5,6 +5,7 @@
 #include <cstdio>
 #include "table.h"
 #include "timer.h"
+#include "pwm_meter.h"
 
 float *pVarMap[VAR_MAP_SIZE];
 static bool near(float a, float b) { return std::fabs(a - b) < 1e-4f; }
@@ -73,10 +74,35 @@ static void TestTimer()
     cfg.bEnabled = false; in = 0; t.Update(1000); t.Update(1200); assert(t.fVal == 0);
 }
 
+static void TestPwmMeter()
+{
+    const uint32_t clk = 180000000;                  // PDM HCLK: 100 Hz = 1.8 M cycles
+    PwmMeter m{}; uint32_t t = 0xFFF00000u;          // start near the 32-bit wrap
+    auto pulse = [&](uint32_t hi, uint32_t period) { m.Edge(true, t); m.Edge(false, t + hi); t += period; };
+    m.Edge(false, t - 5);                            // a fall before the first rise is ignored
+    for (int i = 0; i < 5; i++) pulse(450000, 1800000);   // 25 % at 100 Hz
+    m.Edge(true, t);                                 // closes the 5th period
+    PwmMeter::Sample s = m.Take();
+    assert(s.periods == 5);
+    assert(near(PwmMeter::Duty(s), 25.0f));
+    assert(std::fabs(PwmMeter::Freq(s, clk) - 100.0f) < 0.01f);
+    assert(m.Take().periods == 0);                   // Take() empties the sums
+
+    m.Edge(false, t + 1620000); t += 1800000;        // one 90 % period (rise already seen above)
+    m.Edge(true, t);
+    s = m.Take();
+    assert(s.periods == 1 && near(PwmMeter::Duty(s), 90.0f));
+    assert(s.lastPeriod == 1800000);
+
+    m.Reset(); m.Edge(true, 0); m.Edge(true, 1000);  // rise, rise without a fall: no period
+    assert(m.Take().periods == 0 && PwmMeter::Duty(m.Take()) == 0.0f);
+}
+
 int main()
 {
     TestTable();
     TestTimer();
+    TestPwmMeter();
     std::puts("host_selftest OK");
     return 0;
 }

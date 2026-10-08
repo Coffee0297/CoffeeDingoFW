@@ -60,7 +60,8 @@
     (NUM_KEYPADS * (KEYPAD_MAX_BUTTONS + KEYPAD_MAX_DIALS + KEYPAD_MAX_ANALOG_INPUTS)) + \
     (NUM_LUA_OUTPUTS * 1) + \
     (NUM_TIMERS * 1) + \
-    (NUM_TABLES * 1) \
+    (NUM_TABLES * 1) + \
+    (NUM_DIG_INPUTS * 2) \
 )
 
 #define MAILBOX_SIZE 128

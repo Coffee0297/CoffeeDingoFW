@@ -159,6 +159,7 @@ void EnterSleep()
 #if NUM_DIG_INPUTS > 0
     for (uint8_t i = 0; i < NUM_DIG_INPUTS; i++)
     {
+        digIn[i].StopPwm();   // its edge event is re-armed (or not) as a wake source below
         if (stConfig.stDevice.nWakeDigInputMask & (1u << i))
             EnableLineEventWithPull(digIn[i].GetLine(), stConfig.stDigInput[i].ePull);
     }

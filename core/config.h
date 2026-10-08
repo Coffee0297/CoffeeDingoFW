@@ -37,7 +37,7 @@
 #include "analog_input.h"
 #endif  
 
-#define CONFIG_VERSION 0x000F //Increment when config structure changes
+#define CONFIG_VERSION 0x0010 //Increment when config structure changes
 
 struct Config_Device{
   uint16_t nConfigVersion;

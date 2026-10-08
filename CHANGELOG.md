@@ -15,6 +15,14 @@ from `core/device_config.h`; the `testing` CI build publishes it as a prerelease
   SRAM is not touched (the heap grows from 680 to 1136 B). Other boards keep `MAILBOX_SIZE`.
 
 ### Added
+- **PWM input mode on every digital input** (`functions/digital_input.cpp`, `functions/pwm_meter.h`).
+  Param `0x1200+i` sub 5 `bPwm`, sub 6 `nPwmFreq` (Hz, 0 = auto-detect). Both edges are timestamped
+  with the cycle counter in the pin's EXTI callback; each update averages the whole periods since the last
+  one. New var-map entries per input, appended after the tables/timers so every existing index is
+  unchanged: `PWM Duty` (0–100 %, Invert = time low) and `PWM Frequency` (Hz). No edge for 3 periods
+  reads 0 % / 100 % from the pin level and drops the input's state. Uses: a Condition on PWM Duty
+  ("on at x %"), or an output's variable duty following it. CANBoard: `PAL_USE_CALLBACKS` on.
+  **`CONFIG_VERSION` 0x000F → 0x0010: saved configs reset to defaults; re-deploy from dingoConfig.**
 - Diagnostic counters `gCanRxFrames` / `gCanRxMailboxDrops` (read with a debugger or the simulator).
 
 ## [5.5.107] — 2026-10-05

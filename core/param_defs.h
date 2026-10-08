@@ -65,7 +65,9 @@
     {0x1200 + (i), 1, &stConfig.stDigInput[i].eMode,         &stConfigTemp.stDigInput[i].eMode,        ParamType::Enum,   static_cast<uint32_t>(InputMode::Momentary), 0, 1}, \
     {0x1200 + (i), 2, &stConfig.stDigInput[i].bInvert,       &stConfigTemp.stDigInput[i].bInvert,      ParamType::Bool,   0, 0, 1}, \
     {0x1200 + (i), 3, &stConfig.stDigInput[i].nDebounceTime, &stConfigTemp.stDigInput[i].nDebounceTime,ParamType::UInt16, 20, 0, 1000}, \
-    {0x1200 + (i), 4, &stConfig.stDigInput[i].ePull,         &stConfigTemp.stDigInput[i].ePull,        ParamType::Enum,   static_cast<uint32_t>(InputPull::None), 0, 2}
+    {0x1200 + (i), 4, &stConfig.stDigInput[i].ePull,         &stConfigTemp.stDigInput[i].ePull,        ParamType::Enum,   static_cast<uint32_t>(InputPull::None), 0, 2}, \
+    {0x1200 + (i), 5, &stConfig.stDigInput[i].bPwm,          &stConfigTemp.stDigInput[i].bPwm,         ParamType::Bool,   0, 0, 1}, \
+    {0x1200 + (i), 6, &stConfig.stDigInput[i].nPwmFreq,      &stConfigTemp.stDigInput[i].nPwmFreq,     ParamType::UInt16, 0, 0, 10000}
 #endif
 
 //=============================================================================
