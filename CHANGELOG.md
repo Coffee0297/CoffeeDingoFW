@@ -22,7 +22,10 @@ from `core/device_config.h`; the `testing` CI build publishes it as a prerelease
   unchanged: `PWM Duty` (0–100 %, Invert = time low) and `PWM Frequency` (Hz). No edge for 3 periods
   reads 0 % / 100 % from the pin level and drops the input's state. Uses: a Condition on PWM Duty
   ("on at x %"), or an output's variable duty following it. CANBoard: `PAL_USE_CALLBACKS` on.
-  **`CONFIG_VERSION` 0x000F → 0x0010: saved configs reset to defaults; re-deploy from dingoConfig.**
+  Sub 7 `nPwmMinPulseUs` is a glitch filter: two edges closer than it are a spike and both are dropped.
+  The frequency setting is capped per board from the input circuit (`DI_PWM_MAX_FREQ`): dingoPDM 1 kHz
+  (4.7k + 10 nF; open collector on the internal pull-up only ~100 Hz), CANBoard 5 kHz (10k, unfiltered).
+  **`CONFIG_VERSION` 0x000F → 0x0011: saved configs reset to defaults; re-deploy from dingoConfig.**
 - Diagnostic counters `gCanRxFrames` / `gCanRxMailboxDrops` (read with a debugger or the simulator).
 
 ## [5.5.107] — 2026-10-05

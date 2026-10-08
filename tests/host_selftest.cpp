@@ -98,11 +98,45 @@ static void TestPwmMeter()
     assert(m.Take().periods == 0 && PwmMeter::Duty(m.Take()) == 0.0f);
 }
 
+static void TestPwmGlitchFilter()
+{
+    // 25 % at 100 Hz (1.8 M cycles @ 180 MHz), filter 20 us = 3600 cycles
+    PwmMeter m{}; m.nMinCycles = 3600; m.Reset();
+    assert(m.nMinCycles == 3600);                    // Reset keeps the filter
+    uint32_t t = 1000;
+    auto edge = [&](bool h, uint32_t at) { m.Edge(h, at); };
+    for (int i = 0; i < 4; i++)
+    {
+        edge(true, t);
+        edge(false, t + 200000); edge(true, t + 200900);          // 5 us spike low during the high phase
+        edge(false, t + 450000);
+        edge(true, t + 1000000); edge(false, t + 1001800);        // 10 us spike high during the low phase
+        t += 1800000;
+    }
+    edge(true, t); edge(false, t + 450000);                       // closes the last period (held edge committed)
+    PwmMeter::Sample s = m.Take();
+    assert(s.periods == 4);
+    assert(near(PwmMeter::Duty(s), 25.0f));
+    assert(std::fabs(PwmMeter::Freq(s, 180000000) - 100.0f) < 0.01f);
+
+    // a real pulse narrower than the filter is dropped: 10 us high every 1 ms reads as no signal
+    m.Reset(); t = 0;
+    bool any = false;
+    for (int i = 0; i < 10; i++) { any |= m.Edge(true, t); any |= m.Edge(false, t + 1800); t += 180000; }
+    assert(m.Take().periods == 0);
+    assert(!any);                                    // no edge passed: the input times out to its steady level
+
+    // filter off: every edge counts (spike shortens the high time)
+    PwmMeter n{}; n.Edge(true, 0); n.Edge(false, 100); n.Edge(true, 200); n.Edge(false, 1000); n.Edge(true, 2000);
+    assert(n.Take().periods == 2);
+}
+
 int main()
 {
     TestTable();
     TestTimer();
     TestPwmMeter();
+    TestPwmGlitchFilter();
     std::puts("host_selftest OK");
     return 0;
 }

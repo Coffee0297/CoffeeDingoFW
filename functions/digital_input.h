@@ -13,6 +13,7 @@ struct Config_DigInput{
   InputPull ePull;
   bool bPwm;            // measure duty/frequency instead of an on/off state
   uint16_t nPwmFreq;    // Hz the signal runs at; 0 = auto-detect (measured period)
+  uint16_t nPwmMinPulseUs; // glitch filter: edges closer than this (us) are a spike and dropped; 0 = off
 };
 
 class Digital_Input

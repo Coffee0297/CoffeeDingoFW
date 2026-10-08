@@ -23,6 +23,7 @@ void Digital_Input::SetConfig(Config_DigInput *config)
     if (config->bEnabled && config->bPwm)
     {
         chSysLock();
+        meter.nMinCycles = (uint32_t)config->nPwmMinPulseUs * (STM32_HCLK / 1000000U);
         meter.Reset();
         nLastEdgeMs = SYS_TIME;
         palSetLineCallbackI(m_line, PwmEdgeCb, this);
@@ -45,8 +46,8 @@ void Digital_Input::OnEdge()
 {
     rtcnt_t now = chSysGetRealtimeCounterX();
     chSysLockFromISR();
-    meter.Edge(palReadLine(m_line), now);
-    nLastEdgeMs = SYS_TIME;
+    if (meter.Edge(palReadLine(m_line), now))
+        nLastEdgeMs = SYS_TIME;   // filtered-out spikes do not keep a dead signal alive
     chSysUnlockFromISR();
 }
 

@@ -24,6 +24,9 @@
 #define NUM_DIG_OUTPUTS 4
 #define HAS_DIG_PWM TRUE   // digital outputs DO1-4 can run software-toggled PWM (TIM3/15/16/17)
 #define NUM_DIG_INPUTS 8
+// PWM-input frequency cap (param 0x1200 sub 6): 10k series, no capacitor (HW v2 schematic): the edge IRQ is the limit; unfiltered, so a glitch
+// filter (nPwmMinPulseUs) helps on long harnesses
+#define DI_PWM_MAX_FREQ 5000
 #define NUM_ANALOG_INPUTS 5
 #define NUM_VIRT_INPUTS 8
 #define NUM_CAN_INPUTS 8

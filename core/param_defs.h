@@ -67,7 +67,8 @@
     {0x1200 + (i), 3, &stConfig.stDigInput[i].nDebounceTime, &stConfigTemp.stDigInput[i].nDebounceTime,ParamType::UInt16, 20, 0, 1000}, \
     {0x1200 + (i), 4, &stConfig.stDigInput[i].ePull,         &stConfigTemp.stDigInput[i].ePull,        ParamType::Enum,   static_cast<uint32_t>(InputPull::None), 0, 2}, \
     {0x1200 + (i), 5, &stConfig.stDigInput[i].bPwm,          &stConfigTemp.stDigInput[i].bPwm,         ParamType::Bool,   0, 0, 1}, \
-    {0x1200 + (i), 6, &stConfig.stDigInput[i].nPwmFreq,      &stConfigTemp.stDigInput[i].nPwmFreq,     ParamType::UInt16, 0, 0, 10000}
+    {0x1200 + (i), 6, &stConfig.stDigInput[i].nPwmFreq,      &stConfigTemp.stDigInput[i].nPwmFreq,     ParamType::UInt16, 0, 0, DI_PWM_MAX_FREQ}, \
+    {0x1200 + (i), 7, &stConfig.stDigInput[i].nPwmMinPulseUs, &stConfigTemp.stDigInput[i].nPwmMinPulseUs, ParamType::UInt16, 0, 0, 10000}
 #endif
 
 //=============================================================================

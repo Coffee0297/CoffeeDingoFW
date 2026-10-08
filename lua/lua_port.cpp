@@ -311,6 +311,7 @@ int LuaLoadString(const char *src)
 {
     if (!gL && LuaPortInit() != 0) return -1;
     gScriptOk = false;
+    gErr[0] = '\0';   // a new program starts clean: a good reload must not keep reporting the old error
     // Compile + run top-level once to define globals (tick/onTick/onCanRx/...).
     if (luaL_loadstring(gL, src) != LUA_OK || lua_pcall(gL, 0, 0, 0) != LUA_OK) {
         const char *m = lua_tostring(gL, -1);

@@ -19,6 +19,9 @@
 #define NUM_OUTPUTS 8
 #define NUM_DIG_OUTPUTS 0
 #define NUM_DIG_INPUTS 2
+// PWM-input frequency cap (param 0x1200 sub 6): 4.7k + 10 nF input RC (HW v7.5 schematic): duty skews above ~1 kHz. Open collector on the
+// internal pull-up (~40k charging the 10 nF) is only good to ~100 Hz: use an external pull-up.
+#define DI_PWM_MAX_FREQ 1000
 #define NUM_ANALOG_INPUTS 0
 #define NUM_VIRT_INPUTS 16
 #define NUM_CAN_INPUTS 32
