@@ -5,6 +5,21 @@ from `core/device_config.h`; the `testing` CI build publishes it as a prerelease
 
 ## [Unreleased]
 
+## [5.5.109] — 2026-10-11
+
+A release with every file a board needs, and a flasher for USB as well as SWD. No firmware behaviour
+changes and **no `CONFIG_VERSION` change** (still 0x0011): saved configs are kept.
+
+### Added
+- **Board marker in the image** (`core/device.cpp`): `DINGO_BOARD=<board name>`, so flash tools can tell a
+  dingoPDM v7 from a -Max (same MCU) by reading the firmware back.
+- **Release assets**: the `.srec` for each board (dingoConfig *Flash over CAN*) and the OpenBLT bootloaders
+  `dingopdm_blt.hex` / `canboard_blt.hex` (first flash of a blank board), next to the `.hex` / `.bin` / `.elf`.
+- **`flash-dingo.ps1`**: flashes PDMs over USB-C DFU (dfu-util) as well as SWD, both links watched at once,
+  with the same image checks, blank check and byte-for-byte verify. Without `-Hex` it downloads this fork's
+  stable or testing release (with the bootloaders) or the official dingoFW release, and picks v7 or -Max per
+  PDM from its board marker, asking when there is none.
+
 ## [5.5.108] — 2026-10-08
 
 PWM inputs on every digital input, an explicit reply to refused parameter writes, and a CAN receive path

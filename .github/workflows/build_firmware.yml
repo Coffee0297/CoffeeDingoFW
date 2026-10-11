@@ -82,35 +82,18 @@ jobs:
         if: steps.check_release.outputs.exists == 'false'
         run: |
           set -e
-
-          # Create temp directory for artifacts
+          # Kept in firmware_artifacts so the next 'make clean' can't wipe them.
           mkdir -p firmware_artifacts
-
-          # Build first variant, put in firmware_artifacts
-          make clean
-          make BOARD=dingopdm_v7
-          cp build/dingopdm_v7.hex firmware_artifacts/dingopdm_v7_FW_v${VERSION_DASHED}.hex
-          cp build/dingopdm_v7.bin firmware_artifacts/dingopdm_v7_FW_v${VERSION_DASHED}.bin
-          cp build/dingopdm_v7.elf firmware_artifacts/dingopdm_v7_FW_v${VERSION_DASHED}.elf
-
-          # Build second variant — keep in firmware_artifacts so the next 'make clean' can't wipe it
-          make clean
-          make BOARD=dingopdmmax_v1
-          cp build/dingopdmmax_v1.hex firmware_artifacts/dingopdmmax_v1_FW_v${VERSION_DASHED}.hex
-          cp build/dingopdmmax_v1.bin firmware_artifacts/dingopdmmax_v1_FW_v${VERSION_DASHED}.bin
-          cp build/dingopdmmax_v1.elf firmware_artifacts/dingopdmmax_v1_FW_v${VERSION_DASHED}.elf
-
-          # Build third variant — also into firmware_artifacts
-          make clean
-          make BOARD=canboard_v2
-          cp build/canboard_v2.hex firmware_artifacts/canboard_v2_FW_v${VERSION_DASHED}.hex
-          cp build/canboard_v2.bin firmware_artifacts/canboard_v2_FW_v${VERSION_DASHED}.bin
-          cp build/canboard_v2.elf firmware_artifacts/canboard_v2_FW_v${VERSION_DASHED}.elf
-
-          # Copy all renamed artifacts back to build/ for the release action
-          cp firmware_artifacts/* build/
-          
-          ls -l build/
+          for b in dingopdm_v7 dingopdmmax_v1 canboard_v2; do
+            make clean
+            make BOARD=$b
+            for ext in hex bin elf srec; do
+              cp build/$b.$ext firmware_artifacts/${b}_FW_v${VERSION_DASHED}.$ext
+            done
+          done
+          # The OpenBLT CAN bootloaders, for a blank board's first flash (prebuilt, in the repo)
+          cp bootloader/dingopdm/bin/dingopdm_blt.hex bootloader/canboard/bin/canboard_blt.hex firmware_artifacts/
+          ls -l firmware_artifacts/
         env:
           VERSION_DASHED: ${{ steps.extract_version.outputs.version_dashed }}
 
@@ -124,31 +107,19 @@ jobs:
           generate_release_notes: true
           body: |
             ## Firmware Release v${{ steps.extract_version.outputs.version }}
-      
-            **dingoPDM:**
-            - [HEX](https://github.com/${{ github.repository }}/releases/download/v${{ steps.extract_version.outputs.version }}/dingopdm_v7_FW_v${{ steps.extract_version.outputs.version_dashed }}.hex)
-            - [BIN](https://github.com/${{ github.repository }}/releases/download/v${{ steps.extract_version.outputs.version }}/dingopdm_v7_FW_v${{ steps.extract_version.outputs.version_dashed }}.bin)
-            - [ELF](https://github.com/${{ github.repository }}/releases/download/v${{ steps.extract_version.outputs.version }}/dingopdm_v7_FW_v${{ steps.extract_version.outputs.version_dashed }}.elf)
-            
-            **dingoPDM-Max:**
-            - [HEX](https://github.com/${{ github.repository }}/releases/download/v${{ steps.extract_version.outputs.version }}/dingopdmmax_v1_FW_v${{ steps.extract_version.outputs.version_dashed }}.hex)
-            - [BIN](https://github.com/${{ github.repository }}/releases/download/v${{ steps.extract_version.outputs.version }}/dingopdmmax_v1_FW_v${{ steps.extract_version.outputs.version_dashed }}.bin)
-            - [ELF](https://github.com/${{ github.repository }}/releases/download/v${{ steps.extract_version.outputs.version }}/dingopdmmax_v1_FW_v${{ steps.extract_version.outputs.version_dashed }}.elf)
 
-            **CANBoard:**
-            - [HEX](https://github.com/${{ github.repository }}/releases/download/v${{ steps.extract_version.outputs.version }}/canboard_v2_FW_v${{ steps.extract_version.outputs.version_dashed }}.hex)
-            - [BIN](https://github.com/${{ github.repository }}/releases/download/v${{ steps.extract_version.outputs.version }}/canboard_v2_FW_v${{ steps.extract_version.outputs.version_dashed }}.bin)
-            - [ELF](https://github.com/${{ github.repository }}/releases/download/v${{ steps.extract_version.outputs.version }}/canboard_v2_FW_v${{ steps.extract_version.outputs.version_dashed }}.elf)
-          files: |
-            build/dingopdm_v7_FW_v${{ steps.extract_version.outputs.version_dashed }}.hex
-            build/dingopdm_v7_FW_v${{ steps.extract_version.outputs.version_dashed }}.bin
-            build/dingopdm_v7_FW_v${{ steps.extract_version.outputs.version_dashed }}.elf
-            build/dingopdmmax_v1_FW_v${{ steps.extract_version.outputs.version_dashed }}.hex
-            build/dingopdmmax_v1_FW_v${{ steps.extract_version.outputs.version_dashed }}.bin
-            build/dingopdmmax_v1_FW_v${{ steps.extract_version.outputs.version_dashed }}.elf
-            build/canboard_v2_FW_v${{ steps.extract_version.outputs.version_dashed }}.hex
-            build/canboard_v2_FW_v${{ steps.extract_version.outputs.version_dashed }}.bin
-            build/canboard_v2_FW_v${{ steps.extract_version.outputs.version_dashed }}.elf
+            One set of files per board (`dingopdm_v7`, `dingopdmmax_v1`, `canboard_v2`):
+
+            | File | Use |
+            |---|---|
+            | `<board>_FW_v${{ steps.extract_version.outputs.version_dashed }}.srec` | Update over CAN from dingoConfig (*Flash over CAN*) |
+            | `<board>_FW_v${{ steps.extract_version.outputs.version_dashed }}.bin` | Update over USB DFU from dingoConfig (*Flash over USB*) |
+            | `<board>_FW_v${{ steps.extract_version.outputs.version_dashed }}.hex` | SWD / USB DFU with `flash-dingo.ps1` (with the bootloader on a blank board) |
+            | `<board>_FW_v${{ steps.extract_version.outputs.version_dashed }}.elf` | Debugging, CoffeeDingoSim |
+            | `dingopdm_blt.hex`, `canboard_blt.hex` | OpenBLT CAN bootloader, flashed once on a blank board |
+
+            The application is linked at 0x08004000 behind the bootloader. A blank board needs the
+            bootloader `.hex` and the board's `.hex` together, e.g. `.\flash-dingo.ps1` (downloads both).
+          files: firmware_artifacts/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      

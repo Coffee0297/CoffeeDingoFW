@@ -46,6 +46,10 @@
 #include "sleep.h"
 #endif
 
+// Board marker for flash tools: flash-dingo.ps1 reads it back to tell a dingoPDM v7 from a -Max,
+// which share the MCU. Kept alive by InitDevice() referencing it (--gc-sections would drop it).
+extern const char kDingoBoard[] = "DINGO_BOARD=" BOARD_NAME;
+
 CanInput canIn[NUM_CAN_INPUTS];
 CanOutputs canOutputs;
 VirtualInput virtIn[NUM_VIRT_INPUTS];
@@ -200,6 +204,8 @@ static LuaThread luaThread;
 
 void InitDevice()
 {
+    __asm__ volatile("" :: "r"(kDingoBoard));
+
     #if HAS_SE_LEDS
     Error::Initialize(&statusLed, &errorLed);
     #endif
