@@ -50,7 +50,7 @@ design discussions there, not merged code. ✅ = present, ❌ = absent.
 | Param protocol: WriteAll, CheckCrc | ✅ | ✅ | |
 | Refused single param write gets a reply | ❌ | ✅ | Upstream stays silent |
 | CANBoard built as Cortex-M4F (hardware FPU, `-Os`, CCM) | ❌ | ✅ | Frees the flash for the features above |
-| Host self-test, SWD batch flasher | ❌ | ✅ | `tests/host_selftest.cpp`, `flash-dingo.ps1` |
+| Host self-test, bench flasher (SWD + USB, release download) | ❌ | ✅ | `tests/host_selftest.cpp`, `flash-dingo.ps1` |
 
 The original's unreleased `development` work since the fork point (multi-bus draft, params in their own
 thread, live CAN filter updates, chunked FRAM writes) is not in this fork. The two `CONFIG_VERSION` lines are
@@ -72,9 +72,10 @@ g++ -std=c++20 -DDINGO_HOST_TEST -I functions -I core tests/host_selftest.cpp fu
 ### 2. Flash a module
 - **dingoPDM / -Max over USB:** hold BOOT0 (or use dingoConfig's *Flash over USB*), the board appears in DFU,
   dingoConfig writes the `.bin`.
-- **First install of the CAN bootloader:** once per board over SWD or USB DFU (see
-  [Firmware update over CAN](#firmware-update-over-can-openblt) below). A batch of blank boards:
-  [`flash-dingo.ps1`](#batch-swd-flashing-flash-dingops1).
+- **First install of the CAN bootloader:** once per board, with
+  [`flash-dingo.ps1`](#flashing-boards-with-flash-dingops1): it downloads the release and installs bootloader +
+  firmware over SWD (CANBoard) or USB-C (PDM, no BOOT0 needed when it is running firmware), one board or a
+  batch. Background in [Firmware update over CAN](#firmware-update-over-can-openblt) below.
 - **Every update after that, over CAN:** dingoConfig ▸ System ▸ *Flash over CAN* ▸ pick the `.srec`. No USB,
   the module stays in the car, and an interrupted update can simply be run again.
 
@@ -139,127 +140,153 @@ CAN session (`0xB00710AD`).
 > recovery confirmed. The v5.5.103 PWM outputs still want a bench check (scope DO1–DO4, `0x64B` duty
 > frame). See [CHANGELOG](CHANGELOG.md).
 
-## Batch SWD flashing (`flash-dingo.ps1`)
+## Flashing boards with `flash-dingo.ps1`
 
-[`flash-dingo.ps1`](flash-dingo.ps1) drives the **first flash** in a loop — for the one-time
-bootloader install, or for programming a batch of blank boards off the reel. Handles both
-**CANBoard v2** (STM32F303K8, over SWD) and **dingoPDM v7 / -Max v1** (STM32F446, over SWD or its
-**USB-C port**: a PDM running firmware is restarted into USB DFU over that port, no BOOT0 needed; a blank one needs BOOT0 held while plugging in). It watches the SWD probe and USB at the same time,
-so CANBoards and PDMs can be mixed in one session.
+[`flash-dingo.ps1`](flash-dingo.ps1) installs firmware on the bench: the **first flash** of a blank board
+(OpenBLT bootloader + firmware), a **batch** of boards off the reel, or an **upgrade** of a PDM over its
+USB-C port. It downloads the release for you, works out which board is connected, gives each board only
+the images that belong on it, and reads every byte back before calling it a pass. Once a board has the
+bootloader, later updates go over CAN from dingoConfig (*Flash over CAN*) and the script isn't needed.
 
-Without `-Hex` it asks which firmware to download — **this fork's latest release** (default, with the
-OpenBLT bootloaders), this fork's **testing** build, or the **official** corygrant/dingoFW release —
-and gives each board the images that belong on it. A dingoPDM v7 and a -Max share the MCU: the script
-reads the board marker in the firmware already on it (builds from v5.5.109), and asks when there is none.
+### Quick start
 
 ```powershell
-.\flash-dingo.ps1                                                      # pick a release, then batch loop
-.\flash-dingo.ps1 -Source Official -Pdm Max                            # no questions about source / PDM type
-.\flash-dingo.ps1 -Hex C:/path/to/canboard_v2_FW_v0-5-8.hex            # your own image(s)
-.\flash-dingo.ps1 -Hex bootloader/canboard/bin/canboard_blt.hex -Once  # one board
-.\flash-dingo.ps1 -Via Usb                                             # USB DFU only, ignore the probe
-.\flash-dingo.ps1 -SelfTest                                            # no hardware needed
+.\flash-dingo.ps1
 ```
 
-Per board: wait for SWD → **identify the MCU** → **check the image belongs on it** → read all of
-flash back → require every byte `0xFF` → `pyocd load -e sector` (so the persistent config sector
-survives) → beep → wait for unplug → repeat. A board that **isn't blank is skipped, not
-overwritten**, unless `-Force`. High beep = pass, low = fail/skip.
+1. Pick the firmware (Enter = this fork's latest release).
+2. Connect boards, one at a time, in any order:
+   - **CANBoard**: on the SWD probe, and powered (the probe supplies no power).
+   - **dingoPDM**: plug in its USB-C. A PDM running firmware is restarted into USB DFU for you (it asks
+     once per session); a blank one needs BOOT0 held while plugging in.
+3. Answer the questions it asks the first time (flash these boards? v7 or Max?). It writes, verifies and
+   beeps: high = PASS, low = fail or skipped.
+4. Unplug, connect the next board. Ctrl-C to stop.
 
-**The board is identified, never assumed.** Its `DBGMCU_IDCODE` (`0xE0042000`) gives the `DEV_ID`,
-which selects the pyocd target, and the part's own flash-size register gives its real capacity:
+Close dingoConfig first if it is connected to a PDM over USB: it holds the COM port.
 
-| `DEV_ID` | Part | Board | pyocd target | pack |
-|---|---|---|---|---|
-| `0x438` | STM32F303x6/x8 | CANBoard v2 | `stm32f303k8` | `Keil.STM32F3xx_DFP` |
-| `0x421` | STM32F446 | dingoPDM v7 / -Max v1 | `stm32f446re` | `Keil.STM32F4xx_DFP` |
+### Which link for which board
 
-Before writing anything it refuses the flash if the image doesn't belong on the detected part:
-
-- **filename names a different board** — `dingopdm_*.hex` on a CANBoard, or `canboard_*.hex` on a PDM
-- **image doesn't fit** the part's real flash size — the 162 KB PDM firmware cannot land on a 64 KB F303
-- **two images overlap** — e.g. a standalone firmware at `0x08000000` passed alongside
-  `canboard_blt.hex`, which claims the same address
-
-`-IgnoreMismatch` overrides, `-Target` forces a pyocd target. It also prompts once at startup to
-confirm the image and board before a batch (`-Yes` skips).
-
-### What gets erased, and what a "PASS" actually proves
-
-**`-Force` only skips the blank check.** It changes nothing about erasing. Erase scope follows the
-image's address span and the part's sector map — `-e sector` erases every sector an image *touches*,
-**in full**, not merely the bytes written:
-
-| | erases | consequence |
+| Board | Link | How it gets ready |
 |---|---|---|
-| **standalone image** (`*_FW_*.hex`, links at `0x08000000`) | sector 0 upward | **replaces any OpenBLT bootloader** — that board is SWD/DFU-only afterwards, no more CAN update |
-| **relocated app** (`build/*.hex` at `0x08004000`) | sector 1 / sector 8 upward | bootloader in sector 0 **survives** — keeps "SWD once, then CAN forever" |
+| CANBoard v2 (STM32F303K8) | SWD probe | Nothing to do: the F303 has no USB DFU, SWD is the only way in |
+| dingoPDM v7 / -Max v1 running firmware | USB-C | Restarted into the ST USB DFU bootloader over its own USB port: the script reads its base ID (`I` on this firmware, else its status frames) and sends the bootloader command. No BOOT0 |
+| dingoPDM blank, or with firmware that won't start | USB-C with BOOT0 held, or SWD | BOOT0 + plug in starts the ST ROM bootloader |
 
-F446 sectors run 16/16/16/16/64/**128**/128/128 KB, so the 159 KB PDM image reaches into sector 5
-and erases **256 KB — about 98 KB beyond the image**. Anything living in `0x08028000`–`0x0803FFFF`
-is destroyed even though nothing is written there. Observed directly:
-`Erased 262144 bytes (6 sectors), programmed 162816 bytes`.
+Both links are watched at the same time, so CANBoards and PDMs can be mixed in one session. A probe
+plugged in after the start is picked up within a few seconds.
 
-**Config survives in both cases**, which is why the sector map matters: the PDM keeps config in
-sector 7 at `0x08060000`, past where the erase stops; the CANBoard's 2 KB sector 31 at `0x0800F800`
-sits above the end of its 62 KB image.
+### Choosing the firmware
 
-**pyocd does not verify what it wrote.** `--trust-crc` only decides which pages to *skip before*
-writing — there is no post-program readback anywhere in `pyocd load`. So this script re-reads the
-image span off the chip itself and compares it to the `.hex` **byte for byte**, and reports
-`PASS … 162,568 bytes verified` only when that matches. A failed compare retries, then fails the
-board loudly. A non-`.hex` image can't be compared and says `NOT verified` rather than pretending.
+| Choice | Downloads | Notes |
+|---|---|---|
+| **1 Stable** (default) | this fork's latest release + `canboard_blt.hex` / `dingopdm_blt.hex` | Board can be updated over CAN afterwards |
+| **2 Testing** | this fork's `testing-latest` build (+ bootloaders when the build is linked behind them) | Warns when it is older than Stable |
+| **3 Official** | corygrant/dingoFW latest release | Standalone, no CAN bootloader |
 
-**Contact time matters if you hand-hold the probe.** Measured on a dingoPDM (162 KB image): **23 s →
-13 s**, by blank-checking only the span the image occupies (159 KB, not the whole 512 KB chip) and
-defaulting to a 4 MHz SWD clock. The remaining ~4.4 s is F446 erase time — flash-controller bound,
-and pyocd offers no way to skip erasing already-blank sectors. The byte-for-byte verify adds one
-more read of the image span (~1.5 s at 4 MHz); that is the cost of knowing the board is complete.
+`-Source Stable|Testing|Official` answers this up front, `-Hex <files>` flashes your own images instead
+(e.g. a fresh `build/*.hex` together with `bootloader/*/bin/*_blt.hex`). Downloads are cached in
+`%TEMP%\dingo-firmware`.
 
-> ⚠️ Never pipe this script through `Select-Object -First N` or `head`. That closes the upstream
-> pipeline early and **kills it mid-write**, leaving a half-programmed board in CPU lockup.
-> Recovery is `-Force` with the full image.
+A bootloader is only flashed under an app that is linked behind it (`0x08004000`). An app at
+`0x08000000` (official firmware, or this fork before v5.5.104) is standalone and is flashed on its own.
+
+### dingoPDM v7 or -Max?
+
+Both use the same STM32F446, so the chip can't tell them apart. The script reads the
+`DINGO_BOARD=` marker in the firmware already on the board (this fork from v5.5.109) and picks the matching
+image. A blank board, official firmware or an older build has no marker, so it asks once (Enter repeats the
+last answer); `-Pdm V7` or `-Pdm Max` answers up front.
+
+### What happens to each board
+
+1. **Identify** the MCU: over SWD from `DBGMCU_IDCODE` and the part's flash-size register, over USB from
+   the ROM bootloader's flash layout (an F446 reports 4×16 + 64 + 3×128 KB = 512 KB).
+2. **Pick the images** for that board and refuse a mismatch: a filename naming another board, an image
+   that doesn't fit the part's flash, or two images that overlap.
+3. **Read the image span back.** A board that isn't blank is not overwritten without a yes (or `-Force`).
+   A PDM the script restarted itself counts as an upgrade and skips this question.
+4. **Write**, bootloader first: an interrupted upgrade then leaves OpenBLT waiting for an app (recoverable
+   over CAN) rather than half an old firmware.
+5. **Verify** by reading the whole span back and comparing it to the `.hex` byte for byte. A failed read is
+   retried; a failed compare reprograms, then fails the board loudly.
+6. **Start** it: over USB the PDM is told to leave DFU and runs the new firmware straight away.
+
+| `DEV_ID` / DFU layout | Part | Board | pyocd target |
+|---|---|---|---|
+| `0x438` | STM32F303x6/x8 | CANBoard v2 | `stm32f303k8` |
+| `0x421` / 512 KB | STM32F446 | dingoPDM v7 / -Max v1 | `stm32f446re` |
+
+### Examples
+
+```powershell
+.\flash-dingo.ps1                                          # ask for the firmware, then batch loop
+.\flash-dingo.ps1 -Source Stable -Pdm Max -Yes             # no questions: a batch of PDM-Max boards
+.\flash-dingo.ps1 -Source Official                         # official dingoFW
+.\flash-dingo.ps1 -Hex build/canboard_v2.hex,bootloader/canboard/bin/canboard_blt.hex   # own build
+.\flash-dingo.ps1 -Via Swd -Once                           # one CANBoard, probe only
+.\flash-dingo.ps1 -Via Usb -NoUsbRestart                   # only PDMs already in DFU (BOOT0)
+.\flash-dingo.ps1 -SelfTest                                # check the script itself, no hardware
+```
 
 | Flag | Default | |
 |---|---|---|
-| `-Hex` | *(required)* | one or more images; `.hex`/`.elf` carry their load addresses, a raw `.bin` needs `@0x08000000` appended |
-| `-Target` | *auto from IDCODE* | override the detected pyocd target |
-| `-Frequency` | `4M` | SWD clock; falls back `2M`→`1M`→`500k` automatically if the target won't answer |
-| `-Fast` | off | verify by CRC32 instead of a full readback — quicker, weaker guarantee |
-| `-Retries` | `2` | flash attempts before calling the board bad |
-| `-Force` | off | reflash a board that isn't blank |
-| `-IgnoreMismatch` | off | flash even if the image looks wrong for the board — last resort |
-| `-Yes` | off | skip the one-time confirmation prompt |
-| `-Once` | off | do one board and exit, instead of looping |
-| `-SelfTest` | — | assert the script's parsing and mismatch logic, then exit |
+| `-Hex` | *(download)* | your own image(s); `.hex`/`.elf` carry their address, a raw `.bin` needs `@0x08000000` appended. USB takes `.hex` or `.bin@…` |
+| `-Source` | *asked* | `Stable`, `Testing` or `Official` release to download |
+| `-Pdm` | *from the marker, else asked* | `V7` or `Max` |
+| `-Via` | `Auto` | `Swd`, `Usb` or both |
+| `-NoUsbRestart` | off | don't restart running PDMs into DFU |
+| `-Force` | off | reflash a board that isn't blank without asking |
+| `-Yes` | off | no questions: Stable unless `-Source`, restarts PDMs, skips boards it would have to ask about |
+| `-Once` | off | one board, then exit |
+| `-Frequency` | `4M` | SWD clock; falls back `2M` → `1M` → `500k` by itself |
+| `-Fast` | off | SWD only: skip pages whose CRC already matches |
+| `-Retries` | `2` | write attempts before calling the board bad |
+| `-Target` | *from IDCODE* | force a pyocd target |
+| `-IgnoreMismatch` | off | flash even if the image looks wrong for the board, last resort |
+| `-SelfTest` | | run the script's own checks and exit |
 
-Requires `pyocd` on `PATH` and a CMSIS-DAP probe (a Raspberry Pi Debugprobe/Pico works). Install
-the device packs once: `pyocd pack install stm32f303k8 stm32f446re`. Only `.hex` extents can be
-parsed — pass a `.hex` if you want the fit and overlap checks. Confirm where any image lands with
-`arm-none-eabi-objdump -h <file.elf>`.
+### Requirements
 
-Two pyocd traps the script works around — worth knowing before scripting this yourself:
+- **PowerShell 7** (`pwsh`), Windows.
+- **SWD**: `pyocd` on `PATH` and a CMSIS-DAP probe (a Raspberry Pi Debugprobe works). Device packs once:
+  `pyocd pack install stm32f303k8 stm32f446re`.
+- **USB**: `dfu-util` on `PATH`, and the WinUSB driver on the *STM32 BOOTLOADER* device (install it once with
+  [Zadig](https://zadig.akeo.ie/); already there if dingoConfig's *Flash over USB* works on this PC).
 
-- **`pyocd cmd` exits `0` even when SWD gets no ACK.** Board presence must be judged on its *output*
-  (the `Core <n> (...)` line), never on `$LASTEXITCODE`, or you get phantom "connected" boards.
-  `pyocd load` does exit non-zero correctly.
-- **The commander strips `\` as an escape**, so `savemem 0x08000000 65536 C:\Users\...\dump.bin`
-  prints `Saved 65536 bytes` while writing to a mangled drive-relative path. Pass forward slashes.
+### What gets erased, and what a PASS proves
 
-`No ACK` across every connect mode *and* every clock from 2 MHz down to 100 kHz almost always means
-the **target is unpowered** — the Debugprobe supplies no target power. Check that, and the shared
-ground, before chasing `-Frequency`.
+Both links erase every **sector** an image touches, in full, not just the bytes written. On the F446
+(sectors 16/16/16/16/64/128/128/128 KB) the ~270 KB PDM app reaches into sector 6, so everything up to
+`0x0805FFFF` is erased even where nothing is written. **Config survives anyway**: the PDMs keep it in their
+FRAM, the CANBoard in its last 2 KB flash sector (`0x0800F800`), above its image. It is only reset when the
+new firmware has a different `CONFIG_VERSION` (e.g. official → this fork); deploy the project again from
+dingoConfig then.
 
-> ✅ **Verified on a dingoPDM v7** (STM32F446, Raspberry Pi Debugprobe): board identified from
-> `DEV_ID 0x421` with 512 KB read from the part's own flash-size register; a CANBoard image was
-> refused on it by name; the correct image flashed and verified, checked independently by reading
-> the SP, reset vector and image tail back off the chip; a half-programmed board in lockup was
-> recovered with `-Force`. Also verified off-hardware: Intel-HEX extent parsing (against
-> `canboard_blt.hex`, `build/canboard_v2.hex` and both v0.5.8 release images) and the
-> mismatch/fit/overlap guards.
->
-> ⚠️ **Not yet exercised: the CANBoard/F303 write path** — detection and blank-check refusal are
-> proven there, writing is not. Run `-Once` on one known-blank CANBoard before trusting a batch.
+Neither pyocd nor dfu-util reads back what it wrote, so the script does, and `PASS … N bytes verified` means
+every byte of every image was compared on the chip. A raw `.bin` over SWD can't be compared and says
+`NOT verified` instead.
+
+### Troubleshooting
+
+| Symptom | Cause |
+|---|---|
+| CANBoard never shows up, `No ACK` at every clock | Board unpowered (the probe gives no power) or no shared ground |
+| `PDM on COM3 is busy` | dingoConfig (or a terminal) has the port open: close it |
+| `can't find its base ID` | Firmware that neither answers `I` nor sends status frames: hold BOOT0 instead |
+| `could not read flash back` over USB | WinUSB driver missing on *STM32 BOOTLOADER* (Zadig), or replug |
+| `MISMATCH … overlap` | A standalone image passed with a bootloader by hand: flash them separately |
+| PDM shows `left DFU, but no PDM COM port came back` | Power-cycle it; if it doesn't start, flash again with BOOT0 held |
+
+> ⚠️ Never pipe the script into `Select-Object -First N` or `head`: that stops it mid-write.
+
+Two pyocd traps the script works around: `pyocd cmd` exits `0` even when SWD gets no ACK (presence is judged
+on its output), and its commander eats `\` in paths (`savemem` is given forward slashes).
+
+> ✅ **Verified on hardware** (2026-10-11): a dingoPDM v7 over USB-C without BOOT0, restarted from official
+> v0.5.8 and again from v5.5.109 (recognised by its board marker), bootloader + app written, verified and
+> started; a CANBoard v2 over SWD with a Raspberry Pi Debugprobe, bootloader + v5.5.109 written and verified.
+> The dingoPDM-Max path is the same as the v7 one but hasn't been run on a Max yet.
 
 ## Hardware
 
