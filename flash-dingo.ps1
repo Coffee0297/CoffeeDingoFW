@@ -1,12 +1,30 @@
 #!/usr/bin/env pwsh
 <#
-Batch-flash blank dingo boards over SWD via pyocd. Supports CANBoard v2 (STM32F303K8) and
-dingoPDM v7 / dingoPDM-Max v1 (STM32F446).
+Batch-flash blank dingo boards over SWD (pyocd) or USB DFU (dfu-util). Supports CANBoard v2
+(STM32F303K8, SWD only: it has no USB DFU) and dingoPDM v7 / dingoPDM-Max v1 (STM32F446, SWD or
+its USB-C port in the ST ROM bootloader: hold BOOT0 while plugging in).
 
-Loop: wait for board -> identify the MCU -> check the image belongs on it -> confirm the flash
-is blank -> flash -> beep -> wait for unplug -> repeat.
+Loop: wait for a board on either link -> identify the MCU -> check the image belongs on it ->
+confirm the flash is blank -> flash -> verify -> beep -> wait for unplug -> repeat. Both links are
+watched at once, so CANBoards on the probe and PDMs on USB can be mixed in one session; pass the
+images for both and each board gets the ones that belong on it.
 
-  .\flash-dingo.ps1 -Hex C:/Users/you/Downloads/canboard_v2_FW_v0-5-8.hex
+  .\flash-dingo.ps1                                                # asks which release to download
+  .\flash-dingo.ps1 -Source Official                               # corygrant/dingoFW latest
+  .\flash-dingo.ps1 -Hex build/canboard_v2.hex                     # CANBoards on the probe
+  .\flash-dingo.ps1 -Hex build/dingopdm_v7.hex                     # PDMs on USB-C (or the probe)
+  .\flash-dingo.ps1 -Hex build/canboard_v2.hex,build/dingopdm_v7.hex   # a mixed batch
+  .\flash-dingo.ps1 -Hex build/dingopdm_v7.hex -Via Usb            # ignore the probe
+
+USB DFU identifies the part from the ROM bootloader's flash layout string (an F446 reports
+4x16K+64K+3x128K = 512K), takes .hex images (or '.bin@0x...'), erases the sectors each image
+touches exactly like '-e sector' below, and is read back and compared like SWD. After PASS,
+unplug and release BOOT0 so the board boots the new firmware.
+
+dingoPDM v7 and -Max share the F446, so a PDM is told apart by the 'DINGO_BOARD=' marker in the
+firmware already on it (CoffeeDingoFW builds after v5.5.108). A blank board, official firmware or
+an older build has none, and the script asks v7 or Max (Enter repeats the last answer); -Pdm V7|Max
+answers up front.
 
 The board is IDENTIFIED from its DBGMCU_IDCODE, not assumed, and the image is checked against
 it before anything is written: it must fit the part's real flash size, its filename must not
@@ -45,9 +63,22 @@ Ctrl-C to stop.
 [CmdletBinding(DefaultParameterSetName = 'Flash')]
 param(
     # Image(s) to flash. .hex/.elf carry their own load addresses; a raw .bin needs
-    # '@0x08000000' appended to the filename.
-    [Parameter(Mandatory, Position = 0, ParameterSetName = 'Flash')]
+    # '@0x08000000' appended to the filename. Leave out to download a release instead (-Source).
+    [Parameter(Position = 0, ParameterSetName = 'Flash')]
     [string[]]$Hex,
+    # Without -Hex: which release to download. Asked at startup when not given (Stable on Enter).
+    #   Stable   CoffeeDingoFW latest release, plus the OpenBLT bootloaders (CAN updates later)
+    #   Testing  CoffeeDingoFW 'testing-latest' build, plus the bootloaders
+    #   Official corygrant/dingoFW latest release (standalone, no CAN bootloader)
+    [Parameter(ParameterSetName = 'Flash')]
+    [ValidateSet('Stable', 'Testing', 'Official')]
+    [string]$Source,
+    # dingoPDM v7 or -Max. Both are an F446, so each PDM is told apart by the board marker in the
+    # firmware already on it; when there is none (blank board, official or older firmware) the
+    # script asks, unless this is given. Also limits a release download to that one PDM image.
+    [Parameter(ParameterSetName = 'Flash')]
+    [ValidateSet('V7', 'Max')]
+    [string]$Pdm,
     # pyocd target name. Default is whatever the connected MCU turns out to be.
     [string]$Target,
     # SWD clock. Read and program time scale with this, so it defaults high; the script falls
@@ -66,6 +97,9 @@ param(
     [switch]$Yes,
     # Do one board and exit, instead of looping. For bench-testing the script.
     [switch]$Once,
+    # Which link(s) to watch: the SWD probe, USB DFU, or both (Auto, the default).
+    [ValidateSet('Auto', 'Swd', 'Usb')]
+    [string]$Via = 'Auto',
     [Parameter(Mandatory, ParameterSetName = 'SelfTest')]
     [switch]$SelfTest
 )
@@ -199,6 +233,115 @@ function Get-ImageComplaints($Part, [string[]]$Images) {
     return $problems
 }
 
+# The images meant for this part: those naming its board plus those naming no board, so a mixed
+# batch (CANBoard + PDM images) gives each board only its own. When nothing fits, all of them go
+# through, and Get-ImageComplaints says why they don't belong.
+function Select-ImagesFor($Part, [string[]]$Images) {
+    $others = $PARTS.Values.Keyword | Sort-Object -Unique | Where-Object { $_ -ne $Part.Keyword }
+    $mine = @($Images | Where-Object {
+        $n = [IO.Path]::GetFileName(($_ -replace '@.*$', ''))
+        -not ($others | Where-Object { $n -match $_ })
+    })
+    if ($mine.Count) { return $mine }
+    return $Images
+}
+
+# Where a set of images lands: the span to blank-check and read back, and the bytes to verify.
+# Start is $null when an image isn't a .hex (span unknown, whole flash is used instead).
+# Cached: parsing a 160 KB .hex takes PowerShell a few seconds, and a batch reuses the same set.
+$script:planCache = @{}
+function Get-ImagePlan([string[]]$Images) {
+    $key = $Images -join '|'
+    if ($script:planCache.ContainsKey($key)) { return $script:planCache[$key] }
+    # @() is load-bearing: a single extent would otherwise be a bare hashtable, whose .Count is its
+    # key count, not 1.
+    $ext = @($Images | ForEach-Object { Get-HexExtent ($_ -replace '@.*$', '') } | Where-Object { $_ })
+    $plan = if ($ext.Count -ne @($Images).Count) { @{ Expected = $null; Start = $null; End = $null } }
+    else {
+        # [long] casts matter: Measure-Object hands back a Double, which X8 cannot render.
+        @{ Expected = $ext
+           Start    = [long]($ext | Measure-Object -Property Start -Minimum).Minimum
+           End      = [long]($ext | Measure-Object -Property End -Maximum).Maximum }
+    }
+    $script:planCache[$key] = $plan
+    return $plan
+}
+
+# Total flash size from an ST ROM bootloader's DFU alt name, e.g.
+# '@Internal Flash  /0x08000000/04*016Kg,01*064Kg,03*128Kg' -> 512 KB. 0 if it isn't one.
+function Get-DfuFlashSize([string]$AltName) {
+    if ($AltName -notmatch '/0x08000000/(\S+)') { return 0 }
+    $total = 0
+    foreach ($m in [regex]::Matches($Matches[1], '(\d+)\*(\d+)([KM])')) {
+        $unit = if ($m.Groups[3].Value -eq 'M') { 1MB } else { 1KB }
+        $total += [int]$m.Groups[1].Value * [int]$m.Groups[2].Value * $unit
+    }
+    return $total
+}
+
+# ST ROM bootloader flash size -> entry in $PARTS. Only USB-capable parts appear here; the
+# CANBoard's F303K8 has no USB DFU.
+$DFU_PARTS = @{ (512 * 1KB) = 0x421; (1024 * 1KB) = 0x413 }
+
+# One image as a single block for dfu-util, which writes raw bytes at one address. Gaps between
+# .hex records become 0xFF so they stay erased. $null for formats dfu-util can't place (.elf).
+function Get-DfuImage([string]$Spec) {
+    $file = $Spec -replace '@.*$', ''
+    if ($Spec -match '@(0x[0-9A-Fa-f]+)$') {
+        return @{ Start = [Convert]::ToInt64($Matches[1], 16); Data = [IO.File]::ReadAllBytes($file) }
+    }
+    $e = Get-HexExtent $file
+    if (-not $e) { return $null }
+    $data = $e.Data.Clone()
+    for ($i = 0; $i -lt $data.Length; $i++) { if (-not $e.Mask[$i]) { $data[$i] = 0xFF } }
+    return @{ Start = [long]$e.Start; Data = $data }
+}
+
+# Where a downloaded firmware comes from. The fork's apps are linked at 0x08004000 behind the
+# OpenBLT CAN bootloader, so a blank board needs the bootloader too; official images are
+# standalone at 0x08000000.
+$SOURCES = [ordered]@{
+    Stable   = @{ Repo = 'Coffee0297/CoffeeDingoFW'; Release = 'latest';              Bootloader = $true;  Label = 'CoffeeDingoFW stable (latest release)' }
+    Testing  = @{ Repo = 'Coffee0297/CoffeeDingoFW'; Release = 'tags/testing-latest'; Bootloader = $true;  Label = 'CoffeeDingoFW testing (testing-latest build)' }
+    Official = @{ Repo = 'corygrant/dingoFW';        Release = 'latest';              Bootloader = $false; Label = 'official dingoFW by corygrant (latest release)' }
+}
+
+# The release asset (.hex) for one board, e.g. 'canboard_v2' -> 'canboard_v2_FW_v5-5-108.hex'.
+function Select-BoardAsset($Assets, [string]$Board) {
+    return $Assets | Where-Object { $_.name -match ('^{0}_FW_.*\.hex$' -f [regex]::Escape($Board)) } | Select-Object -First 1
+}
+
+# The board marker every CoffeeDingoFW build after v5.5.108 carries in its image
+# ('DINGO_BOARD=Dingo Electronics dingoPDM-Max v1'), or $null when the flash has none.
+function Get-BoardMarker([byte[]]$Bytes) {
+    $s = [Text.Encoding]::Latin1.GetString($Bytes)
+    $i = $s.IndexOf('DINGO_BOARD=')
+    if ($i -lt 0) { return $null }
+    $end = $s.IndexOf([char]0, $i)
+    if ($end -lt 0) { $end = $s.Length }
+    return $s.Substring($i + 12, $end - $i - 12)
+}
+
+function Get-PdmVariant([string]$Marker) {
+    if ($Marker -match 'PDM-Max') { return 'Max' }
+    if ($Marker -match 'dingoPDM v7') { return 'V7' }
+    return $null
+}
+
+# Image filename patterns of the two PDM variants. Bootloader images (dingopdm_blt) match neither,
+# so they go to both.
+$PDM_IMAGE = @{ V7 = 'dingopdm_v7'; Max = 'dingopdmmax' }
+
+function Test-BothPdmVariants([string[]]$Images) {
+    $names = @($Images | ForEach-Object { [IO.Path]::GetFileName(($_ -replace '@.*$', '')) })
+    return ([bool]($names -match $PDM_IMAGE.V7)) -and ([bool]($names -match $PDM_IMAGE.Max))
+}
+
+function Select-PdmImages([string[]]$Images, [string]$Variant) {
+    $other = if ($Variant -eq 'Max') { $PDM_IMAGE.V7 } else { $PDM_IMAGE.Max }
+    return @($Images | Where-Object { [IO.Path]::GetFileName(($_ -replace '@.*$', '')) -notmatch $other })
+}
+
 if ($SelfTest) {
     $blank = [byte[]]::new(64); for ($i = 0; $i -lt 64; $i++) { $blank[$i] = 0xFF }
     if ((Get-FirstProgrammedOffset $blank) -ne -1) { throw 'SelfTest: all-0xFF buffer reported as programmed' }
@@ -267,6 +410,52 @@ if ($SelfTest) {
     $wrong2 = $good.Clone(); $wrong2[7] = 0xAA
     if (-not (Test-FlashAgainstImages @($img) $img.Start $wrong2).Ok) { throw 'SelfTest: verify compared an undefined gap byte' }
 
+    # --- USB DFU ---
+    # A real F446 ROM bootloader alt name: 4x16K + 64K + 3x128K.
+    if ((Get-DfuFlashSize '@Internal Flash  /0x08000000/04*016Kg,01*064Kg,03*128Kg') -ne 512KB) { throw 'SelfTest: F446 DFU layout not 512K' }
+    if ($DFU_PARTS[(Get-DfuFlashSize '@Internal Flash  /0x08000000/04*016Kg,01*064Kg,03*128Kg')] -ne 0x421) { throw 'SelfTest: F446 DFU layout not mapped to the PDM' }
+    if ((Get-DfuFlashSize '@Option Bytes  /0x1FFFC000/01*016 e') -ne 0) { throw 'SelfTest: non-flash alt read as flash' }
+    # A mixed batch: each board gets its own images, plus ones that name no board.
+    $mix = @($at0, $big, (Join-Path $dir 'shared.hex'))
+    $forCb = @(Select-ImagesFor $f303 $mix)
+    if ($forCb.Count -ne 2 -or $forCb -contains $big) { throw 'SelfTest: CANBoard got the wrong images from a mixed batch' }
+    $forPdm = @(Select-ImagesFor $f446 $mix)
+    if ($forPdm.Count -ne 2 -or $forPdm -contains $at0) { throw 'SelfTest: PDM got the wrong images from a mixed batch' }
+    if (@(Select-ImagesFor $f446 @($at0)).Count -ne 1) { throw 'SelfTest: no-fit case must pass images on for the complaints' }
+    # dfu-util writes one block: record gaps must be 0xFF, not 0x00.
+    $gap = Join-Path $dir 'gap.hex'
+    @(':020000040800F2', ':0400000001020304F2', ':0400080005060708DA', ':00000001FF') | Set-Content $gap
+    $d = Get-DfuImage $gap
+    if ($d.Start -ne 0x08000000 -or $d.Data.Length -ne 12) { throw "SelfTest: DFU block wrong ($($d.Start) / $($d.Data.Length))" }
+    if ($d.Data[4] -ne 0xFF -or $d.Data[7] -ne 0xFF -or $d.Data[8] -ne 5) { throw 'SelfTest: DFU block gap not 0xFF' }
+    $binSpec = "$gap@0x08004000"
+    if ((Get-DfuImage $binSpec).Start -ne 0x08004000) { throw 'SelfTest: .bin@address start not parsed' }
+    if ($null -ne (Get-DfuImage (Join-Path $dir 'x.elf'))) { throw 'SelfTest: .elf accepted for DFU' }
+
+    # --- release download ---
+    if (@($SOURCES.Keys)[0] -ne 'Stable') { throw 'SelfTest: Stable must be the first (default) source' }
+    if (-not $SOURCES.Stable.Bootloader -or $SOURCES.Official.Bootloader) { throw 'SelfTest: bootloader flags wrong' }
+    $assets = @('canboard_v2_FW_v5-5-108.elf', 'canboard_v2_FW_v5-5-108.hex', 'dingopdmmax_v1_FW_v5-5-108.hex',
+                'dingopdm_v7_FW_v5-5-108.hex', 'pt-dpdm4_1_FW_v0-6-1.hex') | ForEach-Object { @{ name = $_ } }
+    if ((Select-BoardAsset $assets 'canboard_v2').name -ne 'canboard_v2_FW_v5-5-108.hex') { throw 'SelfTest: canboard asset not picked' }
+    if ((Select-BoardAsset $assets 'dingopdm_v7').name -ne 'dingopdm_v7_FW_v5-5-108.hex') { throw 'SelfTest: v7 asset not picked' }
+    if ((Select-BoardAsset $assets 'dingopdmmax_v1').name -ne 'dingopdmmax_v1_FW_v5-5-108.hex') { throw 'SelfTest: Max asset not picked' }
+
+    # --- telling a dingoPDM v7 from a -Max ---
+    $fw = [Text.Encoding]::Latin1.GetBytes("junk`0DINGO_BOARD=Dingo Electronics dingoPDM-Max v1`0more")
+    if ((Get-BoardMarker $fw) -ne 'Dingo Electronics dingoPDM-Max v1') { throw 'SelfTest: board marker not read' }
+    if ((Get-PdmVariant (Get-BoardMarker $fw)) -ne 'Max') { throw 'SelfTest: Max marker not recognised' }
+    if ((Get-PdmVariant 'Dingo Electronics dingoPDM v7') -ne 'V7') { throw 'SelfTest: v7 marker not recognised' }
+    if ($null -ne (Get-BoardMarker ([byte[]]::new(64)))) { throw 'SelfTest: marker found in empty flash' }
+    if ($null -ne (Get-PdmVariant 'Dingo Electronics CANBoard v2')) { throw 'SelfTest: CANBoard marker read as a PDM' }
+    $rel = @('canboard_v2_FW_v5-5-108.hex', 'dingopdm_v7_FW_v5-5-108.hex', 'dingopdmmax_v1_FW_v5-5-108.hex', 'dingopdm_blt.hex')
+    if (-not (Test-BothPdmVariants $rel)) { throw 'SelfTest: both PDM variants not seen' }
+    if (Test-BothPdmVariants $rel[0..1]) { throw 'SelfTest: one variant read as both' }
+    $forMax = Select-PdmImages $rel 'Max'
+    if ($forMax -contains 'dingopdm_v7_FW_v5-5-108.hex' -or $forMax -notcontains 'dingopdm_blt.hex' -or $forMax -notcontains 'dingopdmmax_v1_FW_v5-5-108.hex') { throw 'SelfTest: wrong images for a Max' }
+    $forV7 = Select-PdmImages $rel 'V7'
+    if ($forV7 -contains 'dingopdmmax_v1_FW_v5-5-108.hex' -or $forV7 -notcontains 'dingopdm_v7_FW_v5-5-108.hex') { throw 'SelfTest: wrong images for a v7' }
+
     Remove-Item $tmp, $dir -Recurse -ErrorAction SilentlyContinue
     'SelfTest OK'; exit 0
 }
@@ -302,10 +491,11 @@ function Get-ConnectedPart {
     $devId = $idcode -band 0xFFF
     $p = $PARTS[[int]$devId]
     if (-not $p) {
-        return @{ Unknown = $true; DevId = $devId; Rev = ($idcode -shr 16) }
+        return @{ Unknown = $true; Via = 'swd'; Desc = ('DEV_ID 0x{0:X3}, rev 0x{1:X4}' -f $devId, ($idcode -shr 16)) }
     }
     $kb = Read-Word $p.FlashSizeReg
     $part = $p.Clone()
+    $part.Via       = 'swd'
     $part.DevId     = $devId
     $part.Rev       = ($idcode -shr 16)
     $part.FlashSize = if ($null -ne $kb) { ($kb -band 0xFFFF) * 1024 } else { 0 }
@@ -326,12 +516,182 @@ function Read-Flash([string]$TargetName, [string]$Mode, [long]$Start, [int]$Size
 }
 
 
+# --- USB DFU (ST ROM bootloader, 0483:df11) ---
+
+# Boards sitting in the ROM bootloader: @{ Serial; Size } each, from alt 0 ('Internal Flash').
+function Get-DfuDevices {
+    if (-not $script:dfuUtil) { return @() }
+    $devs = @()
+    foreach ($l in (dfu-util -l 2>&1 | Out-String) -split "`n") {
+        if ($l -match '\[0483:df11\].*\balt=0, name="([^"]*)", serial="([^"]*)"') {
+            $serial = $Matches[2]   # Get-DfuFlashSize reuses $Matches
+            $devs += @{ Serial = $serial; Size = (Get-DfuFlashSize $Matches[1]) }
+        }
+    }
+    return $devs
+}
+
+# The first board in DFU, identified from its flash layout. $null when there is none.
+function Get-DfuPart {
+    $d = @(Get-DfuDevices) | Select-Object -First 1
+    if (-not $d) { return $null }
+    $devId = $DFU_PARTS[$d.Size]
+    if ($null -eq $devId) {
+        return @{ Unknown = $true; Via = 'usb'; Serial = $d.Serial; Desc = ('USB DFU device with {0} KB flash' -f ($d.Size / 1KB)) }
+    }
+    $part = $PARTS[$devId].Clone()
+    $part.Via = 'usb'; $part.Serial = $d.Serial; $part.DevId = $devId; $part.Rev = 0; $part.FlashSize = $d.Size
+    return $part
+}
+
+# Read $Size bytes of flash to $Path over DFU. Judged on the file, like Read-Flash.
+function Read-FlashDfu([string]$Serial, [long]$Start, [int]$Size, [string]$Path) {
+    Remove-Item $Path -ErrorAction SilentlyContinue   # dfu-util refuses to overwrite on upload
+    dfu-util -d 0483:df11 -S $Serial -a 0 -s ("0x{0:X8}:{1}" -f $Start, $Size) -U $Path *> $null
+    if (-not (Test-Path $Path)) { return $false }
+    return (Get-Item $Path).Length -eq $Size
+}
+
+# Write each image at its own address. DfuSe erases every sector a download touches, the same
+# scope as pyocd's '-e sector'. No ':leave', so the board stays in DFU for the read-back.
+function Write-FlashDfu([string]$Serial, [string[]]$Images) {
+    $bin = Join-Path ([IO.Path]::GetTempPath()) 'dingo-dfu.bin'
+    foreach ($spec in $Images) {
+        $img = Get-DfuImage $spec
+        [IO.File]::WriteAllBytes($bin, $img.Data)
+        Write-Host ("  writing {0} at 0x{1:X8} over USB..." -f [IO.Path]::GetFileName(($spec -replace '@.*$', '')), $img.Start)
+        $out = dfu-util -d 0483:df11 -S $Serial -a 0 -s ("0x{0:X8}" -f $img.Start) -D $bin 2>&1 | Out-String
+        if ($LASTEXITCODE -ne 0) {
+            ($out.Trim() -split "`n" | Select-Object -Last 3) | ForEach-Object { Write-Host "    $_" -ForegroundColor DarkGray }
+            return $false
+        }
+    }
+    return $true
+}
+
+# Read $Size bytes of flash to $Path over whichever link the board is on. Returns the pyocd connect
+# mode that worked ('dfu' over USB), or $null when the board can't be read.
+function Read-Board($Part, [string]$TargetName, [long]$Start, [int]$Size, [string]$Path) {
+    if ($Part.Via -eq 'usb') {
+        if (Read-FlashDfu $Part.Serial $Start $Size $Path) { return 'dfu' }
+        return $null
+    }
+    foreach ($m in $connectModes) {
+        if (Read-Flash $TargetName $m $Start $Size $Path) { return $m }
+    }
+    return $null
+}
+
+# v7 or Max, asked when the board's firmware doesn't say. Enter repeats the last answer.
+function Read-PdmVariant {
+    $def = if ($script:lastPdm) { $script:lastPdm } else { 'V7' }
+    $a = Read-Host "  Which board is this?  [1] dingoPDM v7   [2] dingoPDM-Max   (Enter = $def)"
+    if ($a -match '^\s*$') { return $def }
+    if ($a -match '^\s*(1|v7)\s*$') { return 'V7' }
+    if ($a -match '^\s*(2|max)\s*$') { return 'Max' }
+    return $null
+}
+
+function Test-StillConnected($Part) {
+    if ($Part.Via -eq 'usb') { return [bool](@(Get-DfuDevices) | Where-Object { $_.Serial -eq $Part.Serial }) }
+    return [bool](Get-ConnectedPart)
+}
+
+function Wait-Unplug($Part, [string]$Extra = '') {
+    $how = if ($Part.Via -eq 'usb') { 'Unplug board (and release BOOT0)...' } else { 'Unplug board...' }
+    Write-Host $how -NoNewline
+    while (Test-StillConnected $Part) { Start-Sleep -Milliseconds 500 }
+    Write-Host "`rBoard removed.$Extra                    `n"
+}
+
+
+# --- firmware download (no -Hex) ---
+
+function Save-Url([string]$Url, [string]$Path, [switch]$Fresh) {
+    if ($Fresh -or -not (Test-Path $Path)) {
+        try { Invoke-WebRequest $Url -OutFile $Path -UseBasicParsing }
+        catch { throw "Download failed: $Url ($($_.Exception.Message))" }
+    }
+    return $Path
+}
+
+# Download the CANBoard + PDM images of one release (and the bootloaders when the source needs
+# them) into a cache folder, and return their paths for -Hex.
+function Get-ReleaseImages([string]$Name) {
+    $src = $SOURCES[$Name]
+    $api = "https://api.github.com/repos/$($src.Repo)/releases/$($src.Release)"
+    try { $rel = Invoke-RestMethod $api -Headers @{ 'User-Agent' = 'flash-dingo' } }
+    catch { throw "No $Name release found on $($src.Repo) ($($api): $($_.Exception.Message))" }
+    $pdms = if ($Pdm -eq 'Max') { @('dingopdmmax_v1') } elseif ($Pdm) { @('dingopdm_v7') } else { @('dingopdm_v7', 'dingopdmmax_v1') }
+    $dir = Join-Path ([IO.Path]::GetTempPath()) ('dingo-firmware/{0}/{1}' -f ($src.Repo -replace '/', '_'), $rel.tag_name)
+    $null = New-Item -ItemType Directory -Path $dir -Force
+    Write-Host ("firmware: {0} -> {1}" -f $src.Label, $rel.tag_name) -ForegroundColor Cyan
+    $files = @()
+    foreach ($board in @('canboard_v2') + $pdms) {
+        $a = Select-BoardAsset $rel.assets $board
+        if (-not $a) { throw "$($src.Repo) $($rel.tag_name) has no .hex for $board" }
+        # Asset names carry the version, so a cached file is the right one ('testing-latest' moves).
+        $files += Save-Url $a.browser_download_url (Join-Path $dir $a.name)
+    }
+    if ($src.Bootloader) {
+        # From the release (v5.5.109 on); older releases lack them, so fall back to master, fetched
+        # fresh because master moves.
+        foreach ($b in 'canboard', 'dingopdm') {
+            $a = $rel.assets | Where-Object { $_.name -eq "$($b)_blt.hex" } | Select-Object -First 1
+            if ($a) { $files += Save-Url $a.browser_download_url (Join-Path $dir $a.name) -Fresh }
+            else {
+                $url = "https://raw.githubusercontent.com/$($src.Repo)/master/bootloader/$b/bin/$($b)_blt.hex"
+                $files += Save-Url $url (Join-Path $dir "$($b)_blt.hex") -Fresh
+            }
+        }
+    }
+    return $files
+}
+
+if (-not $Hex) {
+    if (-not $Source) {
+        if ($Yes) { $Source = 'Stable' }
+        else {
+            $names = @($SOURCES.Keys)
+            Write-Host 'Firmware to flash:'
+            for ($i = 0; $i -lt $names.Count; $i++) {
+                $mark = if ($i -eq 0) { '  (default)' } else { '' }
+                Write-Host ("  [{0}] {1}  -- {2}{3}" -f ($i + 1), $names[$i], $SOURCES[$names[$i]].Label, $mark)
+            }
+            $answer = Read-Host "Choice [1]"
+            $pick = if ($answer -match '^\s*$') { 1 } elseif ($answer -match '^[1-9]$') { [int]$answer } else { 0 }
+            if ($pick -lt 1 -or $pick -gt $names.Count) { Write-Host 'Aborted.'; exit 1 }
+            $Source = $names[$pick - 1]
+        }
+    }
+    $Hex = @(Get-ReleaseImages $Source)
+}
+
 foreach ($f in $Hex) {
     if (-not (Test-Path ($f -replace '@.*$', ''))) { throw "Missing image: $f" }
 }
-if (-not (pyocd list 2>&1 | Select-String -Quiet 'Unique ID')) {
-    throw 'No debug probe found by pyocd. Plug in the Debugprobe first.'
+
+# Which links to watch. Auto uses whatever is there and says so; an explicit -Via insists.
+$useSwd = $Via -ne 'Usb'
+$useUsb = $Via -ne 'Swd'
+if ($useUsb) {
+    $script:dfuUtil = Get-Command dfu-util -ErrorAction SilentlyContinue
+    if (-not $script:dfuUtil) {
+        if ($Via -eq 'Usb') { throw 'dfu-util not found on PATH (needed for USB DFU).' }
+        Write-Host 'USB DFU: off (dfu-util not on PATH)' -ForegroundColor DarkGray
+        $useUsb = $false
+    }
 }
+if ($useSwd) {
+    $probe = (Get-Command pyocd -ErrorAction SilentlyContinue) -and (pyocd list 2>&1 | Select-String -Quiet 'Unique ID')
+    if (-not $probe) {
+        if ($Via -eq 'Swd') { throw 'No debug probe found by pyocd. Plug in the Debugprobe first.' }
+        Write-Host 'SWD: off (no debug probe found)' -ForegroundColor DarkGray
+        $useSwd = $false
+    }
+}
+if (-not ($useSwd -or $useUsb)) { throw 'Neither a debug probe (SWD) nor dfu-util (USB DFU) is available.' }
+Write-Host ('watching: {0}' -f ((@(if ($useSwd) { 'SWD probe' }) + @(if ($useUsb) { 'USB DFU' })) -join ' + '))
 
 Write-Host 'image(s):'
 foreach ($f in $Hex) {
@@ -343,26 +703,6 @@ foreach ($f in $Hex) {
         Write-Host ("  {0}  (extent unknown -- not a .hex, size check skipped)" -f [IO.Path]::GetFileName($f))
     }
 }
-
-# Blank-check only the span the images actually occupy. Reading the whole chip was the single
-# biggest cost -- 512K on an F446 is ~13s of probe-holding, versus ~4s for a 162K image -- and
-# bytes outside this span are never written, so their state cannot matter.
-# $null extent (.bin/.elf) means we don't know the span, so fall back to the whole flash.
-# @() is load-bearing: a single extent would otherwise be a bare hashtable, whose .Count is its
-# key count (3), not 1 -- which silently sent every single-image run down the whole-flash path.
-$extents = @($Hex | ForEach-Object { Get-HexExtent ($_ -replace '@.*$', '') } | Where-Object { $_ })
-$expected = if ($extents.Count -eq @($Hex).Count) { $extents } else { $null }
-if ($extents.Count -eq @($Hex).Count) {
-    # [long] casts matter: Measure-Object hands back a Double, which the X8 format specifier
-    # cannot render at all.
-    $checkStart = [long]($extents | Measure-Object -Property Start -Minimum).Minimum
-    $checkEnd   = [long]($extents | Measure-Object -Property End   -Maximum).Maximum
-    Write-Host ("blank check: 0x{0:X8}-0x{1:X8} ({2:N0} KB)" -f $checkStart, $checkEnd, (($checkEnd - $checkStart) / 1024))
-}
-else {
-    $checkStart = $null   # resolved per board, once its flash size is known
-    Write-Host 'blank check: whole flash (some images are not .hex, so their span is unknown)'
-}
 Write-Host ''
 
 # Blank parts hardfault-loop on a 0xFFFFFFFF reset vector, so under-reset is tried first;
@@ -370,32 +710,69 @@ Write-Host ''
 $connectModes = @('under-reset', 'halt')
 $dump = Join-Path ([IO.Path]::GetTempPath()) 'dingo-blankcheck.bin'
 $count = 0
-$confirmed = $Yes
+$confirmed = @{}   # board name -> confirmed; one prompt per board type in a batch
 
 while ($true) {
     Write-Host 'Waiting for board...' -NoNewline
     $part = $null
     while (-not $part) {
-        if (Set-WorkingClock) { $part = Get-ConnectedPart }
+        # USB first: listing DFU devices is quick, while an absent SWD target costs a pass
+        # through every fallback clock.
+        if ($useUsb) { $part = Get-DfuPart }
+        if (-not $part -and $useSwd -and (Set-WorkingClock)) { $part = Get-ConnectedPart }
         if (-not $part) { Start-Sleep -Milliseconds 500 }
     }
 
     if ($part.Unknown) {
-        Write-Host ("`rUNKNOWN part: DEV_ID 0x{0:X3}, rev 0x{1:X4} -- not a board this script knows." -f $part.DevId, $part.Rev) -ForegroundColor Red
+        Write-Host ("`rUNKNOWN part ({0}) -- not a board this script knows." -f $part.Desc) -ForegroundColor Red
         [Console]::Beep(220, 400)
         if ($Once) { break }
-        Write-Host 'Unplug board...' -NoNewline
-        while (Get-ConnectedPart) { Start-Sleep -Milliseconds 500 }
-        Write-Host "`rBoard removed.`n"
+        Wait-Unplug $part
         continue
     }
 
+    $usb = $part.Via -eq 'usb'
     $tgt = if ($Target) { $Target } else { $part.Target }
-    Write-Host ("`rConnected: {0}  ({1})  rev 0x{2:X4}  {3} KB flash  -> pyocd '{4}'" -f `
-        $part.Name, $part.Board, $part.Rev, ($part.FlashSize / 1024), $tgt) -ForegroundColor Cyan
+    $link = if ($usb) { "USB DFU, serial $($part.Serial)" } else { "SWD, pyocd '$tgt'" }
+    Write-Host ("`rConnected: {0}  ({1})  {2} KB flash  -> {3}" -f `
+        $part.Name, $part.Board, ($part.FlashSize / 1024), $link) -ForegroundColor Cyan
 
-    # --- does the image belong on THIS board? ---
-    $complaints = Get-ImageComplaints $part $Hex
+    # --- which images, and do they belong on THIS board? ---
+    $images = @(Select-ImagesFor $part $Hex)
+
+    # Both PDM variants are an F446. Pick the image from -Pdm, else from the board marker in the
+    # firmware already on it (an upgrade), else ask.
+    if ($part.Keyword -eq 'dingopdm' -and ($Pdm -or (Test-BothPdmVariants $images))) {
+        $variant = $Pdm
+        if (-not $variant) {
+            $peek = Get-ImagePlan $images
+            $pFrom = if ($null -ne $peek.Start) { $peek.Start } else { 0x08000000 }
+            $pSize = if ($null -ne $peek.Start) { [int]($peek.End - $peek.Start) } else { $part.FlashSize }
+            if (Read-Board $part $tgt $pFrom $pSize $dump) {
+                $marker = Get-BoardMarker ([IO.File]::ReadAllBytes($dump))
+                $variant = Get-PdmVariant $marker
+                if ($variant) { Write-Host "  firmware on the board says: $marker" }
+            }
+        }
+        if (-not $variant) {
+            if ($Yes) {
+                Write-Host "SKIP  can't tell a dingoPDM v7 from a -Max on this board: pass -Pdm V7 or -Pdm Max" -ForegroundColor Yellow
+                [Console]::Beep(330, 400)
+                if ($Once) { break }
+                Wait-Unplug $part
+                continue
+            }
+            Write-Host "  No board marker in the firmware on it (blank, official or older firmware)."
+            while (-not $variant) { $variant = Read-PdmVariant }
+        }
+        $script:lastPdm = $variant
+        $images = Select-PdmImages $images $variant
+    }
+    $complaints = @(Get-ImageComplaints $part $images)
+    if ($usb) {
+        $complaints += @($images | Where-Object { $null -eq (Get-DfuImage $_) } |
+            ForEach-Object { "'$([IO.Path]::GetFileName($_))' can't be written over USB DFU: use the .hex, or .bin@0x<address>" })
+    }
     if ($complaints) {
         Write-Host 'MISMATCH between image and connected board:' -ForegroundColor Red
         $complaints | ForEach-Object { Write-Host "  - $_" -ForegroundColor Red }
@@ -403,33 +780,35 @@ while ($true) {
             Write-Host 'SKIP  refusing to flash. Use -IgnoreMismatch to override.' -ForegroundColor Red
             [Console]::Beep(220, 400)
             if ($Once) { break }
-            Write-Host 'Unplug board...' -NoNewline
-            while (Get-ConnectedPart) { Start-Sleep -Milliseconds 500 }
-            Write-Host "`rBoard removed.`n"
+            Wait-Unplug $part
             continue
         }
         Write-Host '  -IgnoreMismatch given: proceeding anyway.' -ForegroundColor Yellow
     }
 
-    # One confirmation for the whole batch, once the first board has identified itself.
-    if (-not $confirmed) {
+    # Blank-check and read back only the span the images occupy: reading a whole 512K F446 is
+    # ~13 s of probe time versus ~4 s for the image, and bytes outside it are never written.
+    $plan = Get-ImagePlan $images
+    $from = if ($null -ne $plan.Start) { $plan.Start } else { 0x08000000 }
+    $size = if ($null -ne $plan.Start) { [int]($plan.End - $plan.Start) } else { $part.FlashSize }
+    Write-Host ("  image(s): {0}" -f (($images | ForEach-Object { [IO.Path]::GetFileName(($_ -replace '@.*$', '')) }) -join ', '))
+    Write-Host ("  span:     0x{0:X8}-0x{1:X8} ({2:N0} KB)" -f $from, ($from + $size), ($size / 1024))
+
+    # One confirmation per board type, once the first of that type has identified itself.
+    if (-not $Yes -and -not $confirmed[$part.Board]) {
         $answer = Read-Host "Flash the image(s) above onto $($part.Board) boards? [y/N]"
         if ($answer -notmatch '^(y|yes)$') { Write-Host 'Aborted.'; exit 1 }
-        $confirmed = $true
+        $confirmed[$part.Board] = $true
     }
 
     $verify = $null
     try {
         # The flash readback is also the liveness check, so a marginal link cannot pass a probe
         # step and then fail the real one.
-        $from = if ($null -ne $checkStart) { $checkStart } else { 0x08000000 }
-        $size = if ($null -ne $checkStart) { [int]($checkEnd - $checkStart) } else { $part.FlashSize }
-        $mode = $null
-        foreach ($m in $connectModes) {
-            if (Read-Flash $tgt $m $from $size $dump) { $mode = $m; break }
-        }
+        $mode = Read-Board $part $tgt $from $size $dump
         if (-not $mode) {
-            Write-Host 'FAIL  could not read flash back -- reseat the board or lower -Frequency' -ForegroundColor Red
+            $hint = if ($usb) { 'replug with BOOT0 held, check the WinUSB driver (Zadig)' } else { 'reseat the board or lower -Frequency' }
+            Write-Host "FAIL  could not read flash back -- $hint" -ForegroundColor Red
             [Console]::Beep(220, 400)
         }
         else {
@@ -442,27 +821,31 @@ while ($true) {
                 if ($offset -ge 0) { Write-Host 'Not blank, -Force given: reflashing.' -ForegroundColor Yellow }
                 $flashed = $false
                 foreach ($attempt in 1..$Retries) {
-                    # 'pyocd load' exits nonzero if programming itself fails, but it does NOT
-                    # read the image back afterwards -- '--trust-crc' only decides which pages to
-                    # skip BEFORE writing. The verify below is what actually confirms the board.
-                    # '-e sector' erases every SECTOR the image touches, in full -- not just the
-                    # bytes written. See the erase notes in the header.
-                    if ($Fast) { pyocd load -t $tgt -M $mode -f $script:clock -e sector --trust-crc @Hex }
-                    else       { pyocd load -t $tgt -M $mode -f $script:clock -e sector @Hex }
-                    if ($LASTEXITCODE -ne 0) {
+                    # Neither 'pyocd load' nor dfu-util reads the image back afterwards
+                    # ('--trust-crc' only decides which pages to skip BEFORE writing), so the
+                    # verify below is what actually confirms the board.
+                    # Both erase every SECTOR an image touches, in full -- see the header.
+                    if ($usb) { $ok = Write-FlashDfu $part.Serial $images }
+                    else {
+                        if ($Fast) { pyocd load -t $tgt -M $mode -f $script:clock -e sector --trust-crc @images }
+                        else       { pyocd load -t $tgt -M $mode -f $script:clock -e sector @images }
+                        $ok = $LASTEXITCODE -eq 0
+                    }
+                    if (-not $ok) {
                         Write-Host "  attempt $attempt/$Retries failed to program, retrying..." -ForegroundColor Yellow
                         continue
                     }
                     # --- read the image span back and compare it to the files, byte for byte ---
-                    if ($null -eq $expected) {
+                    if ($null -eq $plan.Expected) {
                         Write-Host '  programmed, but image bytes are unknown (not a .hex) -- cannot verify' -ForegroundColor Yellow
                         $flashed = $true; break
                     }
-                    if (-not (Read-Flash $tgt $mode $from $size $dump)) {
+                    $readOk = if ($usb) { Read-FlashDfu $part.Serial $from $size $dump } else { Read-Flash $tgt $mode $from $size $dump }
+                    if (-not $readOk) {
                         Write-Host "  attempt $attempt/$Retries programmed but could not read back, retrying..." -ForegroundColor Yellow
                         continue
                     }
-                    $v = Test-FlashAgainstImages $expected $from ([IO.File]::ReadAllBytes($dump))
+                    $v = Test-FlashAgainstImages $plan.Expected $from ([IO.File]::ReadAllBytes($dump))
                     if ($v.Ok) { $flashed = $true; $verify = $v; break }
                     Write-Host ("  attempt {0}/{1} VERIFY FAILED: {2:N0} of {3:N0} bytes wrong, first at 0x{4:X8}" -f `
                         $attempt, $Retries, $v.BadCount, $v.Checked, $v.FirstBad) -ForegroundColor Yellow
@@ -470,7 +853,8 @@ while ($true) {
                 if ($flashed) {
                     $count++
                     $what = if ($verify) { "{0:N0} bytes verified" -f $verify.Checked } else { 'NOT verified' }
-                    Write-Host ("PASS  {0} #{1} flashed, {2}, at {3:HH:mm:ss}" -f $part.Board, $count, $what, (Get-Date)) -ForegroundColor Green
+                    Write-Host ("PASS  {0} #{1} flashed over {2}, {3}, at {4:HH:mm:ss}" -f `
+                        $part.Board, $count, $(if ($usb) { 'USB' } else { 'SWD' }), $what, (Get-Date)) -ForegroundColor Green
                     [Console]::Beep(880, 150)
                 }
                 else {
@@ -486,8 +870,5 @@ while ($true) {
     }
 
     if ($Once) { break }
-
-    Write-Host 'Unplug board...' -NoNewline
-    while (Get-ConnectedPart) { Start-Sleep -Milliseconds 500 }
-    Write-Host "`rBoard removed. $count passed so far.`n"
+    Wait-Unplug $part " $count passed so far."
 }

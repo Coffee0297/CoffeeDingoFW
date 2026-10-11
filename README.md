@@ -11,12 +11,12 @@ Infineon Profet based power distribution module; the CANBoard adds analog/digita
 outputs to the same CAN bus. ChibiOS RT on an STM32F446 (PDMs) or STM32F303 (CANBoard).
 
 It is configured with **[CoffeeDingoConfig](https://github.com/Coffee0297/CoffeeDingoConfig)** (≥ v0.8.0 for
-v5.5.108) and can be run off the car, unchanged, in **[CoffeeDingoSim](https://github.com/Coffee0297/CoffeeDingoSim)**:
+v5.5.108 and later) and can be run off the car, unchanged, in **[CoffeeDingoSim](https://github.com/Coffee0297/CoffeeDingoSim)**:
 the screenshot below is this firmware running seven modules of a whole vehicle on a PC.
 
 ![Seven modules running this firmware in CoffeeDingoSim](docs/img/sim-overview.png)
 
-**Latest release: [v5.5.108](https://github.com/Coffee0297/CoffeeDingoFW/releases)** (`CONFIG_VERSION` 0x0011),
+**Latest release: [v5.5.109](https://github.com/Coffee0297/CoffeeDingoFW/releases)** (`CONFIG_VERSION` 0x0011),
 see the [CHANGELOG](CHANGELOG.md). Flashing it over a different config version resets the module's saved
 settings to defaults: deploy your project again from dingoConfig afterwards.
 
@@ -141,14 +141,23 @@ CAN session (`0xB00710AD`).
 
 ## Batch SWD flashing (`flash-dingo.ps1`)
 
-[`flash-dingo.ps1`](flash-dingo.ps1) drives the **SWD-once** step above in a loop — for the
-one-time bootloader install, or for programming a batch of blank boards off the reel. Handles both
-**CANBoard v2** (STM32F303K8) and **dingoPDM v7 / -Max v1** (STM32F446).
+[`flash-dingo.ps1`](flash-dingo.ps1) drives the **first flash** in a loop — for the one-time
+bootloader install, or for programming a batch of blank boards off the reel. Handles both
+**CANBoard v2** (STM32F303K8, over SWD) and **dingoPDM v7 / -Max v1** (STM32F446, over SWD or its
+**USB-C port** in DFU: hold BOOT0 while plugging in). It watches the SWD probe and USB at the same time,
+so CANBoards and PDMs can be mixed in one session.
+
+Without `-Hex` it asks which firmware to download — **this fork's latest release** (default, with the
+OpenBLT bootloaders), this fork's **testing** build, or the **official** corygrant/dingoFW release —
+and gives each board the images that belong on it. A dingoPDM v7 and a -Max share the MCU: the script
+reads the board marker in the firmware already on it (builds from v5.5.109), and asks when there is none.
 
 ```powershell
-.\flash-dingo.ps1 -Hex C:/path/to/canboard_v2_FW_v0-5-8.hex            # batch loop
-.\flash-dingo.ps1 -Hex C:/path/to/dingopdm_v7_FW_v0-5-8.hex            # PDM, same script
+.\flash-dingo.ps1                                                      # pick a release, then batch loop
+.\flash-dingo.ps1 -Source Official -Pdm Max                            # no questions about source / PDM type
+.\flash-dingo.ps1 -Hex C:/path/to/canboard_v2_FW_v0-5-8.hex            # your own image(s)
 .\flash-dingo.ps1 -Hex bootloader/canboard/bin/canboard_blt.hex -Once  # one board
+.\flash-dingo.ps1 -Via Usb                                             # USB DFU only, ignore the probe
 .\flash-dingo.ps1 -SelfTest                                            # no hardware needed
 ```
 
