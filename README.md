@@ -144,7 +144,7 @@ CAN session (`0xB00710AD`).
 [`flash-dingo.ps1`](flash-dingo.ps1) drives the **first flash** in a loop — for the one-time
 bootloader install, or for programming a batch of blank boards off the reel. Handles both
 **CANBoard v2** (STM32F303K8, over SWD) and **dingoPDM v7 / -Max v1** (STM32F446, over SWD or its
-**USB-C port** in DFU: hold BOOT0 while plugging in). It watches the SWD probe and USB at the same time,
+**USB-C port**: a PDM running firmware is restarted into USB DFU over that port, no BOOT0 needed; a blank one needs BOOT0 held while plugging in). It watches the SWD probe and USB at the same time,
 so CANBoards and PDMs can be mixed in one session.
 
 Without `-Hex` it asks which firmware to download — **this fork's latest release** (default, with the
