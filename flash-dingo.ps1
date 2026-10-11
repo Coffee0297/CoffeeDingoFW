@@ -19,7 +19,14 @@ images for both and each board gets the ones that belong on it.
 USB DFU identifies the part from the ROM bootloader's flash layout string (an F446 reports
 4x16K+64K+3x128K = 512K), takes .hex images (or '.bin@0x...'), erases the sectors each image
 touches exactly like '-e sector' below, and is read back and compared like SWD. After PASS,
-unplug and release BOOT0 so the board boots the new firmware.
+the board is told to leave DFU and start the new firmware.
+
+A PDM that is RUNNING firmware needs no BOOT0: plugged in over USB-C it shows up as a COM port, and
+the script (after asking once, or with -Yes) reads its base ID ('I' on CoffeeDingoFW, else its
+status frames at base+2/+3/+4), sends it the bootloader command (MsgCmd 33 'BOOTL', byte 6 = 0 =
+USB DFU) to base+1 over that port, and flashes it when it comes back in DFU. Such a board is an
+upgrade: the blank check is skipped. Its config lives in FRAM and is kept, unless the new firmware has a different CONFIG_VERSION (e.g. official -> this fork), which resets it to defaults. Close dingoConfig first,
+it holds the COM port. -NoUsbRestart turns this off.
 
 dingoPDM v7 and -Max share the F446, so a PDM is told apart by the 'DINGO_BOARD=' marker in the
 firmware already on it (CoffeeDingoFW builds after v5.5.108). A blank board, official firmware or
@@ -97,6 +104,9 @@ param(
     [switch]$Yes,
     # Do one board and exit, instead of looping. For bench-testing the script.
     [switch]$Once,
+    # Don't restart running PDMs into USB DFU over their USB port; only take boards already in
+    # DFU (BOOT0 held).
+    [switch]$NoUsbRestart,
     # Which link(s) to watch: the SWD probe, USB DFU, or both (Auto, the default).
     [ValidateSet('Auto', 'Swd', 'Usb')]
     [string]$Via = 'Auto',
@@ -132,8 +142,12 @@ function Get-FirstProgrammedOffset([byte[]]$Bytes) {
 # against the part before writing and compared against the chip afterwards. $null for formats we
 # can't read. Data/Mask are indexed from Start; Mask marks the addresses the file actually
 # defines, so gaps between records are never compared.
+$script:extentCache = @{}
 function Get-HexExtent([string]$Path) {
     if ($Path -notmatch '\.hex$') { return $null }
+    $f = Get-Item -LiteralPath $Path -ErrorAction SilentlyContinue
+    $key = if ($f) { '{0}|{1}|{2}' -f $f.FullName, $f.Length, $f.LastWriteTimeUtc.Ticks }
+    if ($key -and $script:extentCache.ContainsKey($key)) { return $script:extentCache[$key] }
     $lo = [uint32]::MaxValue; $hi = [uint32]0; $bytes = 0; $upper = [uint32]0
     $records = [Collections.Generic.List[object]]::new()
     foreach ($line in [IO.File]::ReadLines($Path)) {
@@ -166,7 +180,9 @@ function Get-HexExtent([string]$Path) {
             $mask[$at + $k] = $true
         }
     }
-    return @{ Start = $lo; End = $hi; Bytes = $bytes; Data = $data; Mask = $mask }
+    $e = @{ Start = $lo; End = $hi; Bytes = $bytes; Data = $data; Mask = $mask }
+    if ($key) { $script:extentCache[$key] = $e }
+    return $e
 }
 
 # Compare a flash readback against what the image files say should be there. Only addresses the
@@ -242,8 +258,15 @@ function Select-ImagesFor($Part, [string[]]$Images) {
         $n = [IO.Path]::GetFileName(($_ -replace '@.*$', ''))
         -not ($others | Where-Object { $n -match $_ })
     })
-    if ($mine.Count) { return $mine }
-    return $Images
+    if (-not $mine.Count) { return $Images }
+    # A bootloader goes only under an app linked behind it. An app at 0x08000000 is standalone
+    # (official firmware, or this fork before OpenBLT) and would overwrite it: drop the bootloader.
+    $standalone = $mine | Where-Object {
+        $file = $_ -replace '@.*$', ''
+        $file -notmatch '_blt\.hex$' -and (Test-Path $file) -and (Get-HexExtent $file).Start -eq 0x08000000
+    }
+    if ($standalone) { $mine = @($mine | Where-Object { ($_ -replace '@.*$', '') -notmatch '_blt\.hex$' }) }
+    return $mine
 }
 
 # Where a set of images lands: the span to blank-check and read back, and the bytes to verify.
@@ -340,6 +363,39 @@ function Test-BothPdmVariants([string[]]$Images) {
 function Select-PdmImages([string[]]$Images, [string]$Variant) {
     $other = if ($Variant -eq 'Max') { $PDM_IMAGE.V7 } else { $PDM_IMAGE.Max }
     return @($Images | Where-Object { [IO.Path]::GetFileName(($_ -replace '@.*$', '')) -notmatch $other })
+}
+
+# A dingoPDM's base ID from the ids it streams over USB: its status frames are base+2, +3, +4...
+# The smallest id with its two successors present is base+2. $null when there is no such run.
+function Get-BaseIdFromIds([int[]]$Ids) {
+    $set = @{}; foreach ($i in $Ids) { $set[$i] = 1 }
+    foreach ($i in ($Ids | Sort-Object -Unique)) {
+        if ($set.ContainsKey($i + 1) -and $set.ContainsKey($i + 2) -and $i -ge 2) { return $i - 2 }
+    }
+    return $null
+}
+
+# One standard-id SLCAN frame, e.g. 't6A1821424F4F544C0000\r'.
+function New-SlcanFrame([int]$Id, [byte[]]$Data) {
+    return ('t{0:X3}{1}{2}' -f $Id, $Data.Length, (($Data | ForEach-Object { '{0:X2}' -f $_ }) -join '')) + "`r"
+}
+
+# The PDM's 'enter bootloader' command; byte 6 = 0 picks the ST USB DFU bootloader.
+$BOOTL_USB = [byte[]]@(33, 0x42, 0x4F, 0x4F, 0x54, 0x4C, 0, 0)
+
+# Firmware version from a release's asset names ('dingopdm_v7_FW_v5-5-109.hex' -> 5.5.109).
+function Get-AssetVersion($Assets) {
+    foreach ($a in $Assets) {
+        if ($a.name -match '_FW_v(\d+)-(\d+)-(\d+)\.') { return [version]('{0}.{1}.{2}' -f $Matches[1], $Matches[2], $Matches[3]) }
+    }
+    return $null
+}
+
+# Bootloader images first. Written one at a time over DFU, an interrupted upgrade then leaves
+# OpenBLT in sector 0 waiting for an app (recoverable over CAN), never the old firmware's first
+# sector pointing into code that has just been erased (needs BOOT0 or SWD).
+function Sort-BootloaderFirst([string[]]$Images) {
+    return @(@($Images | Where-Object { $_ -match '_blt\.hex' }) + @($Images | Where-Object { $_ -notmatch '_blt\.hex' }))
 }
 
 if ($SelfTest) {
@@ -456,6 +512,26 @@ if ($SelfTest) {
     $forV7 = Select-PdmImages $rel 'V7'
     if ($forV7 -contains 'dingopdmmax_v1_FW_v5-5-108.hex' -or $forV7 -notcontains 'dingopdm_v7_FW_v5-5-108.hex') { throw 'SelfTest: wrong images for a v7' }
 
+    # --- restarting a running PDM into DFU ---
+    if ((Get-BaseIdFromIds @(0x6A2, 0x6A3, 0x6A4, 0x6A9)) -ne 0x6A0) { throw 'SelfTest: base id from status frames wrong' }
+    if ((Get-BaseIdFromIds @(0x730, 0x6A4, 0x6A3, 0x6A2)) -ne 0x6A0) { throw 'SelfTest: base id must come from the run, not the lowest id' }
+    if ($null -ne (Get-BaseIdFromIds @(0x100, 0x300, 0x500))) { throw 'SelfTest: base id invented without a run' }
+    if ((New-SlcanFrame 0x6A1 $BOOTL_USB) -ne "t6A1821424F4F544C0000`r") { throw 'SelfTest: bootloader SLCAN frame wrong' }
+
+    # --- bootloader only under a relocated app ---
+    $appAt0 = Join-Path $dir 'canboard_v2_FW_old.hex'
+    @(':020000040800F2', ':1000000000040020890200088B0200088B0200080F', ':00000001FF') | Set-Content $appAt0
+    $r = @(Select-ImagesFor $f303 @($appAt0, $at0))
+    if ($r.Count -ne 1 -or $r[0] -ne $appAt0) { throw 'SelfTest: bootloader kept under a standalone app' }
+    $r = @(Select-ImagesFor $f303 @($at16, $at0))   # app at 0x08004000 + bootloader
+    if ($r.Count -ne 2) { throw 'SelfTest: bootloader dropped under a relocated app' }
+
+    if ((Get-AssetVersion @(@{ name = 'dingopdm_blt.hex' }, @{ name = 'canboard_v2_FW_v5-5-101.hex' })) -ne [version]'5.5.101') { throw 'SelfTest: asset version not read' }
+    if (-not ([version]'5.5.101' -lt [version]'5.5.109')) { throw 'SelfTest: version compare wrong' }
+
+    $order = Sort-BootloaderFirst @('dingopdm_v7_FW_v5-5-109.hex', 'dingopdm_blt.hex')
+    if ($order[0] -ne 'dingopdm_blt.hex' -or $order.Count -ne 2) { throw 'SelfTest: bootloader not written first' }
+
     Remove-Item $tmp, $dir -Recurse -ErrorAction SilentlyContinue
     'SelfTest OK'; exit 0
 }
@@ -510,7 +586,9 @@ function Get-ConnectedPart {
 function Read-Flash([string]$TargetName, [string]$Mode, [long]$Start, [int]$Size, [string]$Path) {
     Remove-Item $Path -ErrorAction SilentlyContinue
     $swd = $Path -replace '\\', '/'
+    Write-Progress -Activity ('Reading {0:N0} KB over SWD' -f ($Size / 1KB)) -Status "pyocd, $Mode"
     pyocd cmd -t $TargetName -M $Mode -f $script:clock -c ("savemem 0x{0:X8} {1} {2}" -f $Start, $Size, $swd) *> $null
+    Write-Progress -Activity 'Reading' -Completed
     if (-not (Test-Path $Path)) { return $false }
     return (Get-Item $Path).Length -eq $Size
 }
@@ -541,13 +619,42 @@ function Get-DfuPart {
     }
     $part = $PARTS[$devId].Clone()
     $part.Via = 'usb'; $part.Serial = $d.Serial; $part.DevId = $devId; $part.Rev = 0; $part.FlashSize = $d.Size
+    # Came in by our restart: it was running firmware, so it's an upgrade (see Restart-PdmToDfu).
+    $part.Upgrade = ($null -ne $script:restartedAt) -and (((Get-Date) - $script:restartedAt).TotalSeconds -lt 30)
+    if ($part.Upgrade) { $part.FromPort = $script:restartedPort }
     return $part
+}
+
+# Run dfu-util and turn its own '[====] 45%' bar into a PowerShell progress bar. That bar is drawn
+# with carriage returns, which a captured pipeline only hands over at exit, so stdout is read as it
+# arrives. Returns @{ Exit; Text }, Text being all output for error reports.
+function Invoke-DfuUtil([string]$Activity, [string[]]$ArgList) {
+    $psi = [Diagnostics.ProcessStartInfo]::new($script:dfuUtil.Source)
+    foreach ($a in $ArgList) { $psi.ArgumentList.Add($a) }
+    $psi.RedirectStandardOutput = $true; $psi.RedirectStandardError = $true; $psi.UseShellExecute = $false
+    $proc = [Diagnostics.Process]::Start($psi)
+    $err = $proc.StandardError.ReadToEndAsync()
+    $text = [Text.StringBuilder]::new(); $buf = [char[]]::new(256); $tail = ''
+    while (($n = $proc.StandardOutput.Read($buf, 0, $buf.Length)) -gt 0) {
+        $chunk = [string]::new($buf, 0, $n)
+        [void]$text.Append($chunk)
+        $tail = ($tail + $chunk)
+        if ($tail.Length -gt 300) { $tail = $tail.Substring($tail.Length - 100) }
+        $m = [regex]::Matches($tail, '(Erase|Download|Upload)\s*\[[^\]]*\]\s*(\d{1,3})%')
+        if ($m.Count) {
+            $last = $m[$m.Count - 1]
+            Write-Progress -Activity $Activity -Status $last.Groups[1].Value -PercentComplete ([Math]::Min(100, [int]$last.Groups[2].Value))
+        }
+    }
+    $proc.WaitForExit()
+    Write-Progress -Activity $Activity -Completed
+    return @{ Exit = $proc.ExitCode; Text = $text.ToString() + $err.Result }
 }
 
 # Read $Size bytes of flash to $Path over DFU. Judged on the file, like Read-Flash.
 function Read-FlashDfu([string]$Serial, [long]$Start, [int]$Size, [string]$Path) {
     Remove-Item $Path -ErrorAction SilentlyContinue   # dfu-util refuses to overwrite on upload
-    dfu-util -d 0483:df11 -S $Serial -a 0 -s ("0x{0:X8}:{1}" -f $Start, $Size) -U $Path *> $null
+    $null = Invoke-DfuUtil ('Reading {0:N0} KB over USB' -f ($Size / 1KB)) @('-d', '0483:df11', '-S', $Serial, '-a', '0', '-s', ("0x{0:X8}:{1}" -f $Start, $Size), '-U', $Path)
     if (-not (Test-Path $Path)) { return $false }
     return (Get-Item $Path).Length -eq $Size
 }
@@ -556,13 +663,13 @@ function Read-FlashDfu([string]$Serial, [long]$Start, [int]$Size, [string]$Path)
 # scope as pyocd's '-e sector'. No ':leave', so the board stays in DFU for the read-back.
 function Write-FlashDfu([string]$Serial, [string[]]$Images) {
     $bin = Join-Path ([IO.Path]::GetTempPath()) 'dingo-dfu.bin'
-    foreach ($spec in $Images) {
+    foreach ($spec in (Sort-BootloaderFirst $Images)) {
         $img = Get-DfuImage $spec
         [IO.File]::WriteAllBytes($bin, $img.Data)
         Write-Host ("  writing {0} at 0x{1:X8} over USB..." -f [IO.Path]::GetFileName(($spec -replace '@.*$', '')), $img.Start)
-        $out = dfu-util -d 0483:df11 -S $Serial -a 0 -s ("0x{0:X8}" -f $img.Start) -D $bin 2>&1 | Out-String
-        if ($LASTEXITCODE -ne 0) {
-            ($out.Trim() -split "`n" | Select-Object -Last 3) | ForEach-Object { Write-Host "    $_" -ForegroundColor DarkGray }
+        $r = Invoke-DfuUtil ('Writing {0}' -f [IO.Path]::GetFileName(($spec -replace '@.*$', ''))) @('-d', '0483:df11', '-S', $Serial, '-a', '0', '-s', ("0x{0:X8}" -f $img.Start), '-D', $bin)
+        if ($r.Exit -ne 0) {
+            ($r.Text.Trim() -split "[`r`n]+" | Select-Object -Last 3) | ForEach-Object { Write-Host "    $_" -ForegroundColor DarkGray }
             return $false
         }
     }
@@ -592,15 +699,109 @@ function Read-PdmVariant {
     return $null
 }
 
+# --- a PDM running firmware: restart it into USB DFU over its own USB port ---
+
+# COM ports of dingoPDMs running firmware (ST VCP 0483:5740: the PDM's USB-CDC SLCAN port).
+function Get-PdmSerialPorts {
+    return @(Get-CimInstance Win32_PnPEntity -Filter "PNPDeviceID LIKE 'USB\\VID_0483&PID_5740%'" -ErrorAction SilentlyContinue |
+        ForEach-Object { if ($_.Name -match '\((COM\d+)\)') { $Matches[1] } })
+}
+
+$script:restartedAt = $null
+$script:restartedPort = $null
+$script:restartTried = @{}   # port -> time, so a PDM that won't go doesn't get hammered
+$script:donePorts = @{}      # PDMs flashed this session, now running the new firmware: leave alone
+$script:restartOk = $Yes     # one 'restart PDMs into DFU?' answer per session
+
+# Find the base ID of the PDM on $Port and send it the bootloader command. $true when sent.
+function Restart-PdmToDfu([string]$Port) {
+    $sp = [IO.Ports.SerialPort]::new($Port, 115200)
+    $sp.DtrEnable = $true
+    try { $sp.Open() }
+    catch {
+        Write-Host "`rPDM on $Port is busy (dingoConfig connected?) -- close it to flash this board." -ForegroundColor Yellow
+        return $false
+    }
+    try {
+        # CoffeeDingoFW answers 'I' with its base id, e.g. 'I6A0'.
+        $sp.DiscardInBuffer()
+        $sp.Write("I`r")
+        $base = $null; $how = 'identify'
+        $sw = [Diagnostics.Stopwatch]::StartNew(); $buf = ''
+        while ($sw.ElapsedMilliseconds -lt 400 -and $null -eq $base) {
+            Start-Sleep -Milliseconds 50
+            $buf += $sp.ReadExisting()
+            if ($buf -match '(?:^|\r)I([0-9A-Fa-f]{3})\r') { $base = [Convert]::ToInt32($Matches[1], 16) }
+        }
+        if ($null -eq $base) {
+            # Official firmware has no 'I': read the base off its own status frames instead.
+            $how = 'status frames'
+            while ($sw.ElapsedMilliseconds -lt 2000) { Start-Sleep -Milliseconds 100; $buf += $sp.ReadExisting() }
+            $ids = @([regex]::Matches($buf, 't([0-9A-Fa-f]{3})') | ForEach-Object { [Convert]::ToInt32($_.Groups[1].Value, 16) })
+            $base = Get-BaseIdFromIds $ids
+        }
+        if ($null -eq $base) {
+            Write-Host "`rPDM on ${Port}: can't find its base ID -- hold BOOT0 instead, or flash it from dingoConfig." -ForegroundColor Yellow
+            return $false
+        }
+        Write-Host ("`rPDM running firmware on {0}, base ID 0x{1:X3} (from {2})." -f $Port, $base, $how) -ForegroundColor Cyan
+        if (-not $script:restartOk) {
+            $a = Read-Host '  Restart PDMs like this into USB DFU to flash them? [y/N]'
+            if ($a -notmatch '^(y|yes)$') { $script:restartTried[$Port] = [datetime]::MaxValue; return $false }
+            $script:restartOk = $true
+        }
+        $sp.Write((New-SlcanFrame ($base + 1) $BOOTL_USB))
+        Start-Sleep -Milliseconds 200
+        $script:restartedAt = Get-Date
+        $script:restartedPort = $Port
+        return $true
+    }
+    finally { $sp.Close(); $sp.Dispose() }
+}
+
+# After a USB flash: leave DFU so the PDM starts the new firmware without a power cycle, and note the
+# COM port it comes back on so it isn't restarted again. Returns that port, or $null.
+function Start-FlashedPdm($Part) {
+    $before = @(Get-PdmSerialPorts)
+    $tmp = Join-Path ([IO.Path]::GetTempPath()) 'dingo-leave.bin'
+    Remove-Item $tmp -ErrorAction SilentlyContinue
+    # ':leave' after an upload sends the DfuSe 'go' (zero-length download) to 0x08000000.
+    dfu-util -d 0483:df11 -S $Part.Serial -a 0 -s 0x08000000:4:leave -U $tmp *> $null
+    for ($i = 0; $i -lt 40; $i++) {
+        $new = @(Get-PdmSerialPorts | Where-Object { $before -notcontains $_ })
+        if ($new) { $script:donePorts[$new[0]] = $true; return $new[0] }
+        Start-Sleep -Milliseconds 250
+    }
+    return $null
+}
+
+# Is a debug probe plugged in? Once seen it is assumed to stay; until then 'pyocd list' (about a
+# second) runs at most every 5 s, so a probe plugged in mid-session is picked up.
+$script:probeSeen = $false
+$script:probeCheckedAt = [datetime]::MinValue
+function Test-Probe {
+    if ($script:probeSeen) { return $true }
+    if (((Get-Date) - $script:probeCheckedAt).TotalSeconds -lt 5) { return $false }
+    $script:probeCheckedAt = Get-Date
+    if (pyocd list 2>&1 | Select-String -Quiet 'Unique ID') {
+        $script:probeSeen = $true
+        if ($script:loopStarted) { Write-Host "`rSWD probe connected, watching it too.     `nWaiting for board..." -NoNewline }
+    }
+    return $script:probeSeen
+}
+
 function Test-StillConnected($Part) {
+    if ($Part.RunningPort) { return (@(Get-PdmSerialPorts) -contains $Part.RunningPort) }
     if ($Part.Via -eq 'usb') { return [bool](@(Get-DfuDevices) | Where-Object { $_.Serial -eq $Part.Serial }) }
     return [bool](Get-ConnectedPart)
 }
 
 function Wait-Unplug($Part, [string]$Extra = '') {
-    $how = if ($Part.Via -eq 'usb') { 'Unplug board (and release BOOT0)...' } else { 'Unplug board...' }
+    $how = if ($Part.RunningPort) { "Unplug the PDM (running the new firmware on $($Part.RunningPort))..." }
+           elseif ($Part.Via -eq 'usb') { 'Unplug board (and release BOOT0)...' } else { 'Unplug board...' }
     Write-Host $how -NoNewline
     while (Test-StillConnected $Part) { Start-Sleep -Milliseconds 500 }
+    if ($Part.RunningPort) { $script:donePorts.Remove($Part.RunningPort) }
     Write-Host "`rBoard removed.$Extra                    `n"
 }
 
@@ -626,6 +827,17 @@ function Get-ReleaseImages([string]$Name) {
     $dir = Join-Path ([IO.Path]::GetTempPath()) ('dingo-firmware/{0}/{1}' -f ($src.Repo -replace '/', '_'), $rel.tag_name)
     $null = New-Item -ItemType Directory -Path $dir -Force
     Write-Host ("firmware: {0} -> {1}" -f $src.Label, $rel.tag_name) -ForegroundColor Cyan
+    $ver = Get-AssetVersion $rel.assets
+    if ($ver) { Write-Host "  version $ver" }
+    if ($Name -eq 'Testing') {
+        try {
+            $stable = Invoke-RestMethod "https://api.github.com/repos/$($src.Repo)/releases/latest" -Headers @{ 'User-Agent' = 'flash-dingo' }
+            $sv = Get-AssetVersion $stable.assets
+            if ($ver -and $sv -and $ver -lt $sv) {
+                Write-Host "  WARNING: this testing build ($ver) is OLDER than the stable release ($sv)." -ForegroundColor Yellow
+            }
+        } catch { }
+    }
     $files = @()
     foreach ($board in @('canboard_v2') + $pdms) {
         $a = Select-BoardAsset $rel.assets $board
@@ -683,11 +895,14 @@ if ($useUsb) {
     }
 }
 if ($useSwd) {
-    $probe = (Get-Command pyocd -ErrorAction SilentlyContinue) -and (pyocd list 2>&1 | Select-String -Quiet 'Unique ID')
-    if (-not $probe) {
-        if ($Via -eq 'Swd') { throw 'No debug probe found by pyocd. Plug in the Debugprobe first.' }
-        Write-Host 'SWD: off (no debug probe found)' -ForegroundColor DarkGray
+    if (-not (Get-Command pyocd -ErrorAction SilentlyContinue)) {
+        if ($Via -eq 'Swd') { throw 'pyocd not found on PATH (needed for SWD).' }
+        Write-Host 'SWD: off (pyocd not on PATH)' -ForegroundColor DarkGray
         $useSwd = $false
+    }
+    elseif (-not (Test-Probe)) {
+        if ($Via -eq 'Swd') { throw 'No debug probe found by pyocd. Plug in the Debugprobe first.' }
+        Write-Host 'SWD: no debug probe yet -- plug it in any time, it is checked every few seconds' -ForegroundColor DarkGray
     }
 }
 if (-not ($useSwd -or $useUsb)) { throw 'Neither a debug probe (SWD) nor dfu-util (USB DFU) is available.' }
@@ -710,7 +925,8 @@ Write-Host ''
 $connectModes = @('under-reset', 'halt')
 $dump = Join-Path ([IO.Path]::GetTempPath()) 'dingo-blankcheck.bin'
 $count = 0
-$confirmed = @{}   # board name -> confirmed; one prompt per board type in a batch
+$confirmed = @{}
+$script:loopStarted = $true   # board name -> confirmed; one prompt per board type in a batch
 
 while ($true) {
     Write-Host 'Waiting for board...' -NoNewline
@@ -719,7 +935,21 @@ while ($true) {
         # USB first: listing DFU devices is quick, while an absent SWD target costs a pass
         # through every fallback clock.
         if ($useUsb) { $part = Get-DfuPart }
-        if (-not $part -and $useSwd -and (Set-WorkingClock)) { $part = Get-ConnectedPart }
+        # A PDM running firmware on USB: restart it into DFU (no BOOT0 needed); it is picked up
+        # above on a later pass once it re-enumerates.
+        if (-not $part -and $useUsb -and -not $NoUsbRestart) {
+            $ports = @(Get-PdmSerialPorts)
+            # Forget a 'no' / a failed try once that board is unplugged: PDMs share one USB serial
+            # number, so the next board usually comes up on the same COM port.
+            foreach ($k in @($script:restartTried.Keys)) { if ($ports -notcontains $k) { $script:restartTried.Remove($k) } }
+            foreach ($port in $ports) {
+                if ($script:donePorts[$port]) { continue }
+                if ($script:restartTried[$port] -and ((Get-Date) - $script:restartTried[$port]).TotalSeconds -lt 30) { continue }
+                $script:restartTried[$port] = Get-Date
+                if (Restart-PdmToDfu $port) { Write-Host 'Waiting for it in DFU...' -NoNewline; break }
+            }
+        }
+        if (-not $part -and $useSwd -and (Test-Probe) -and (Set-WorkingClock)) { $part = Get-ConnectedPart }
         if (-not $part) { Start-Sleep -Milliseconds 500 }
     }
 
@@ -813,12 +1043,18 @@ while ($true) {
         }
         else {
             $offset = Get-FirstProgrammedOffset ([IO.File]::ReadAllBytes($dump))
-            if ($offset -ge 0 -and -not $Force) {
+            $reflash = $Force -or $part.Upgrade
+            if ($offset -ge 0 -and -not $reflash -and -not $Yes) {
+                $a = Read-Host ("  Not blank: first programmed byte at 0x{0:X8}. Reflash it anyway? [y/N]" -f ($from + $offset))
+                $reflash = $a -match '^(y|yes)$'
+            }
+            if ($offset -ge 0 -and -not $reflash) {
                 Write-Host ("SKIP  not blank: first programmed byte at 0x{0:X8}. Use -Force to reflash." -f ($from + $offset)) -ForegroundColor Yellow
                 [Console]::Beep(330, 400)
             }
             else {
-                if ($offset -ge 0) { Write-Host 'Not blank, -Force given: reflashing.' -ForegroundColor Yellow }
+                if ($offset -ge 0 -and $part.Upgrade) { Write-Host ("Upgrade: it was running firmware on {0}, reflashing (config in FRAM is kept if the config version matches)." -f $part.FromPort) -ForegroundColor Yellow }
+                elseif ($offset -ge 0) { Write-Host 'Not blank: reflashing.' -ForegroundColor Yellow }
                 $flashed = $false
                 foreach ($attempt in 1..$Retries) {
                     # Neither 'pyocd load' nor dfu-util reads the image back afterwards
@@ -840,7 +1076,14 @@ while ($true) {
                         Write-Host '  programmed, but image bytes are unknown (not a .hex) -- cannot verify' -ForegroundColor Yellow
                         $flashed = $true; break
                     }
-                    $readOk = if ($usb) { Read-FlashDfu $part.Serial $from $size $dump } else { Read-Flash $tgt $mode $from $size $dump }
+                    # A failed read-back says nothing about the write (pyocd often trips on the
+                    # disconnect right after programming), so read again before reprogramming.
+                    $readOk = $false
+                    foreach ($read in 1..3) {
+                        $readOk = if ($usb) { Read-FlashDfu $part.Serial $from $size $dump } else { Read-Flash $tgt $mode $from $size $dump }
+                        if ($readOk) { break }
+                        Start-Sleep -Milliseconds 300
+                    }
                     if (-not $readOk) {
                         Write-Host "  attempt $attempt/$Retries programmed but could not read back, retrying..." -ForegroundColor Yellow
                         continue
@@ -856,6 +1099,11 @@ while ($true) {
                     Write-Host ("PASS  {0} #{1} flashed over {2}, {3}, at {4:HH:mm:ss}" -f `
                         $part.Board, $count, $(if ($usb) { 'USB' } else { 'SWD' }), $what, (Get-Date)) -ForegroundColor Green
                     [Console]::Beep(880, 150)
+                    if ($usb) {
+                        $part.RunningPort = Start-FlashedPdm $part
+                        if ($part.RunningPort) { Write-Host "  started: new firmware running, on $($part.RunningPort)" -ForegroundColor Green }
+                        else { Write-Host '  left DFU, but no PDM COM port came back -- power-cycle it and check it boots' -ForegroundColor Yellow }
+                    }
                 }
                 else {
                     Write-Host "FAIL  $Retries attempts failed -- board is NOT correctly programmed" -ForegroundColor Red
