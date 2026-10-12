@@ -5,6 +5,15 @@ from `core/device_config.h`; the `testing` CI build publishes it as a prerelease
 
 ## [Unreleased]
 
+### Fixed
+- **Counter with a reset input** (`functions/counter.cpp`): a reset returned before the counter remembered
+  its inputs, so a falling-edge reset ("off when the ignition goes off") fired again on every cycle and held
+  the count at 0 until the reset input came back on. Edges are now taken once per cycle on every path
+  (host self-test: `tests/host_selftest.cpp`, COUNTER_ONLY build).
+- **Timer reused after being disabled** (`functions/timer.cpp`): it kept the last input it saw, so a Pulse
+  from an input that is already on (a fuel-pump prime from Always On) did not fire when the slot was enabled
+  again. A disabled timer now forgets it; enabling it treats an active input as a new activation.
+
 ## [5.5.109] — 2026-10-11
 
 A release with every file a board needs, and a flasher for USB as well as SWD. No firmware behaviour

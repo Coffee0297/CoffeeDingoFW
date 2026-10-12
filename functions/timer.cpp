@@ -10,6 +10,7 @@ void Timer::Update(uint32_t nTimeNow)
     {
         fVal = 0;
         bTiming = false;
+        bLastActive = false;   // enabling it later starts fresh: an input already active is a new activation
         return;
     }
 

@@ -1,8 +1,39 @@
 // Host-side self-check for the pure function logic (no ChibiOS needed). From the repo root:
 //   g++ -std=c++20 -DDINGO_HOST_TEST -I functions -I core tests/host_selftest.cpp functions/table.cpp functions/timer.cpp -o build/host_selftest && build/host_selftest
+// Counter (it needs a bigger var map than the others, so it builds on its own):
+//   g++ -std=c++20 -DDINGO_HOST_TEST -DCOUNTER_ONLY -I functions -I core tests/host_selftest.cpp functions/counter.cpp -o build/host_counter && build/host_counter
 #include <cassert>
 #include <cmath>
 #include <cstdio>
+#ifdef COUNTER_ONLY
+#include "counter.h"
+float *pVarMap[VAR_MAP_SIZE];
+uint32_t nHostTimeMs = 0;
+
+// A falling-edge reset (e.g. "off when the ignition goes off") clears the count once; counting works again
+// right after. It used to return before remembering the inputs, so the reset re-fired on every cycle.
+int main()
+{
+    float zero = 0, inc = 0, rst = 1;
+    pVarMap[0] = &zero; pVarMap[1] = &inc; pVarMap[2] = &rst;
+    Config_Counter c{};
+    c.bEnabled = true; c.nIncInput = 1; c.nDecInput = 0; c.nResetInput = 2;
+    c.nMinCount = 0; c.nMaxCount = 1; c.bWrapAround = true;
+    c.eIncEdge = InputEdge::Rising; c.eDecEdge = InputEdge::Rising; c.eResetEdge = InputEdge::Falling;
+    Counter k; k.SetConfig(&c); k.fVal = 0;
+    auto step = [&] { k.Update(); nHostTimeMs += 10; };
+    auto press = [&] { inc = 1; step(); inc = 0; step(); };
+    step();
+    press(); assert(k.fVal == 1);
+    press(); assert(k.fVal == 0);     // toggles (wrap 1 -> 0)
+    press(); assert(k.fVal == 1);
+    rst = 0; step(); assert(k.fVal == 0);   // reset input falls: cleared
+    step(); step();
+    press(); assert(k.fVal == 1);     // and it counts again with the reset input still low
+    std::puts("host_counter OK");
+    return 0;
+}
+#else
 #include "table.h"
 #include "timer.h"
 #include "pwm_meter.h"
@@ -72,6 +103,13 @@ static void TestTimer()
 
     // disabled -> always 0
     cfg.bEnabled = false; in = 0; t.Update(1000); t.Update(1200); assert(t.fVal == 0);
+
+    // a pulse from an input that is already on (Always On: a prime at power-up) also fires when the timer is
+    // enabled later, even if that slot ran before (it used to remember the old input and see no new edge)
+    cfg.eMode = TimerMode::Pulse; cfg.eEdge = InputEdge::Rising; cfg.bEnabled = true; t = Timer(); t.SetConfig(&cfg);
+    in = 1; t.Update(2000); assert(t.fVal == 1); t.Update(2100); assert(t.fVal == 0);   // ran once
+    cfg.bEnabled = false; t.Update(2200);                                                // slot freed
+    cfg.bEnabled = true; t.Update(2300); assert(t.fVal == 1);                          // reused: pulses again
 }
 
 static void TestPwmMeter()
@@ -140,3 +178,4 @@ int main()
     std::puts("host_selftest OK");
     return 0;
 }
+#endif

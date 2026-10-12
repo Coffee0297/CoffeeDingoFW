@@ -1,7 +1,14 @@
 #pragma once
 
 #include <cstdint>
+#ifdef DINGO_HOST_TEST
+#include "enums.h"
+#define VAR_MAP_SIZE 4
+extern uint32_t nHostTimeMs;
+#define SYS_TIME nHostTimeMs
+#else
 #include "port.h"
+#endif
 
 extern float *pVarMap[VAR_MAP_SIZE];
 
