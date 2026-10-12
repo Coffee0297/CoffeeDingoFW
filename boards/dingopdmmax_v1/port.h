@@ -19,7 +19,8 @@
 #define NUM_OUTPUTS 4
 #define NUM_DIG_OUTPUTS 0
 #define NUM_DIG_INPUTS 2
-// PWM-input frequency cap (param 0x1200 sub 6): same DI pins and, assumed, the same 4.7k + 10 nF input RC as dingoPDM v7 (no Max schematic here)
+// PWM-input frequency cap (param 0x1200 sub 6): 4.7k series + 10 nF to ground + BAT54S clamp per DI (HW v1.2
+// schematic), the same RC as dingoPDM v7: duty skews above ~1 kHz.
 #define DI_PWM_MAX_FREQ 1000
 #define NUM_ANALOG_INPUTS 0
 #define NUM_VIRT_INPUTS 16
