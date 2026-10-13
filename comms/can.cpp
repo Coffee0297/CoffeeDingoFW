@@ -4,6 +4,9 @@
 #include "device_config.h"
 #include "mailbox.h"
 #include "msg.h"
+#if HAS_USB
+#include "usb.h"
+#endif
 
 #include <iterator>
 
@@ -33,6 +36,7 @@ void ConfigureCanFilters();
 #define CAN_NOACK_FAIL_STREAK     3u    // consecutive TX timeouts that mean "nobody is ACKing"
 #define CAN_NOACK_BACKOFF_CYCLES  50u   // cyclic-TX rounds to skip (~50 x CAN_TX_CYCLIC_MSG_DELAY)
 static volatile uint16_t gNoAckBackoff = 0;
+bool CanNoPeer() { return gNoAckBackoff > 0; }
 
 // --- Mute (FW #52 "MuteTxCAN") -------------------------------------------------------------------
 // While the var-map signal picked as nMuteTxInput is true the cyclic telemetry is withheld, so a
@@ -66,9 +70,24 @@ void CanCyclicTxThread(void *)
 
         if (gNoAckBackoff > 0)
         {
-            // No peer is ACKing — skip this telemetry round so we don't feed the no-ACK flood.
+            // No peer is ACKing — skip this telemetry round on CAN so we don't feed the no-ACK flood.
             // Counts down to a periodic single round that re-probes whether a peer is back.
             gNoAckBackoff--;
+#if HAS_USB
+            // A USB host is a listener too: keep its telemetry at the normal rate (USB only, not CAN).
+            if (GetUsbConnected() && !CyclicTxMuted())
+            {
+                for (uint8_t i = 0; i < NUM_TX_MSGS; i++)
+                {
+                    msg = TxMsgs[i]();
+                    if (!msg.bSend)
+                        continue;
+                    msg.frame.IDE = CAN_IDE_STD;
+                    msg.frame.RTR = CAN_RTR_DATA;
+                    PostTxUsbFrame(&msg.frame);
+                }
+            }
+#endif
         }
         else if (CyclicTxMuted())
         {

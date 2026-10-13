@@ -1,4 +1,5 @@
 #include "mailbox.h"
+#include "can.h"
 #include "ch.hpp"
 #include "port.h"
 
@@ -34,6 +35,11 @@ static chibios_rt::Mutex txUsbMutex;
 
 msg_t PostTxFrame(CANTxFrame *frame)
 {
+    // No CAN peer is ACKing (can.cpp backs off): a CAN frame would only sit retransmitting in a full queue, and
+    // senders that retry until it's taken (the ReadAll dump) would stall. The USB host still needs it —
+    // dingoConfig over USB with the module alone on a bench — so hand it to USB once and report it sent.
+    if (CanNoPeer())
+        return PostTxUsbFrame(frame), MSG_OK;
     txMutex.lock();
     for (int i = 0; i < MAILBOX_SIZE; i++) {
         if (!txMsgUsed[i]) {

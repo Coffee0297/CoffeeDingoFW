@@ -5,7 +5,17 @@ from `core/device_config.h`; the `testing` CI build publishes it as a prerelease
 
 ## [Unreleased]
 
+## [5.5.110] — 2026-10-13
+
+No `CONFIG_VERSION` change (still 0x0011): saved configs are kept.
+
 ### Fixed
+- **A PDM alone on USB (bench, nothing else on CAN) starved the USB host** (`comms/mailbox.cpp`,
+  `comms/can.cpp`): with no CAN peer ACKing, the no-ACK back-off skipped the status broadcasts and a frame
+  reached USB only after a successful CAN post, so dingoConfig saw almost no traffic, lost the replies to its
+  own requests and a config read stalled. While no peer is ACKing (`CanNoPeer()`), a frame now goes to USB
+  only and counts as sent, and the status broadcasts keep going to USB. Measured on a dingoPDM v7: 0 → ~11
+  status frames/s per id over USB; read, write, burn, Lua upload, re-address and USB-DFU flash all work.
 - **Counter with a reset input** (`functions/counter.cpp`): a reset returned before the counter remembered
   its inputs, so a falling-edge reset ("off when the ignition goes off") fired again on every cycle and held
   the count at 0 until the reset input came back on. Edges are now taken once per cycle on every path
