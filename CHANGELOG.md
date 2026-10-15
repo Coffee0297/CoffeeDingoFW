@@ -5,6 +5,27 @@ from `core/device_config.h`; the `testing` CI build publishes it as a prerelease
 
 ## [Unreleased]
 
+## [5.5.111] — 2026-10-15
+
+No `CONFIG_VERSION` change (still 0x0011): saved configs are kept.
+
+### Added
+- **CANBoard sleep** (`boards/canboard_v2`, `boards/cortex-m3/mcu_utils.cpp`, `core/sleep.cpp`): the CANBoard v2
+  now sleeps (STOP) like the PDM and wakes on its armed digital inputs and on CAN RX. It has no CAN standby
+  pin, so the transceiver stays powered; analog inputs cannot wake it. Digital outputs are forced off first.
+
+### Fixed
+- **Sleep ended at once** (`core/sleep.cpp`): a CAN or timer IRQ pending at the moment of STOP entry ended
+  the WFI straight away, so the module reset instead of sleeping, booted unmuted and woke the whole bus.
+  SysTick and every NVIC IRQ are now disabled and their pending bits cleared before WFI, leaving only the
+  wake (EXTI) lines.
+- **Sleep-request reply is 8 bytes again** (`comms/request_msg.cpp`): dingoConfig dropped the shorter reply.
+
+### Changed
+- **CAN RX/TX and USB TX threads block instead of polling** (`comms/`): ~5000 idle wake-ups a second per
+  thread are gone.
+- CI builds and runs the host self-tests before the firmware build.
+
 ## [5.5.110] — 2026-10-13
 
 No `CONFIG_VERSION` change (still 0x0011): saved configs are kept.
