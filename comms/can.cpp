@@ -123,11 +123,14 @@ void CanTxThread(void *)
 
     while (1)
     {
-        // Send all messages in the TX queue
+        // Send all messages in the TX queue. The first fetch blocks until a frame is posted (up to
+        // 10 ms, to check for termination): no polling wake-ups while the queue is empty.
         msg_t res;
+        sysinterval_t wait = TIME_MS2I(10);
         do
         {
-            res = FetchTxFrame(&msg);
+            res = FetchTxFrame(&msg, wait);
+            wait = TIME_IMMEDIATE;
             if (res == MSG_OK)
             {
                 msg.IDE = CAN_IDE_STD;
@@ -152,8 +155,6 @@ void CanTxThread(void *)
 
         if (chThdShouldTerminateX())
             chThdExit(MSG_OK);
-
-        chThdSleepMicroseconds(30);
     }
 }
 
@@ -171,9 +172,12 @@ void CanRxThread(void *)
         // Drain EVERY frame waiting in the hardware FIFOs, then sleep. Reading one frame per wake-up
         // (the tickless sleep is at least CH_CFG_ST_TIMEDELTA ticks = 200 us) fell behind back-to-back
         // frames on a busy 500 kbit/s bus (~240 us apart) and the 3-deep bxCAN FIFO overran.
+        // The first receive blocks on the RX interrupt (up to 10 ms, to check for termination).
         msg_t res;
-        while ((res = canReceiveTimeout(&CAND1, CAN_ANY_MAILBOX, &msg, TIME_IMMEDIATE)) == MSG_OK)
+        sysinterval_t wait = TIME_MS2I(10);
+        while ((res = canReceiveTimeout(&CAND1, CAN_ANY_MAILBOX, &msg, wait)) == MSG_OK)
         {
+            wait = TIME_IMMEDIATE;
             nLastCanRxTime = SYS_TIME;
             gCanRxFrames++;
 
@@ -201,8 +205,6 @@ void CanRxThread(void *)
 
         if (chThdShouldTerminateX())
             chThdExit(MSG_OK);
-
-        chThdSleepMicroseconds(30);
     }
 }
 

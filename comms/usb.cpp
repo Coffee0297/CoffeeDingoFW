@@ -379,9 +379,11 @@ void UsbTxThread(void *)
         msg_t res;
         if (usbGetDriverStateI(&USBD1) == USB_ACTIVE)
         {
+            sysinterval_t wait = TIME_MS2I(10);   // block for the first frame, no polling wake-ups
             do
             {
-                res = FetchTxUsbFrame(&msg);
+                res = FetchTxUsbFrame(&msg, wait);
+                wait = TIME_IMMEDIATE;
                 if (res == MSG_OK)
                 {
                     // Bridge accept-filter: when armed, still drain the frame from the mailbox but
@@ -428,8 +430,6 @@ void UsbTxThread(void *)
                     chnWriteTimeout(&SDU1, (const uint8_t *)nData, sizeof(nData), TIME_MS2I(10));
                 }
             } while (res == MSG_OK);
-
-            chThdSleepMicroseconds(30);
         }
         else
         {
