@@ -16,7 +16,7 @@ the screenshot below is this firmware running seven modules of a whole vehicle o
 
 ![Seven modules running this firmware in CoffeeDingoSim](docs/img/sim-overview.png)
 
-**Latest release: [v5.5.111](https://github.com/Coffee0297/CoffeeDingoFW/releases)** (`CONFIG_VERSION` 0x0011),
+**Latest release: [v5.5.112](https://github.com/Coffee0297/CoffeeDingoFW/releases)** (`CONFIG_VERSION` 0x0011),
 see the [CHANGELOG](CHANGELOG.md). Flashing it over a different config version resets the module's saved
 settings to defaults: deploy your project again from dingoConfig afterwards.
 

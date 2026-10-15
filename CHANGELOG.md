@@ -5,6 +5,16 @@ from `core/device_config.h`; the `testing` CI build publishes it as a prerelease
 
 ## [Unreleased]
 
+## [5.5.112] — 2026-10-15
+
+No `CONFIG_VERSION` change (still 0x0011): saved configs are kept.
+
+### Fixed
+- **Sleep current on the PDMs** (`functions/profet.cpp`): the Profet diagnostics (DEN) stayed enabled in
+  STOP, so the off output drivers kept drawing their diagnostic current. DEN now goes low with the outputs
+  before sleep. Measured on a dingoPDM v7 at 12 V, nothing else connected: 16 mA → 7 mA asleep (40 mA
+  awake).
+
 ## [5.5.111] — 2026-10-15
 
 No `CONFIG_VERSION` change (still 0x0011): saved configs are kept.

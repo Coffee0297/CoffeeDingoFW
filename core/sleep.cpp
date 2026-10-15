@@ -79,7 +79,7 @@ static bool ForceSleepAsserted()
 //
 // Wake (EnterSleep): DIs in nWakeDigInputMask, CAN RX edge if bWakeOnCan, USB always. Any wake is a
 // full MCU reset — vars, timers and Lua state start from zero; analog inputs cannot wake.
-// Boards with CAN_SLEEP FALSE (CANBoard) never sleep; for them only mute applies.
+// Boards with CAN_SLEEP FALSE never sleep; for them only mute applies.
 bool CheckEnterSleep()
 {
     bool bEnterSleep = false;

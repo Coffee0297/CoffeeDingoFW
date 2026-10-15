@@ -349,6 +349,7 @@ void Profet::ForceOff()
 {
     pwm.Off();
     palClearLine(m_in);
+    palClearLine(m_den);   // diagnostics off: with DEN high an off Profet still draws its diag current (sleep only; wake = reset)
     if (eState != ProfetState::Fault)   // a fault stays a fault
         eState = ProfetState::Off;
     eReported = eState;
