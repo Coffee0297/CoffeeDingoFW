@@ -2,7 +2,11 @@
 #include "device.h"
 #include "port.h"
 #include "can.h"
+#if HAS_USB
 #include "usb.h"
+#else
+static bool GetUsbConnected() { return false; }   // no USB port (CANBoard)
+#endif
 #include "status.h"
 #include "mcu_utils.h"
 #include "device_config.h"
@@ -25,7 +29,9 @@ static uint32_t nSleepPendingTime;  // when the request started
 // External variables from pdm.cpp that we need access to
 extern DeviceConfig stConfig;
 extern bool bSleepRequest;
+#if NUM_OUTPUTS > 0
 extern Profet pf[NUM_OUTPUTS];
+#endif
 #if NUM_DIG_INPUTS > 0
 extern Digital_Input digIn[NUM_DIG_INPUTS];
 #endif
@@ -53,6 +59,27 @@ static bool ForceSleepAsserted()
     return n != 0 && n < VAR_MAP_SIZE && pVarMap[n] != nullptr && *pVarMap[n] != 0.0f;
 }
 
+// CheckEnterSleep — called every control-loop tick; true = go to sleep now (Sleep state ->
+// outputs forced off, CAN transceiver to standby, EnterSleep()). Three ways in:
+//
+//   1. Force sleep   nForceSleepInput != 0 and that var-map signal is true (ignition DI, CAN
+//                    input, timer, virtual input, Lua var). Immediate: ignores outputs-on,
+//                    CAN traffic and bSleepEnabled. Blocked only by USB connected and the
+//                    first SLEEP_BOOT_GRACE_MS after boot.
+//   2. Auto sleep    bSleepEnabled and, for nSleepTimeoutMs (0 = SLEEP_TIMEOUT): no outputs on
+//                    (bSleepIgnoreAlwaysOn skips ALWAYS_TRUE outputs), USB unplugged, and no
+//                    CAN RX that passes this module's filter. One chatty sender keeps it awake.
+//   3. Sleep request CAN "Sleep QUIT" to BaseId-1 (dingoConfig's Sleep button) sets bSleepRequest.
+//                    Needs bSleepEnabled, no outputs on, no USB (CAN idle not needed), then waits
+//                    SLEEP_REQUEST_DELAY; any condition breaking in that window cancels it.
+//
+// Mute (nMuteTxInput, comms/can.cpp) is not a sleep mode: it only withholds the cyclic telemetry
+// so the fleet can go quiet and every module's auto-sleep timer can run out. CAN outputs, Lua
+// txCan and config replies still transmit and still count as bus traffic.
+//
+// Wake (EnterSleep): DIs in nWakeDigInputMask, CAN RX edge if bWakeOnCan, USB always. Any wake is a
+// full MCU reset — vars, timers and Lua state start from zero; analog inputs cannot wake.
+// Boards with CAN_SLEEP FALSE (CANBoard) never sleep; for them only mute applies.
 bool CheckEnterSleep()
 {
     bool bEnterSleep = false;
@@ -143,10 +170,12 @@ void EnableLineEventWithPull(ioline_t line, InputPull pull)
 
 static void ArmUsbWake()
 {
+#if HAS_USB
     palSetLineMode(LINE_USB_DP, PAL_MODE_INPUT);
     palEnableLineEvent(LINE_USB_DP, PAL_EVENT_MODE_BOTH_EDGES | PAL_STM32_PUPDR_FLOATING);
     palSetLineMode(LINE_USB_DM, PAL_MODE_INPUT);
     palEnableLineEvent(LINE_USB_DM, PAL_EVENT_MODE_BOTH_EDGES | PAL_STM32_PUPDR_FLOATING);
+#endif
 }
 
 void EnterSleep()

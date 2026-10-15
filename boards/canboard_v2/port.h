@@ -18,7 +18,8 @@
 #define HAS_EXT_TEMP_SENSOR FALSE
 #define HAS_EXT_MEMORY FALSE
 #define HAS_BATT_VOLT_SENSE FALSE
-#define CAN_SLEEP FALSE
+#define CAN_SLEEP TRUE
+#define SLEEP_TIMEOUT 30000   // used when the configured sleep timeout is 0
 
 #define NUM_OUTPUTS 0
 #define NUM_DIG_OUTPUTS 4

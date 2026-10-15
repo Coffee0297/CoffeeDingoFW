@@ -7,3 +7,4 @@
 // CCM SRAM that the bootloader reads at startup, then resets. See mcu_utils.cpp and the
 // bootloader's CpuUserProgramStartHook() in bootloader/canboard/hooks.c.
 void RequestBootloader();
+void EnterStopMode();

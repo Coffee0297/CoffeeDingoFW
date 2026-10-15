@@ -41,6 +41,16 @@ public:
 
     void Update();
 
+    // Before STOP mode: the control loop halts, so drop the line rather than leave it latched on.
+    void ForceOff()
+    {
+#if HAS_DIG_PWM
+        pwm.Off();
+#endif
+        palClearLine(m_line);
+        fVal = 0;
+    }
+
     // Bench test override (MsgCmd::OutputTest): force the output on (mode 1) or, with HAS_DIG_PWM, PWM at
     // a duty + frequency (mode 2) for nHoldSec, ignoring its input. Expires on its own; mode 0 releases early.
     void SetTest(uint8_t nMode, uint8_t nDuty, uint16_t nFreq, uint8_t nHoldSec);

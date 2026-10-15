@@ -247,7 +247,7 @@ void InitDevice()
     OvlLogInit();
     #endif
 
-    #if CAN_SLEEP
+    #if CAN_SLEEP && defined(LINE_CAN_STANDBY)
     palClearLine(LINE_CAN_STANDBY);
     #endif
 
@@ -320,8 +320,10 @@ void States()
     #if CAN_SLEEP
     if (CheckEnterSleep())
     {
+        #if HAS_SE_LEDS
         statusLed.Solid(false);
         errorLed.Solid(false);
+        #endif
         eState = DeviceState::Sleep;
     }
 
@@ -334,10 +336,16 @@ void States()
         for (uint8_t i = 0; i < NUM_OUTPUTS; i++)
             pf[i].ForceOff();
         #endif
+        #if NUM_DIG_OUTPUTS > 0
+        for (uint8_t i = 0; i < NUM_DIG_OUTPUTS; i++)
+            digOut[i].ForceOff();
+        #endif
         // Let CanTxThread flush the frames already queued (the last status round) before the
         // transceiver goes to standby, otherwise they are lost or half-sent.
         chThdSleepMilliseconds(100);
-        palSetLine(LINE_CAN_STANDBY); // CAN disabled
+        #ifdef LINE_CAN_STANDBY
+        palSetLine(LINE_CAN_STANDBY); // CAN disabled (no standby pin: the transceiver stays powered)
+        #endif
         EnterSleep();
     }
     #endif
