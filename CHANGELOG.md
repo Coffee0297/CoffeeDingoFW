@@ -5,6 +5,36 @@ from `core/device_config.h`; the `testing` CI build publishes it as a prerelease
 
 ## [Unreleased]
 
+## [5.6.0] — 2026-10-16
+
+**`CONFIG_VERSION` 0x0011 → 0x0012: saved configs are reset to defaults after updating.** Write the project
+to the module again (dingoConfig: Apply) once it is on 5.6.
+
+### Added
+- **Identify** (`MsgCmd::Identify` 49 `[cmd, secs]`): the module answers `[cmd, secs, hasLed]` and blinks its
+  status LEDs for that long (the CANBoard has none, so it only answers).
+- **Why it slept / woke** (`MsgCmd::SleepInfo` 50): wake reason (power-on, CAN, digital input, USB) and
+  source, wakes since power-on, the sleep countdown and what keeps it awake. The wake cause survives the
+  STOP reset in a small no-init word. A module now says goodbye before sleep (`[32,'Z','Z','Z',why]` on
+  base+0). The countdown is also in the status frames (PDM msg 0 byte 0 bits 2-7, CANBoard msg 1).
+- **Trip times and notices** (`MsgCmd::OvlTime` 51, `OvlNotice` 52): each overload trip keeps its uptime;
+  entering Warning or OpenLoad is logged in a 16-entry ring. `OvlCount` replies with 8 bytes (uptime and
+  notice count added).
+- **CAN input "value on timeout"** (0x1300 sub 14): what a CAN input reads when its frame stops coming.
+- **Math blocks** (0x1C00, 8 on the PDMs / 4 on the CANBoard): A op B (add, sub, mul, div, min, max,
+  average) × factor + offset; B a signal or a constant.
+- **CAN Messages** (0x1D00, 4 / 2): send a fixed 8-byte frame while a signal is true (repeat at an
+  interval) or once each time it turns true.
+- **Ignition & start button** (0x1E00): switch + button, button only or key; crank only with the
+  crank-allow input, max crank time, crank while held, dash hold after off. The main module sends its state
+  every 100 ms at the first id after its range (PDM base+30, CANBoard base+14); followers copy it and hold
+  the last state if it stops. Published as var-map signals (Ignition, Accessory, Cranking, Running, Ready,
+  Dash, Link OK), so outputs take a role by following one.
+
+### Changed
+- `ParamInfo` packs its type next to the subindex (24 bytes, was 28): the CANBoard's 46 KB flash needed the
+  room. Var map: PDM 282, CANBoard 113 entries.
+
 ## [5.5.112] — 2026-10-15
 
 No `CONFIG_VERSION` change (still 0x0011): saved configs are kept.

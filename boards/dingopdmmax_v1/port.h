@@ -33,6 +33,9 @@
 #define NUM_CONDITIONS 32
 #define NUM_TIMERS 8
 #define NUM_TABLES 2
+#define NUM_MATH 8       // Math blocks (5.6)
+#define NUM_CAN_MSGS 4   // CAN Message blocks (5.6)
+#define IGN_STATE_OFFSET 30   // ignition state frame: the first id after this board's own range (5.6)
 #define NUM_KEYPADS 2
 #define HAS_WIPERS TRUE
 #define HAS_STARTER_DISABLE TRUE
@@ -62,7 +65,8 @@
     (NUM_LUA_OUTPUTS * 1) + \
     (NUM_TIMERS * 1) + \
     (NUM_TABLES * 1) + \
-    (NUM_DIG_INPUTS * 2) \
+    (NUM_DIG_INPUTS * 2) + \
+    (NUM_MATH * 1) + (NUM_CAN_MSGS * 1) + 7 /* ignition (5.6) */ \
 )
 
 #define MAILBOX_SIZE 128

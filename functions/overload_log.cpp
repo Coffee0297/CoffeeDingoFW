@@ -9,6 +9,7 @@ struct OvlEvent
     uint8_t  nState;
     uint8_t  nPeakByte;                  // max waveform byte in this event
     float    fLimitA;
+    uint32_t nTime;                      // ms since power-on when it tripped (5.6)
     uint8_t  acSamples[OVL_TOTAL_SAMPLES];
 };
 
@@ -81,6 +82,7 @@ void OvlLogTrigger(uint8_t nOut, ProfetState eState, float fLimitA)
     ev->nState = (uint8_t)eState;
     ev->fLimitA = fLimitA;
     ev->nPeakByte = 0;
+    ev->nTime = SYS_TIME;
 
     // Copy the pre-trip ring in chronological order (oldest first) into samples[0..PRE-1].
     uint16_t h = preHead[nOut];
@@ -133,6 +135,31 @@ uint8_t OvlLogGetData(uint8_t idx, uint16_t off, uint8_t *pBuf, uint8_t nMax)
     return n;
 }
 
-void OvlLogClear() { OvlLogInit(); }
+uint32_t OvlLogTime(uint8_t idx)
+{
+    OvlEvent *ev = EventAt(idx);
+    return ev ? ev->nTime : 0;
+}
+
+struct OvlNoticeRec { uint32_t nTime; uint8_t nOut; uint8_t nKind; };
+static OvlNoticeRec notices[OVL_NOTICES];
+static uint8_t nNoticeHead, nNoticeUsed;
+
+void OvlNotice(uint8_t nOut, uint8_t nKind)
+{
+    notices[nNoticeHead] = { SYS_TIME, nOut, nKind };
+    nNoticeHead = (nNoticeHead + 1) % OVL_NOTICES;
+    if (nNoticeUsed < OVL_NOTICES) nNoticeUsed++;
+}
+uint8_t OvlNoticeCount() { return nNoticeUsed; }
+bool OvlNoticeGet(uint8_t idx, uint8_t &nOut, uint8_t &nKind, uint32_t &nTime)
+{
+    if (idx >= nNoticeUsed) return false;
+    const OvlNoticeRec &n = notices[(nNoticeHead + OVL_NOTICES - 1 - idx) % OVL_NOTICES];
+    nOut = n.nOut; nKind = n.nKind; nTime = n.nTime;
+    return true;
+}
+
+void OvlLogClear() { OvlLogInit(); nNoticeHead = 0; nNoticeUsed = 0; }
 
 #endif

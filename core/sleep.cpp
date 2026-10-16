@@ -26,6 +26,22 @@ static uint32_t nUsbDisconnectedTime;
 static bool bSleepPending;          // a request is in its settle window
 static uint32_t nSleepPendingTime;  // when the request started
 
+// 5.6 sleep status for the tool
+static uint8_t nCountdown = 0xFF, nBlockers = 0, nWhy = 0;
+static WakeReason eWake = WakeReason::PowerOn;
+static uint8_t nWakeSource = 0;
+static uint16_t nWakes = 0;
+
+// Kept across the wake reset: RAM the startup code does not clear (top of SRAM next to the bootloader words on
+// the PDMs, CCM next to the bootloader magic on the CANBoard). ponytail: a magic word marks it valid; on a board
+// or emulator that clears RAM on reset the reason reads PowerOn.
+#if defined(STM32F4XX)
+static volatile uint32_t *const kWakeKeep = (volatile uint32_t *)0x2001FFE0;
+#else
+static volatile uint32_t *const kWakeKeep = (volatile uint32_t *)0x10000FF0;
+#endif
+#define WAKE_MAGIC 0x57414B45u   // "WAKE"
+
 // External variables from pdm.cpp that we need access to
 extern DeviceConfig stConfig;
 extern bool bSleepRequest;
@@ -113,7 +129,18 @@ bool CheckEnterSleep()
     // grace lets debounce / CAN inputs settle so a half-read pin can't put a freshly woken
     // module straight back to sleep.
     if (ForceSleepAsserted() && !GetUsbConnected() && sys > SLEEP_BOOT_GRACE_MS)
+    {
+        nWhy = 2;
         return true;
+    }
+
+    // ---- 5.6 status: what blocks auto-sleep, and how long until it if nothing does ----------
+    uint32_t elapsed = SYS_TIME - nAllOutputsOffTime;
+    if ((SYS_TIME - nUsbDisconnectedTime) < elapsed) elapsed = SYS_TIME - nUsbDisconnectedTime;
+    if (nCanRxIdleTime < elapsed) elapsed = nCanRxIdleTime;
+    nBlockers = (stConfig.stDevice.bSleepEnabled ? 0 : 1) | (nNumOutputsOn > 0 ? 2 : 0) | (GetUsbConnected() ? 4 : 0) |
+                (nCanRxIdleTime < nTimeout && nCanRxIdleTime == elapsed ? 8 : 0);
+    nCountdown = (nBlockers & 7) ? 0xFF : (elapsed >= nTimeout ? 0 : (uint8_t)((nTimeout - elapsed + 999) / 1000));
 
     // ---- 2. Automatic sleep --------------------------------------------------------
     // No outputs on, no CAN traffic, no USB, for the configured timeout.
@@ -146,7 +173,48 @@ bool CheckEnterSleep()
         else if ((SYS_TIME - nSleepPendingTime) > SLEEP_REQUEST_DELAY) bRequestSleep = true;
     }
 
+    if (bEnterSleep) nWhy = 1;
+    else if (bRequestSleep) nWhy = 3;
     return bEnterSleep || bRequestSleep;
+}
+
+uint8_t SleepCountdownSec() { return nCountdown; }
+uint8_t SleepBlockers() { return nBlockers; }
+uint8_t SleepWhy() { return nWhy; }
+WakeReason GetWakeReason() { return eWake; }
+uint8_t GetWakeSource() { return nWakeSource; }
+uint16_t GetWakeCount() { return nWakes; }
+
+void CaptureWakeAfterStop()
+{
+    // EXTI pending bits = the lines that ended STOP: CAN RX, USB D+/D-, or a digital input
+    const uint32_t pr = EXTI->PR;
+    uint32_t reason = static_cast<uint32_t>(WakeReason::PowerOn), source = 0;
+    if (pr & (1u << PAL_PAD(LINE_CAN_RX))) reason = static_cast<uint32_t>(WakeReason::Can);
+#if HAS_USB
+    if (pr & ((1u << PAL_PAD(LINE_USB_DP)) | (1u << PAL_PAD(LINE_USB_DM)))) reason = static_cast<uint32_t>(WakeReason::Usb);
+#endif
+#if NUM_DIG_INPUTS > 0
+    for (uint8_t i = 0; i < NUM_DIG_INPUTS; i++)
+        if ((stConfig.stDevice.nWakeDigInputMask & (1u << i)) && (pr & (1u << PAL_PAD(digIn[i].GetLine()))))
+        { reason = static_cast<uint32_t>(WakeReason::DigitalInput); source = i + 1; break; }
+#endif
+    const uint32_t wakes = (kWakeKeep[0] == WAKE_MAGIC ? (kWakeKeep[1] >> 16) : 0) + 1;
+    kWakeKeep[1] = (wakes << 16) | (source << 8) | reason;
+    kWakeKeep[0] = WAKE_MAGIC;
+}
+
+void ReadWakeAtBoot()
+{
+    if (kWakeKeep[0] == WAKE_MAGIC)
+    {
+        const uint32_t v = kWakeKeep[1];
+        eWake = static_cast<WakeReason>(v & 0xFF);
+        nWakeSource = (v >> 8) & 0xFF;
+        nWakes = (uint16_t)(v >> 16);
+    }
+    // a power-on or reset (not a wake) starts the count again
+    kWakeKeep[0] = 0;
 }
 
 void EnableLineEventWithPull(ioline_t line, InputPull pull)

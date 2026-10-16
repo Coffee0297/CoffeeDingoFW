@@ -1,3 +1,4 @@
+#include "sleep.h"
 #include "mcu_utils.h"
 #include "hal.h"
 
@@ -31,6 +32,7 @@ void EnterStopMode()
     __WFI();
 
     // Resume here after wakeup
+    CaptureWakeAfterStop();   // 5.6: remember what woke it, across the reset
     NVIC_SystemReset();
 }
 

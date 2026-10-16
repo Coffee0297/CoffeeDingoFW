@@ -1,3 +1,4 @@
+#include "sleep.h"
 #include "msg.h"
 #include "config.h"
 #include "profet.h"
@@ -13,7 +14,9 @@ CANTxMsg TxMsg0()
     //=======================================================
     stMsg.frame.SID = stConfig.stDevice.nBaseId + CYCLIC_TX_OFFSET + 0;
     stMsg.frame.DLC = 8; // Bytes to send
-    stMsg.frame.data8[0] = (GetDigInputVal(1) << 1) + GetDigInputVal(0);
+    // bits 2-7 (5.6): seconds until auto-sleep, 0..60; 63 = not counting (sleep off, outputs on, USB)
+    stMsg.frame.data8[0] = (GetDigInputVal(1) << 1) + GetDigInputVal(0) +
+                           ((SleepCountdownSec() > 60 ? 63 : SleepCountdownSec()) << 2);
     stMsg.frame.data8[1] = static_cast<uint8_t>(GetDeviceState()) + (PDM_TYPE << 4);
     stMsg.frame.data16[1] = (uint16_t)(GetTotalCurrent() * 10.0); // 0.1 A/bit
     stMsg.frame.data16[2] = (uint16_t)(GetBattVolt() * 10.0);

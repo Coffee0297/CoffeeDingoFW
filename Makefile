@@ -172,6 +172,9 @@ CPPSRC = $(ALLCPPSRC) \
 				 functions/flasher.cpp \
 				 functions/table.cpp \
 				 functions/timer.cpp \
+				 functions/math_block.cpp \
+				 functions/can_msg.cpp \
+				 functions/ignition.cpp \
 				 functions/input.cpp \
 				 functions/virtual_input.cpp \
 				 utils/crc.cpp \

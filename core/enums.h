@@ -36,6 +36,53 @@ enum class FatalErrorType : uint8_t
 //=============================================================================
 // Message Enums
 //=============================================================================
+// Math block operation (5.6): A op B
+enum class MathOp : uint8_t
+{
+    Add = 0,
+    Sub = 1,
+    Mul = 2,
+    Div = 3,
+    Min = 4,
+    Max = 5,
+    Average = 6
+};
+
+// CAN Message block (5.6): every interval while the trigger is true, or one frame each time it turns true
+enum class CanMsgMode : uint8_t
+{
+    Repeat = 0,
+    Once = 1
+};
+
+// Ignition block (5.6)
+enum class IgnMode : uint8_t
+{
+    SwitchButton = 0,   // ignition switch + start button
+    ButtonOnly = 1,     // the button does ignition and start
+    Key = 2             // key: ON held, START momentary
+};
+enum class IgnRole : uint8_t
+{
+    Main = 0,           // reads the inputs, runs the state machine, broadcasts it
+    Follower = 1        // copies the main module
+};
+enum class IgnState : uint8_t
+{
+    Off = 0,
+    On = 1,
+    Cranking = 2,
+    Running = 3
+};
+
+enum class WakeReason : uint8_t
+{
+    PowerOn = 0,      // not woken from sleep: power applied, a reset, or the reason was lost
+    Can = 1,
+    DigitalInput = 2,
+    Usb = 3
+};
+
 enum class MsgCmd : uint8_t
 {
     Null = 0,
@@ -79,6 +126,21 @@ enum class MsgCmd : uint8_t
     // The override expires after holdSec (1..30) on its own — the tool re-sends while the test runs —
     // and only an enabled output is accepted, so the test runs under that output's current limits.
     OutputTest = 48,
+
+    // Identify (5.6): [cmd, seconds] -> blink the status and error LEDs in turn for 1..60 s so the operator can
+    // find the module. Reply [cmd, seconds, hasLed] (hasLed 0: no LED on this board, e.g. the CANBoard).
+    Identify = 49,
+
+    // Sleep info (5.6): [cmd] -> [cmd, wakeReason, wakeSource, wakesLo, wakesHi, countdown s (0xFF none), blockers, 0].
+    // wakeReason: WakeReason below; wakeSource = the digital input number (1..) for DigitalInput.
+    // blockers (what keeps it from sleeping now): bit0 sleep off, bit1 outputs on, bit2 USB, bit3 CAN traffic.
+    // Before it sleeps the module also sends [Sleep(32), 'Z', 'Z', 'Z', why (1 auto, 2 forced, 3 request), 0, 0, 0].
+    SleepInfo = 50,
+
+    // Trip times and other output events (5.6). OvlCount's reply also carries the uptime now (bytes 2-5, ms) and
+    // the number of notices (byte 6), so the tool can turn the times below into clock times.
+    OvlTime = 51,           // [cmd, idx] -> [cmd, idx, t0, t1, t2, t3, 0, 0] (trip idx, ms since power-on)
+    OvlNotice = 52,         // [cmd, idx] -> [cmd, idx, out (0-based, 0xFF none), kind (1 warning, 2 open load), t0..t3]
 
     Invalid = 0xFF
 };

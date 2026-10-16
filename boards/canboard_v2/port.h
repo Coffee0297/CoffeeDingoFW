@@ -39,6 +39,9 @@
 #define NUM_CONDITIONS 8
 #define NUM_TIMERS 4
 #define NUM_TABLES 0    // no room in the 2 KB config sector for 8x8 float tables (328 B each)
+#define NUM_MATH 4       // Math blocks (5.6)
+#define NUM_CAN_MSGS 2   // CAN Message blocks (5.6)
+#define IGN_STATE_OFFSET 14   // ignition state frame: the first id after this board's own range (5.6)
 #define NUM_KEYPADS 0
 #define HAS_WIPERS FALSE
 #define HAS_STARTER_DISABLE FALSE
@@ -65,7 +68,8 @@
     (NUM_KEYPADS * (KEYPAD_MAX_BUTTONS + KEYPAD_MAX_DIALS + KEYPAD_MAX_ANALOG_INPUTS)) + \
     (NUM_TIMERS * 1) + \
     (NUM_TABLES * 1) + \
-    (NUM_DIG_INPUTS * 2) \
+    (NUM_DIG_INPUTS * 2) + \
+    (NUM_MATH * 1) + (NUM_CAN_MSGS * 1) + 7 /* ignition (5.6) */ \
 )
 
 // Last 2KB sector of flash (sector 31, 0x0800F800)

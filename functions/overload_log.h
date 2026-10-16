@@ -36,6 +36,13 @@ void OvlLogSample(uint8_t nOut, float fAmps);
 void OvlLogTrigger(uint8_t nOut, ProfetState eState, float fLimitA);
 
 uint8_t OvlLogCount();                                        // number of stored events
+uint32_t OvlLogTime(uint8_t idx);                             // ms since power-on of trip idx (5.6), 0 = invalid
+
+// Notices (5.6): an output went into Warning or OpenLoad. Time and kind only, no waveform (RAM).
+#define OVL_NOTICES 16
+void OvlNotice(uint8_t nOut, uint8_t nKind);                  // nKind 1 warning, 2 open load
+uint8_t OvlNoticeCount();
+bool OvlNoticeGet(uint8_t idx, uint8_t &nOut, uint8_t &nKind, uint32_t &nTime);   // idx 0 = newest
 // Header for event idx (0 = newest). peakA/limitA in amps. Returns false if idx invalid.
 bool OvlLogGetHeader(uint8_t idx, uint8_t &nOut, uint8_t &nState, float &fPeakA, float &fLimitA);
 // Copy up to nMax waveform bytes from sample offset off. Returns bytes copied (0 past end).

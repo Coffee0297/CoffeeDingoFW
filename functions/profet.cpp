@@ -1,5 +1,6 @@
 #include "profet.h"
 #include "dbc.h"
+#include "overload_log.h"
 
 #if NUM_OUTPUTS > 0
 void Profet::Update(bool bOutEnabled)
@@ -197,6 +198,14 @@ void Profet::Update(bool bOutEnabled)
     else
     {
         nOpenLoadStart = 0;
+    }
+
+    // 5.6: log the moment it enters Warning or OpenLoad (once per entry) for the tool's event list
+    if (eReported != eLastReported)
+    {
+        if (eReported == ProfetState::Warning) OvlNotice(m_num - 1, 1);
+        else if (eReported == ProfetState::OpenLoad) OvlNotice(m_num - 1, 2);
+        eLastReported = eReported;
     }
 
     // Set var map values

@@ -19,6 +19,13 @@
 #if NUM_TABLES > 0
 #include "table.h"
 #endif
+#if NUM_MATH > 0
+#include "math_block.h"
+#endif
+#include "ignition.h"
+#if NUM_CAN_MSGS > 0
+#include "can_msg.h"
+#endif
 #include "mailbox.h"
 #include "msg.h"
 #include "error.h"
@@ -57,6 +64,13 @@ Flasher flasher[NUM_FLASHERS];
 Counter counter[NUM_COUNTERS];
 Condition condition[NUM_CONDITIONS];
 Timer timer[NUM_TIMERS];
+#if NUM_MATH > 0
+MathBlock mathBlock[NUM_MATH];
+#endif
+Ignition ignition;
+#if NUM_CAN_MSGS > 0
+CanMsg canMsg[NUM_CAN_MSGS];
+#endif
 #if NUM_TABLES > 0
 Table table[NUM_TABLES];
 #endif
@@ -87,6 +101,7 @@ volatile bool gLuaReload = false; // set by the upload handler; LuaThread reload
 float fBattVolt;
 float fTempSensor;
 bool bDeviceOverTemp;
+volatile uint32_t nIdentifyUntil = 0;
 bool bDeviceCriticalTemp;
 bool bSleepRequest;
 bool bBootloaderRequest;
@@ -210,6 +225,10 @@ void InitDevice()
     Error::Initialize(&statusLed, &errorLed);
     #endif
 
+    #if CAN_SLEEP
+    ReadWakeAtBoot();   // 5.6: what woke it (MsgCmd::SleepInfo)
+    #endif
+
     InitVarMap(); // Set val pointers
 
     #if HAS_I2C
@@ -317,6 +336,16 @@ void States()
     }
     #endif
 
+    #if HAS_SE_LEDS
+    // Identify (5.6): the two LEDs take turns, 4 Hz, over whatever the state set above, until the time is up
+    if ((int32_t)(nIdentifyUntil - SYS_TIME) > 0)
+    {
+        bool phase = (SYS_TIME / 125U) & 1U;
+        statusLed.Solid(phase);
+        errorLed.Solid(!phase);
+    }
+    #endif
+
     #if CAN_SLEEP
     if (CheckEnterSleep())
     {
@@ -340,6 +369,17 @@ void States()
         for (uint8_t i = 0; i < NUM_DIG_OUTPUTS; i++)
             digOut[i].ForceOff();
         #endif
+        // 5.6: say so before going quiet, so the tool tells "asleep" from "unplugged"
+        {
+            CANTxFrame tx;
+            tx.SID = stConfig.stDevice.nBaseId + CONFIG_TX_OFFSET;
+            tx.IDE = CAN_IDE_STD;
+            tx.DLC = 8;
+            tx.data8[0] = static_cast<uint8_t>(MsgCmd::Sleep);
+            tx.data8[1] = 'Z'; tx.data8[2] = 'Z'; tx.data8[3] = 'Z';
+            tx.data8[4] = SleepWhy(); tx.data8[5] = 0; tx.data8[6] = 0; tx.data8[7] = 0;
+            PostTxFrame(&tx);
+        }
         // Let CanTxThread flush the frames already queued (the last status round) before the
         // transceiver goes to standby, otherwise they are lost or half-sent.
         chThdSleepMilliseconds(100);
@@ -379,6 +419,7 @@ void CyclicUpdate()
         {
             for (uint8_t i = 0; i < NUM_CAN_INPUTS; i++)
                 canIn[i].CheckMsg(rxMsg);
+            ignition.CheckMsg(rxMsg.SID, rxMsg.data8, rxMsg.DLC, SYS_TIME);   // follower link (5.6)
 
             #if HAS_LUA
             LuaBridgeCanRxFeed(&rxMsg);   // queue for onCanRx() if id was registered
@@ -491,6 +532,39 @@ void CyclicUpdate()
     #if NUM_TABLES > 0
     for (uint8_t i = 0; i < NUM_TABLES; i++)
         table[i].Update();
+    #endif
+
+    #if NUM_MATH > 0
+    for (uint8_t i = 0; i < NUM_MATH; i++)
+        mathBlock[i].Update();
+    #endif
+
+    ignition.Update(SYS_TIME);
+    {
+        CANTxFrame tx;
+        if (ignition.StateFrame(SYS_TIME, tx.data8))
+        {
+            tx.SID = stConfig.stDevice.nBaseId + IGN_STATE_OFFSET;
+            tx.IDE = CAN_IDE_STD;
+            tx.RTR = CAN_RTR_DATA;
+            tx.DLC = 8;
+            PostTxFrame(&tx);
+        }
+    }
+
+    #if NUM_CAN_MSGS > 0
+    for (uint8_t i = 0; i < NUM_CAN_MSGS; i++)
+    {
+        if (!canMsg[i].Due(SYS_TIME)) continue;
+        const Config_CanMsg *c = canMsg[i].Config();
+        CANTxFrame tx;
+        tx.IDE = c->nIDE ? CAN_IDE_EXT : CAN_IDE_STD;
+        if (c->nIDE) tx.EID = c->nID; else tx.SID = c->nID;
+        tx.RTR = CAN_RTR_DATA;
+        tx.DLC = c->nDLC > 8 ? 8 : c->nDLC;
+        for (uint8_t b = 0; b < 8; b++) tx.data8[b] = c->nData[b];
+        PostTxFrame(&tx);
+    }
     #endif
 
     #if NUM_KEYPADS > 0
@@ -645,6 +719,24 @@ void InitVarMap()
         pVarMap[index++] = &digIn[i].fFreq;
     }
     #endif
+
+    // Math and CAN Message blocks (5.6), appended last so every older index is unchanged
+    #if NUM_MATH > 0
+    for (uint8_t i = 0; i < NUM_MATH; i++)
+        pVarMap[index++] = &mathBlock[i].fVal;
+    #endif
+    #if NUM_CAN_MSGS > 0
+    for (uint8_t i = 0; i < NUM_CAN_MSGS; i++)
+        pVarMap[index++] = &canMsg[i].fVal;
+    #endif
+    // Ignition (5.6): the roles an output can follow
+    pVarMap[index++] = &ignition.fIgnition;
+    pVarMap[index++] = &ignition.fAccessory;
+    pVarMap[index++] = &ignition.fCranking;
+    pVarMap[index++] = &ignition.fRunning;
+    pVarMap[index++] = &ignition.fReady;
+    pVarMap[index++] = &ignition.fDash;
+    pVarMap[index++] = &ignition.fLinkOk;
 
     //VarMap size must match the expected size
     if (index != VAR_MAP_SIZE)

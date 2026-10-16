@@ -12,6 +12,16 @@
 #if NUM_TABLES > 0
 #include "table.h"
 #endif
+#if NUM_MATH > 0
+#include "math_block.h"
+extern MathBlock mathBlock[NUM_MATH];
+#endif
+#include "ignition.h"
+extern Ignition ignition;
+#if NUM_CAN_MSGS > 0
+#include "can_msg.h"
+extern CanMsg canMsg[NUM_CAN_MSGS];
+#endif
 #if NUM_OUTPUTS > 0
 #include "profet.h"
 #endif
@@ -76,6 +86,13 @@ void ApplyAllConfig()
     ApplyConfig(Counter::nBaseIndex);
     ApplyConfig(Condition::nBaseIndex);
     ApplyConfig(Timer::nBaseIndex);
+    #if NUM_MATH > 0
+    ApplyConfig(MathBlock::nBaseIndex);
+    #endif
+    ApplyConfig(Ignition::nBaseIndex);
+    #if NUM_CAN_MSGS > 0
+    ApplyConfig(CanMsg::nBaseIndex);
+    #endif
     #if NUM_TABLES > 0
     ApplyConfig(Table::nBaseIndex);
     #endif
@@ -134,6 +151,10 @@ void ApplyConfig(uint16_t nIndex)
             SetCanFilterId(i + 1, nId, stConfig.stCanInput[i].nIDE == 1);
         }
 
+        // Ignition follower (5.6): let the main module's state frame through
+        if (stConfig.stIgnition.bEnabled && stConfig.stIgnition.eRole == IgnRole::Follower)
+            SetCanFilterId(NUM_CAN_INPUTS + 1, stConfig.stIgnition.nMainStateId, false);
+
         //TODO: Set can filter without requiring reset, need a new message to indicate all IDs set before stopping CAN
     }
 
@@ -174,6 +195,26 @@ void ApplyConfig(uint16_t nIndex)
             timer[i].SetConfig(&stConfig.stTimer[i]);
     }
 
+    if (nBaseIndex == Ignition::nBaseIndex)
+    {
+        ignition.SetConfig(&stConfig.stIgnition);
+        ApplyConfig(CanInput::nBaseIndex);   // the follower's receive filter
+    }
+
+    #if NUM_MATH > 0
+    if (nBaseIndex == MathBlock::nBaseIndex)
+    {
+        for (uint8_t i = 0; i < NUM_MATH; i++)
+            mathBlock[i].SetConfig(&stConfig.stMath[i]);
+    }
+    #endif
+    #if NUM_CAN_MSGS > 0
+    if (nBaseIndex == CanMsg::nBaseIndex)
+    {
+        for (uint8_t i = 0; i < NUM_CAN_MSGS; i++)
+            canMsg[i].SetConfig(&stConfig.stCanMsg[i]);
+    }
+    #endif
     #if NUM_TABLES > 0
     if (nBaseIndex == Table::nBaseIndex)
     {

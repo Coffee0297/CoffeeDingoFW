@@ -12,6 +12,13 @@
 #include "counter.h"
 #include "condition.h"
 #include "timer.h"
+#if NUM_MATH > 0
+#include "math_block.h"
+#endif
+#include "ignition.h"
+#if NUM_CAN_MSGS > 0
+#include "can_msg.h"
+#endif
 #if NUM_TABLES > 0
 #include "table.h"
 #endif
@@ -37,7 +44,7 @@
 #include "analog_input.h"
 #endif  
 
-#define CONFIG_VERSION 0x0011 //Increment when config structure changes
+#define CONFIG_VERSION 0x0012 //Increment when config structure changes (0x0012: 5.6, CAN input timeout value, ...)
 
 struct Config_Device{
   uint16_t nConfigVersion;
@@ -76,6 +83,13 @@ struct DeviceConfig{
   Config_Counter stCounter[NUM_COUNTERS];
   Config_Condition stCondition[NUM_CONDITIONS];
   Config_Timer stTimer[NUM_TIMERS];
+  #if NUM_MATH > 0
+  Config_Math stMath[NUM_MATH];          // 5.6
+  #endif
+  Config_Ignition stIgnition;            // 5.6
+  #if NUM_CAN_MSGS > 0
+  Config_CanMsg stCanMsg[NUM_CAN_MSGS];  // 5.6
+  #endif
   #if NUM_TABLES > 0
   Config_Table stTable[NUM_TABLES];
   #endif

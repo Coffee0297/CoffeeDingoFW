@@ -149,6 +149,7 @@ private:
     ProfetState eReqState;
     ProfetState eLastState;
     ProfetState eReported;     // eState with Warning/OpenLoad overlaid (reported to CAN)
+    ProfetState eLastReported = ProfetState::Off;   // to log Warning / OpenLoad once per entry (5.6)
 
     float fPeak;               // max current since last GetPeakReset()
     uint32_t nOpenLoadStart;   // time current first dropped below the open-load floor (ms), 0 = not low

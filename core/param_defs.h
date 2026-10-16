@@ -88,7 +88,7 @@
     {0x1300 + (i), 10, &stConfig.stCanInput[i].bSigned,         &stConfigTemp.stCanInput[i].bSigned,         ParamType::Bool,   0, 0, 1}, \
     {0x1300 + (i), 11, &stConfig.stCanInput[i].eOperator,       &stConfigTemp.stCanInput[i].eOperator,       ParamType::Enum,   static_cast<uint32_t>(Operator::Equal), 0, 7}, \
     {0x1300 + (i), 12, &stConfig.stCanInput[i].fOperand,        &stConfigTemp.stCanInput[i].fOperand,        ParamType::Float,  F(0.0f), F(-1e9f), F(1e9f)}, \
-    {0x1300 + (i), 13, &stConfig.stCanInput[i].eMode,           &stConfigTemp.stCanInput[i].eMode,           ParamType::Enum,   static_cast<uint32_t>(InputMode::Momentary), 0, 1}
+    {0x1300 + (i), 13, &stConfig.stCanInput[i].eMode,           &stConfigTemp.stCanInput[i].eMode,           ParamType::Enum,   static_cast<uint32_t>(InputMode::Momentary), 0, 1},     {0x1300 + (i), 14, &stConfig.stCanInput[i].fTimeoutValue,   &stConfigTemp.stCanInput[i].fTimeoutValue,   ParamType::Float,  F(0.0f), F(-1e9f), F(1e9f)}
     
 //=============================================================================
 // Virtual Input Parameters - Base 0x1400
@@ -178,6 +178,50 @@
     {0x1B00 + (i), 2, &stConfig.stTimer[i].eEdge,    &stConfigTemp.stTimer[i].eEdge,    ParamType::Enum,   static_cast<uint32_t>(InputEdge::Rising), 0, 1}, \
     {0x1B00 + (i), 3, &stConfig.stTimer[i].eMode,    &stConfigTemp.stTimer[i].eMode,    ParamType::Enum,   static_cast<uint32_t>(TimerMode::OnDelay), 0, 2}, \
     {0x1B00 + (i), 4, &stConfig.stTimer[i].nPreset,  &stConfigTemp.stTimer[i].nPreset,  ParamType::UInt32, 1000, 0, 3600000}
+
+//=============================================================================
+// Math block Parameters - Base 0x1C00 (5.6)
+//=============================================================================
+#define MATH_PARAMS(i) \
+    {0x1C00 + (i), 0, &stConfig.stMath[i].bEnabled, &stConfigTemp.stMath[i].bEnabled, ParamType::Bool,   0, 0, 1}, \
+    {0x1C00 + (i), 1, &stConfig.stMath[i].eOp,      &stConfigTemp.stMath[i].eOp,      ParamType::Enum,   static_cast<uint32_t>(MathOp::Add), 0, 6}, \
+    {0x1C00 + (i), 2, &stConfig.stMath[i].nInputA,  &stConfigTemp.stMath[i].nInputA,  ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
+    {0x1C00 + (i), 3, &stConfig.stMath[i].nInputB,  &stConfigTemp.stMath[i].nInputB,  ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
+    {0x1C00 + (i), 4, &stConfig.stMath[i].fConstB,  &stConfigTemp.stMath[i].fConstB,  ParamType::Float,  F(0.0f), F(-1e9f), F(1e9f)}, \
+    {0x1C00 + (i), 5, &stConfig.stMath[i].fFactor,  &stConfigTemp.stMath[i].fFactor,  ParamType::Float,  F(1.0f), F(-1e9f), F(1e9f)}, \
+    {0x1C00 + (i), 6, &stConfig.stMath[i].fOffset,  &stConfigTemp.stMath[i].fOffset,  ParamType::Float,  F(0.0f), F(-1e9f), F(1e9f)}
+
+//=============================================================================
+// CAN Message block Parameters - Base 0x1D00 (5.6). Data bytes at sub 6..13.
+//=============================================================================
+#define CAN_MSG_BYTE_PARAM(i, k) \
+    {0x1D00 + (i), 6 + (k), &stConfig.stCanMsg[i].nData[k], &stConfigTemp.stCanMsg[i].nData[k], ParamType::UInt8, 0, 0, 255}
+#define CAN_MSG_PARAMS(i) \
+    {0x1D00 + (i), 0, &stConfig.stCanMsg[i].bEnabled,    &stConfigTemp.stCanMsg[i].bEnabled,    ParamType::Bool,   0, 0, 1}, \
+    {0x1D00 + (i), 1, &stConfig.stCanMsg[i].nInput,      &stConfigTemp.stCanMsg[i].nInput,      ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
+    {0x1D00 + (i), 2, &stConfig.stCanMsg[i].nIDE,        &stConfigTemp.stCanMsg[i].nIDE,        ParamType::UInt8,  0, 0, 1}, \
+    {0x1D00 + (i), 3, &stConfig.stCanMsg[i].nID,         &stConfigTemp.stCanMsg[i].nID,         ParamType::UInt32, 0, 0, 536870911}, \
+    {0x1D00 + (i), 4, &stConfig.stCanMsg[i].nDLC,        &stConfigTemp.stCanMsg[i].nDLC,        ParamType::UInt8,  8, 0, 8}, \
+    {0x1D00 + (i), 5, &stConfig.stCanMsg[i].eMode,       &stConfigTemp.stCanMsg[i].eMode,       ParamType::Enum,   static_cast<uint32_t>(CanMsgMode::Repeat), 0, 1}, \
+    CAN_MSG_BYTE_PARAM(i, 0), CAN_MSG_BYTE_PARAM(i, 1), CAN_MSG_BYTE_PARAM(i, 2), CAN_MSG_BYTE_PARAM(i, 3), \
+    CAN_MSG_BYTE_PARAM(i, 4), CAN_MSG_BYTE_PARAM(i, 5), CAN_MSG_BYTE_PARAM(i, 6), CAN_MSG_BYTE_PARAM(i, 7), \
+    {0x1D00 + (i), 14, &stConfig.stCanMsg[i].nIntervalMs, &stConfigTemp.stCanMsg[i].nIntervalMs, ParamType::UInt16, 100, 10, 60000}
+
+//=============================================================================
+// Ignition Parameters - Base 0x1E00 (single instance, 5.6)
+//=============================================================================
+#define IGNITION_PARAMS() \
+    {0x1E00, 0,  &stConfig.stIgnition.bEnabled,         &stConfigTemp.stIgnition.bEnabled,         ParamType::Bool,   0, 0, 1}, \
+    {0x1E00, 1,  &stConfig.stIgnition.eMode,            &stConfigTemp.stIgnition.eMode,            ParamType::Enum,   static_cast<uint32_t>(IgnMode::SwitchButton), 0, 2}, \
+    {0x1E00, 2,  &stConfig.stIgnition.eRole,            &stConfigTemp.stIgnition.eRole,            ParamType::Enum,   static_cast<uint32_t>(IgnRole::Main), 0, 1}, \
+    {0x1E00, 3,  &stConfig.stIgnition.nIgnInput,        &stConfigTemp.stIgnition.nIgnInput,        ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
+    {0x1E00, 4,  &stConfig.stIgnition.nStartInput,      &stConfigTemp.stIgnition.nStartInput,      ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
+    {0x1E00, 5,  &stConfig.stIgnition.nCrankAllowInput, &stConfigTemp.stIgnition.nCrankAllowInput, ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
+    {0x1E00, 6,  &stConfig.stIgnition.nRunningInput,    &stConfigTemp.stIgnition.nRunningInput,    ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
+    {0x1E00, 7,  &stConfig.stIgnition.nMaxCrankMs,      &stConfigTemp.stIgnition.nMaxCrankMs,      ParamType::UInt16, 5000, 500, 30000}, \
+    {0x1E00, 8,  &stConfig.stIgnition.bCrankWhileHeld,  &stConfigTemp.stIgnition.bCrankWhileHeld,  ParamType::Bool,   1, 0, 1}, \
+    {0x1E00, 9,  &stConfig.stIgnition.nDashHoldMs,      &stConfigTemp.stIgnition.nDashHoldMs,      ParamType::UInt16, 0, 0, 60000}, \
+    {0x1E00, 10, &stConfig.stIgnition.nMainStateId,     &stConfigTemp.stIgnition.nMainStateId,     ParamType::UInt16, 0, 0, 2047}
 
 //=============================================================================
 // Starter Parameters - Base 0x1800 (single instance)

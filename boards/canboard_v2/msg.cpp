@@ -1,3 +1,4 @@
+#include "sleep.h"
 #include "msg.h"
 #include "config.h"
 #include "status.h"
@@ -34,7 +35,8 @@ CANTxMsg TxMsg1()
     stMsg.frame.SID = stConfig.stDevice.nBaseId + CYCLIC_TX_OFFSET + 1;
     stMsg.frame.DLC = 8;
     stMsg.frame.data16[0] = (uint16_t)(GetAnalogInputMv(4));
-    stMsg.frame.data16[1] = 0;
+    // 5.6: seconds until auto-sleep (0xFF = not counting) and what keeps it awake (MsgCmd::SleepInfo bits)
+    stMsg.frame.data16[1] = (uint16_t)(SleepBlockers() << 8) | SleepCountdownSec();
     stMsg.frame.data16[2] = 0;
     stMsg.frame.data16[3] = GetTemperature();
 

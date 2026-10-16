@@ -1,3 +1,4 @@
+#include "sleep.h"
 #include "mcu_utils.h"
 #include "hal.h"
 #include <cstdint>
@@ -56,5 +57,6 @@ void EnterStopMode()
     QuietNvic();
     __WFI();
 
+    CaptureWakeAfterStop();   // 5.6: remember what woke it, across the reset
     NVIC_SystemReset();
 }

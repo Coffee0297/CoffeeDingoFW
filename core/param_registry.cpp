@@ -43,6 +43,19 @@ const ParamInfo stParams[] = {
     // Timers (0x1B00+)
     ALL_TIMER_PARAMS,
 
+    // Ignition (0x1E00)
+    IGNITION_PARAMS(),
+
+    #if NUM_MATH > 0
+    // Math blocks (0x1C00+)
+    ALL_MATH_PARAMS,
+    #endif
+
+    #if NUM_CAN_MSGS > 0
+    // CAN Message blocks (0x1D00+)
+    ALL_CAN_MSG_PARAMS,
+    #endif
+
     #if HAS_STARTER_DISABLE > 0
     // Starter (0x1800)
     STARTER_PARAMS(),

@@ -7,6 +7,7 @@
 #include "device_config.h"
 #include "mailbox.h"
 #include "enums.h"
+#include "sleep.h"
 
 // External variables from pdm.cpp that we need access to
 extern DeviceConfig stConfig;
@@ -54,6 +55,44 @@ void CheckRequestMsgs(CANRxFrame *frame)
         bSleepRequest = true;
     }
     #endif
+
+    #if CAN_SLEEP
+    // Sleep info (5.6): why it last woke, how often, and how long until it sleeps
+    if ((frame->DLC == 8) && (frame->data8[0] == static_cast<uint8_t>(MsgCmd::SleepInfo)))
+    {
+        CANTxFrame txMsg;
+        txMsg.SID = stConfig.stDevice.nBaseId + CONFIG_TX_OFFSET;
+        txMsg.IDE = CAN_IDE_STD;
+        txMsg.DLC = 8;
+        txMsg.data8[0] = static_cast<uint8_t>(MsgCmd::SleepInfo);
+        txMsg.data8[1] = static_cast<uint8_t>(GetWakeReason());
+        txMsg.data8[2] = GetWakeSource();
+        txMsg.data8[3] = GetWakeCount() & 0xFF;
+        txMsg.data8[4] = GetWakeCount() >> 8;
+        txMsg.data8[5] = SleepCountdownSec();
+        txMsg.data8[6] = SleepBlockers();
+        txMsg.data8[7] = 0;
+        PostTxFrame(&txMsg);
+    }
+    #endif
+
+    // Identify: blink the LEDs so the operator can find this module (5.6)
+    if ((frame->DLC == 8) && (frame->data8[0] == static_cast<uint8_t>(MsgCmd::Identify)))
+    {
+        uint8_t secs = frame->data8[1] < 1 ? 1 : (frame->data8[1] > 60 ? 60 : frame->data8[1]);
+        #if HAS_SE_LEDS
+        nIdentifyUntil = SYS_TIME + secs * 1000U;
+        #endif
+        CANTxFrame txMsg;
+        txMsg.SID = stConfig.stDevice.nBaseId + CONFIG_TX_OFFSET;
+        txMsg.IDE = CAN_IDE_STD;
+        txMsg.DLC = 8;
+        txMsg.data8[0] = static_cast<uint8_t>(MsgCmd::Identify);
+        txMsg.data8[1] = secs;
+        txMsg.data8[2] = HAS_SE_LEDS ? 1 : 0;
+        txMsg.data8[3] = 0; txMsg.data8[4] = 0; txMsg.data8[5] = 0; txMsg.data8[6] = 0; txMsg.data8[7] = 0;
+        PostTxFrame(&txMsg);
+    }
 
     // Check for burn request
     if ((frame->DLC == 8) && 
@@ -171,9 +210,36 @@ void CheckRequestMsgs(CANRxFrame *frame)
     if (frame->DLC == 8 && frame->data8[0] == static_cast<uint8_t>(MsgCmd::OvlCount))
     {
         CANTxFrame tx; tx.SID = stConfig.stDevice.nBaseId + CONFIG_TX_OFFSET;
-        tx.IDE = CAN_IDE_STD; tx.DLC = 2;
+        tx.IDE = CAN_IDE_STD; tx.DLC = 8;   // 5.6: was 2; bytes 2-5 uptime now (ms), 6 notices
         tx.data8[0] = static_cast<uint8_t>(MsgCmd::OvlCount);
         tx.data8[1] = OvlLogCount();
+        const uint32_t now = SYS_TIME;
+        tx.data8[2] = now & 0xFF; tx.data8[3] = (now >> 8) & 0xFF; tx.data8[4] = (now >> 16) & 0xFF; tx.data8[5] = now >> 24;
+        tx.data8[6] = OvlNoticeCount(); tx.data8[7] = 0;
+        PostTxFrame(&tx);
+    }
+    else if (frame->DLC == 8 && frame->data8[0] == static_cast<uint8_t>(MsgCmd::OvlTime))
+    {
+        const uint8_t idx = frame->data8[1];
+        const uint32_t t = OvlLogTime(idx);
+        CANTxFrame tx; tx.SID = stConfig.stDevice.nBaseId + CONFIG_TX_OFFSET;
+        tx.IDE = CAN_IDE_STD; tx.DLC = 8;
+        tx.data8[0] = static_cast<uint8_t>(MsgCmd::OvlTime);
+        tx.data8[1] = idx;
+        tx.data8[2] = t & 0xFF; tx.data8[3] = (t >> 8) & 0xFF; tx.data8[4] = (t >> 16) & 0xFF; tx.data8[5] = t >> 24;
+        tx.data8[6] = 0; tx.data8[7] = 0;
+        PostTxFrame(&tx);
+    }
+    else if (frame->DLC == 8 && frame->data8[0] == static_cast<uint8_t>(MsgCmd::OvlNotice))
+    {
+        const uint8_t idx = frame->data8[1];
+        uint8_t nOut = 0xFF, nKind = 0; uint32_t t = 0;
+        OvlNoticeGet(idx, nOut, nKind, t);
+        CANTxFrame tx; tx.SID = stConfig.stDevice.nBaseId + CONFIG_TX_OFFSET;
+        tx.IDE = CAN_IDE_STD; tx.DLC = 8;
+        tx.data8[0] = static_cast<uint8_t>(MsgCmd::OvlNotice);
+        tx.data8[1] = idx; tx.data8[2] = nOut; tx.data8[3] = nKind;
+        tx.data8[4] = t & 0xFF; tx.data8[5] = (t >> 8) & 0xFF; tx.data8[6] = (t >> 16) & 0xFF; tx.data8[7] = t >> 24;
         PostTxFrame(&tx);
     }
     else if (frame->DLC == 8 && frame->data8[0] == static_cast<uint8_t>(MsgCmd::OvlHeader))

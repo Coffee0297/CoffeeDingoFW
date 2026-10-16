@@ -11,6 +11,14 @@ class Flasher;
 class Counter;
 class Condition;
 class Timer;
+#if NUM_MATH > 0
+class MathBlock;
+extern MathBlock mathBlock[NUM_MATH];
+#endif
+#if NUM_CAN_MSGS > 0
+class CanMsg;
+extern CanMsg canMsg[NUM_CAN_MSGS];
+#endif
 #if NUM_TABLES > 0
 class Table;
 #endif
@@ -75,6 +83,7 @@ extern DeviceConfig stConfig;
 extern DeviceConfig stConfigTemp; // Used for staging new config before applying
 extern float *pVarMap[VAR_MAP_SIZE];
 extern DeviceState eState;
+extern volatile uint32_t nIdentifyUntil; // MsgCmd::Identify: blink the LEDs until this SYS_TIME (5.6)
 
 #if HAS_EXT_TEMP_SENSOR
 extern float fTempSensor;
