@@ -31,6 +31,17 @@ public:
 
     void Update();
 
+    bool IsRunning() { return bRunning; }
+
+    // ms since the timer started, held at the preset, 0 when not running
+    uint32_t GetElapsed()
+    {
+        if (!bRunning)
+            return 0;
+        uint32_t nElapsed = SYS_TIME - nStartTime;
+        return (nElapsed < pConfig->nTime) ? nElapsed : pConfig->nTime;
+    }
+
     float fVal;
 
 private:

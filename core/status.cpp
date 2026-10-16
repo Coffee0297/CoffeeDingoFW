@@ -7,6 +7,7 @@
 #include "flasher.h"
 #include "counter.h"
 #include "condition.h"
+#include "timer.h"
 #if NUM_OUTPUTS > 0
 #include "profet.h"
 #endif
@@ -318,8 +319,51 @@ uint32_t GetConditions()
     for (uint8_t i = 0; i < NUM_CONDITIONS; i++) {
         result |= (((uint32_t)VolatileRead(condition[i].fVal) & 0x01) << i);
     }
-    
+
     return result;
+}
+
+bool GetAnyTimerEnable()
+{
+    #if NUM_TIMERS > 0
+    for (uint8_t i = 0; i < NUM_TIMERS; i++)
+    {
+        if (stConfig.stTimer[i].bEnabled)
+            return true;
+    }
+    #endif
+    return false;
+}
+
+uint8_t GetTimerOutputs()
+{
+    uint8_t result = 0;
+    #if NUM_TIMERS > 0
+    for (uint8_t i = 0; i < NUM_TIMERS; i++)
+        result |= ((VolatileRead(timer[i].fVal) != 0) << i);
+    #endif
+    return result;
+}
+
+uint8_t GetTimersRunning()
+{
+    uint8_t result = 0;
+    #if NUM_TIMERS > 0
+    for (uint8_t i = 0; i < NUM_TIMERS; i++)
+        result |= (timer[i].IsRunning() << i);
+    #endif
+    return result;
+}
+
+// Elapsed time in 10ms units so the 600s max fits in 16 bits
+uint16_t GetTimerElapsed(uint8_t nTimer)
+{
+    #if NUM_TIMERS > 0
+    if (nTimer < NUM_TIMERS)
+        return (uint16_t)(timer[nTimer].GetElapsed() / 10);
+    #endif
+    (void)nTimer;
+    return 0;
 }
 
 #if NUM_KEYPADS > 0

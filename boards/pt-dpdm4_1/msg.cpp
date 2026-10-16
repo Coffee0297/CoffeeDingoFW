@@ -501,3 +501,60 @@ CANTxMsg TxMsg27()
 
     return stMsg;
 }
+
+CANTxMsg TxMsg28()
+{
+    CANTxMsg stMsg;
+    //=======================================================
+    // Build Msg 28 (Timer outputs and running states)
+    //=======================================================
+    stMsg.frame.IDE = CAN_IDE_STD;
+    stMsg.frame.SID = stConfig.stDevice.nBaseId + CYCLIC_TX_OFFSET + 28;
+    stMsg.frame.DLC = 8;
+    stMsg.frame.data8[0] = GetTimerOutputs();
+    stMsg.frame.data8[1] = GetTimersRunning();
+    stMsg.frame.data16[1] = 0;
+    stMsg.frame.data32[1] = 0;
+
+    stMsg.bSend = GetAnyTimerEnable();
+
+    return stMsg;
+}
+
+CANTxMsg TxMsg29()
+{
+    CANTxMsg stMsg;
+    //=======================================================
+    // Build Msg 29 (Timer 1-4 Elapsed, 10ms units)
+    //=======================================================
+    stMsg.frame.IDE = CAN_IDE_STD;
+    stMsg.frame.SID = stConfig.stDevice.nBaseId + CYCLIC_TX_OFFSET + 29;
+    stMsg.frame.DLC = 8;
+    stMsg.frame.data16[0] = GetTimerElapsed(0);
+    stMsg.frame.data16[1] = GetTimerElapsed(1);
+    stMsg.frame.data16[2] = GetTimerElapsed(2);
+    stMsg.frame.data16[3] = GetTimerElapsed(3);
+
+    stMsg.bSend = GetAnyTimerEnable();
+
+    return stMsg;
+}
+
+CANTxMsg TxMsg30()
+{
+    CANTxMsg stMsg;
+    //=======================================================
+    // Build Msg 30 (Timer 5-8 Elapsed, 10ms units)
+    //=======================================================
+    stMsg.frame.IDE = CAN_IDE_STD;
+    stMsg.frame.SID = stConfig.stDevice.nBaseId + CYCLIC_TX_OFFSET + 30;
+    stMsg.frame.DLC = 8;
+    stMsg.frame.data16[0] = GetTimerElapsed(4);
+    stMsg.frame.data16[1] = GetTimerElapsed(5);
+    stMsg.frame.data16[2] = GetTimerElapsed(6);
+    stMsg.frame.data16[3] = GetTimerElapsed(7);
+
+    stMsg.bSend = GetAnyTimerEnable();
+
+    return stMsg;
+}
