@@ -69,7 +69,7 @@
     (NUM_TIMERS * 1) + \
     (NUM_TABLES * 1) + \
     (NUM_DIG_INPUTS * 2) + \
-    (NUM_MATH * 1) + (NUM_CAN_MSGS * 1) + 7 /* ignition (5.6) */ \
+    (NUM_MATH * 1) + (NUM_CAN_MSGS * 1) + 7 /* ignition (5.6) */ + 2 /* comfort blink (5.6.1) */ \
 )
 
 // Last 2KB sector of flash (sector 31, 0x0800F800)

@@ -13,25 +13,33 @@
 #endif
 static chibios_rt::Mailbox<CANRxFrame*, RX_MAILBOX_SIZE> rxMb CCM_BSS;   // the constructor initialises it
 static chibios_rt::Mailbox<CANTxFrame*, MAILBOX_SIZE> txMb;
+#if HAS_USB
 static chibios_rt::Mailbox<CANTxFrame*, MAILBOX_SIZE> txUsbMb;
+#endif
 
 //Mailbox buffer of CAN frames
 //Not managed by mailbox
 CANRxFrame rxFrames[RX_MAILBOX_SIZE] CCM_BSS;   // contents only valid while rxMsgUsed[i]
 CANTxFrame txFrames[MAILBOX_SIZE];
-CANTxFrame txUsbFrames[MAILBOX_SIZE];
+#if HAS_USB
+CANTxFrame txUsbFrames[MAILBOX_SIZE];   // a board without USB has nobody to fetch them
+#endif
 
 //Used to manage the memory used by the mailbox
 bool rxMsgUsed[RX_MAILBOX_SIZE];   // zeroed .bss: must not live in NOLOAD CCM
 bool txMsgUsed[MAILBOX_SIZE];
+#if HAS_USB
 bool txUsbMsgUsed[MAILBOX_SIZE];
+#endif
 
 // Mutexes protecting each *MsgUsed array from concurrent access between
 // Post* (CanRxThread/main thread) and Fetch* (CanTxThread/main thread).
 // Priority inheritance ensures no priority inversion across thread priorities.
 static chibios_rt::Mutex rxMutex;
 static chibios_rt::Mutex txMutex;
+#if HAS_USB
 static chibios_rt::Mutex txUsbMutex;
+#endif
 
 msg_t PostTxFrame(CANTxFrame *frame)
 {
@@ -82,6 +90,10 @@ msg_t FetchTxFrame(CANTxFrame *frame, sysinterval_t timeout)
 
 msg_t PostTxUsbFrame(CANTxFrame *frame)
 {
+#if !HAS_USB
+    (void)frame;
+    return MSG_OK;   // no USB link: nothing to queue
+#else
     txUsbMutex.lock();
     for (int i = 0; i < MAILBOX_SIZE; i++) {
         if (!txUsbMsgUsed[i]) {
@@ -98,10 +110,15 @@ msg_t PostTxUsbFrame(CANTxFrame *frame)
 
     txUsbMutex.unlock();
     return MSG_TIMEOUT;  // No free slots
+#endif
 }
 
 msg_t FetchTxUsbFrame(CANTxFrame *frame, sysinterval_t timeout)
 {
+#if !HAS_USB
+    (void)frame; (void)timeout;
+    return MSG_TIMEOUT;
+#else
     CANTxFrame *txFrame;
     msg_t result = txUsbMb.fetch(&txFrame, timeout);
     if (result == MSG_OK) {
@@ -116,6 +133,7 @@ msg_t FetchTxUsbFrame(CANTxFrame *frame, sysinterval_t timeout)
         *frame = *txFrame;
     }
     return result;
+#endif
 }
 
 msg_t PostRxFrame(CANRxFrame *frame)

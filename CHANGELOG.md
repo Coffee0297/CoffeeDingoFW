@@ -5,6 +5,22 @@ from `core/device_config.h`; the `testing` CI build publishes it as a prerelease
 
 ## [Unreleased]
 
+## [5.6.1] — 2026-10-16
+
+**`CONFIG_VERSION` 0x0012 → 0x0013: saved configs are reset to defaults after updating.** Write the project to the
+module again once it is on 5.6.1.
+
+### Added
+- **Comfort blink** (lane change, 0x1F00, one per module): a short tap of the turn lever blinks a set number of times
+  (1–10, default 3) and stops; held longer than the tap time (100–5000 ms, default 1000) it is a normal blink that
+  stops on release. A tap the other way during a comfort blink cancels it. Blinks are counted on the shared
+  indicator clock, so every module running it stops on the same blink. Var-map signals Left / Right: use them as
+  "indicator on" in place of the lever.
+
+### Changed
+- CANBoard: no USB transmit mailbox (it has no USB; frames were queued that nobody fetched), freeing the RAM the
+  comfort blink needs. Var map: PDM 284, CANBoard 115 entries.
+
 ## [5.6.0] — 2026-10-16
 
 **`CONFIG_VERSION` 0x0011 → 0x0012: saved configs are reset to defaults after updating.** Write the project

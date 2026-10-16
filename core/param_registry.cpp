@@ -46,6 +46,9 @@ const ParamInfo stParams[] = {
     // Ignition (0x1E00)
     IGNITION_PARAMS(),
 
+    // Comfort blink (0x1F00)
+    COMFORT_BLINK_PARAMS(),
+
     #if NUM_MATH > 0
     // Math blocks (0x1C00+)
     ALL_MATH_PARAMS,

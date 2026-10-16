@@ -18,6 +18,8 @@ extern MathBlock mathBlock[NUM_MATH];
 #endif
 #include "ignition.h"
 extern Ignition ignition;
+#include "comfort_blink.h"
+extern ComfortBlink comfortBlink;
 #if NUM_CAN_MSGS > 0
 #include "can_msg.h"
 extern CanMsg canMsg[NUM_CAN_MSGS];
@@ -90,6 +92,7 @@ void ApplyAllConfig()
     ApplyConfig(MathBlock::nBaseIndex);
     #endif
     ApplyConfig(Ignition::nBaseIndex);
+    ApplyConfig(ComfortBlink::nBaseIndex);
     #if NUM_CAN_MSGS > 0
     ApplyConfig(CanMsg::nBaseIndex);
     #endif
@@ -194,6 +197,9 @@ void ApplyConfig(uint16_t nIndex)
         for (uint8_t i = 0; i < NUM_TIMERS; i++)
             timer[i].SetConfig(&stConfig.stTimer[i]);
     }
+
+    if (nBaseIndex == ComfortBlink::nBaseIndex)
+        comfortBlink.SetConfig(&stConfig.stComfortBlink);
 
     if (nBaseIndex == Ignition::nBaseIndex)
     {

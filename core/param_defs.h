@@ -224,6 +224,17 @@
     {0x1E00, 10, &stConfig.stIgnition.nMainStateId,     &stConfigTemp.stIgnition.nMainStateId,     ParamType::UInt16, 0, 0, 2047}
 
 //=============================================================================
+// Comfort Blink Parameters - Base 0x1F00 (single instance, 5.6.1)
+//=============================================================================
+#define COMFORT_BLINK_PARAMS() \
+    {0x1F00, 0, &stConfig.stComfortBlink.bEnabled,    &stConfigTemp.stComfortBlink.bEnabled,    ParamType::Bool,   0, 0, 1}, \
+    {0x1F00, 1, &stConfig.stComfortBlink.nLeftInput,  &stConfigTemp.stComfortBlink.nLeftInput,  ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
+    {0x1F00, 2, &stConfig.stComfortBlink.nRightInput, &stConfigTemp.stComfortBlink.nRightInput, ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
+    {0x1F00, 3, &stConfig.stComfortBlink.nClockInput, &stConfigTemp.stComfortBlink.nClockInput, ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
+    {0x1F00, 4, &stConfig.stComfortBlink.nTapMs,      &stConfigTemp.stComfortBlink.nTapMs,      ParamType::UInt16, 1000, 100, 5000}, \
+    {0x1F00, 5, &stConfig.stComfortBlink.nBlinks,     &stConfigTemp.stComfortBlink.nBlinks,     ParamType::UInt8,  3, 1, 10}
+
+//=============================================================================
 // Starter Parameters - Base 0x1800 (single instance)
 //=============================================================================
 #if HAS_STARTER_DISABLE 

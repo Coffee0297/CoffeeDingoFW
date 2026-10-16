@@ -16,6 +16,7 @@
 #include "math_block.h"
 #endif
 #include "ignition.h"
+#include "comfort_blink.h"
 #if NUM_CAN_MSGS > 0
 #include "can_msg.h"
 #endif
@@ -44,7 +45,7 @@
 #include "analog_input.h"
 #endif  
 
-#define CONFIG_VERSION 0x0012 //Increment when config structure changes (0x0012: 5.6, CAN input timeout value, ...)
+#define CONFIG_VERSION 0x0013 //Increment when config structure changes (0x0012: 5.6, CAN input timeout value, ...; 0x0013: 5.6.1 comfort blink)
 
 struct Config_Device{
   uint16_t nConfigVersion;
@@ -87,6 +88,7 @@ struct DeviceConfig{
   Config_Math stMath[NUM_MATH];          // 5.6
   #endif
   Config_Ignition stIgnition;            // 5.6
+  Config_ComfortBlink stComfortBlink;    // 5.6.1
   #if NUM_CAN_MSGS > 0
   Config_CanMsg stCanMsg[NUM_CAN_MSGS];  // 5.6
   #endif

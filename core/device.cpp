@@ -23,6 +23,7 @@
 #include "math_block.h"
 #endif
 #include "ignition.h"
+#include "comfort_blink.h"
 #if NUM_CAN_MSGS > 0
 #include "can_msg.h"
 #endif
@@ -92,6 +93,7 @@ FatalErrorType eError = FatalErrorType::NoError;
 #endif
 DeviceConfig stConfig;
 DeviceConfig stConfigTemp CCM_BSS; // staging buffer for new config before applying (CCM on CanBoard)
+ComfortBlink comfortBlink CCM_BSS;   // CPU-only state; CCM on the CanBoard (its main RAM is full); the constructor initialises it
 float *pVarMap[VAR_MAP_SIZE];
 #if HAS_LUA
 float fLuaOut[NUM_LUA_OUTPUTS];   // Lua output slots, written by setLuaOut(n,v)
@@ -540,6 +542,7 @@ void CyclicUpdate()
     #endif
 
     ignition.Update(SYS_TIME);
+    comfortBlink.Update(SYS_TIME);
     {
         CANTxFrame tx;
         if (ignition.StateFrame(SYS_TIME, tx.data8))
@@ -737,6 +740,9 @@ void InitVarMap()
     pVarMap[index++] = &ignition.fReady;
     pVarMap[index++] = &ignition.fDash;
     pVarMap[index++] = &ignition.fLinkOk;
+    // Comfort blink (5.6.1): indicator on, per side
+    pVarMap[index++] = &comfortBlink.fLeft;
+    pVarMap[index++] = &comfortBlink.fRight;
 
     //VarMap size must match the expected size
     if (index != VAR_MAP_SIZE)
