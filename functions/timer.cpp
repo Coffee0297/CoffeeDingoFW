@@ -46,16 +46,17 @@ void Timer::Update()
     switch (pConfig->eMode)
     {
     case TimerMode::OnDelay:
-        if (bRising)
-        {
-            bRunning = true;
-            nStartTime = nNow;
-        }
-
+        // Level triggered, not edge: an input already on at power up or
+        // after a reset is released still starts the delay
         if (!bIn)
         {
             bRunning = false;
             bOut = false;
+        }
+        else if (!bRunning && !bOut)
+        {
+            bRunning = true;
+            nStartTime = nNow;
         }
         else if (bElapsed)
         {
