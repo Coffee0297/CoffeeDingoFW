@@ -1,0 +1,31 @@
+name: Version Guard
+
+# Only the repo owner bumps the firmware version. Fails a PR from anyone else
+# that changes MAJOR_VERSION, MINOR_VERSION or BUILD. Builds nothing.
+
+on:
+  pull_request:
+    paths:
+      - "core/device_config.h"
+
+permissions:
+  contents: read
+
+jobs:
+  version-guard:
+    if: github.event.pull_request.user.login != github.repository_owner
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Check version is unchanged
+        run: |
+          if git diff ${{ github.event.pull_request.base.sha }} HEAD -- core/device_config.h \
+             | grep -E '^[+-]#define (MAJOR_VERSION|MINOR_VERSION|BUILD)\b'; then
+            echo "::error file=core/device_config.h::Version is bumped by the maintainer, please revert the version change"
+            exit 1
+          fi

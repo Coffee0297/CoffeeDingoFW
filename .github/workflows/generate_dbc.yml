@@ -5,10 +5,6 @@ on:
     branches: [ main, master ]
     paths:
       - 'dbc/dbc_builder/**'
-  pull_request:
-    branches: [ main, master ]
-    paths:
-      - 'dbc/dbc_builder/**'
   workflow_dispatch:  # still allows manual trigger
 
 jobs:
