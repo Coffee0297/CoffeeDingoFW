@@ -5,6 +5,13 @@ from `core/device_config.h`; the `testing` CI build publishes it as a prerelease
 
 ## [Unreleased]
 
+## [5.6.2] — 2026-10-17
+
+### Fixed
+- With CAN filtering on, CAN inputs past the 27th and an ignition follower's state frame were never received:
+  each filter id took the slot of its input number, and ids past the 28 hardware slots were dropped. The ids
+  are now packed into consecutive slots, and when more are needed than fit the module accepts every frame.
+
 ## [5.6.1] — 2026-10-16
 
 **`CONFIG_VERSION` 0x0012 → 0x0013: saved configs are reset to defaults after updating.** Write the project to the

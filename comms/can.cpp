@@ -20,6 +20,9 @@ static uint32_t nLastCanRxTime;
 volatile uint32_t gCanRxFrames = 0;
 volatile uint32_t gCanRxMailboxDrops = 0;
 static bool bCanFilterEnabled = true;
+// More ids asked for than the hardware has filter slots (14 banks x 2 ids): filtering would silently drop the
+// rest (CAN inputs past the 27th, the ignition follower's state frame), so accept every frame instead.
+static bool bCanFilterOverflow = false;
 
 void ConfigureCanFilters();
 
@@ -258,6 +261,7 @@ void StopCan()
 
 void ClearCanFilters()
 {
+    bCanFilterOverflow = false;
     // Clear all filters
     for (uint8_t i = 0; i < STM32_CAN_MAX_FILTERS; i++)
     {
@@ -276,7 +280,10 @@ void ClearCanFilters()
 void SetCanFilterId(uint8_t nFilterNum, uint32_t nId, bool bExtended)
 {
     if (nFilterNum >= (STM32_CAN_MAX_FILTERS * 2))
+    {
+        bCanFilterOverflow = true;
         return;
+    }
 
     bFilterExtended[nFilterNum] = bExtended;
 
@@ -293,7 +300,7 @@ void SetCanFilterId(uint8_t nFilterNum, uint32_t nId, bool bExtended)
 void ConfigureCanFilters()
 {
 
-    if(!bCanFilterEnabled)
+    if(!bCanFilterEnabled || bCanFilterOverflow)
     {
         // Default HAL config = filter 0 enabled to allow all messages
         return;
