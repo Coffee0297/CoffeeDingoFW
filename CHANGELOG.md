@@ -5,6 +5,14 @@ from `core/device_config.h`; the `testing` CI build publishes it as a prerelease
 
 ## [Unreleased]
 
+## [5.6.4] — 2026-10-17
+
+### Fixed
+- **A car with the Ignition block set up never fell asleep.** The main module kept sending its ignition state
+  frame (base+30, ten a second) while muted (sleep on cue), so the bus never went quiet: the others' CAN-idle
+  timers never ran out, and once the module sending "sleep now" slept, everyone unmuted again. The state
+  frame now follows the mute like every other periodic frame.
+
 ## [5.6.3] — 2026-10-17
 
 ### Added

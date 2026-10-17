@@ -550,7 +550,8 @@ void CyclicUpdate()
     comfortBlink.Update(SYS_TIME);
     {
         CANTxFrame tx;
-        if (ignition.StateFrame(SYS_TIME, tx.data8))
+        // muted (sleep on cue): the state frame repeats and would keep the bus, and with it the car, awake
+        if (ignition.StateFrame(SYS_TIME, tx.data8) && !CanTxMuted())
         {
             tx.SID = stConfig.stDevice.nBaseId + IGN_STATE_OFFSET;
             tx.IDE = CAN_IDE_STD;
