@@ -57,6 +57,10 @@
 // Board marker for flash tools: flash-dingo.ps1 reads it back to tell a dingoPDM v7 from a -Max,
 // which share the MCU. Kept alive by InitDevice() referencing it (--gc-sections would drop it).
 extern const char kDingoBoard[] = "DINGO_BOARD=" BOARD_NAME;
+// Version marker, same idea: the tool reads the version from the image itself, whatever the file is called.
+#define DINGO_STR_(x) #x
+#define DINGO_STR(x) DINGO_STR_(x)
+extern const char kDingoVersion[] = "DINGO_FW=" DINGO_STR(MAJOR_VERSION) "." DINGO_STR(MINOR_VERSION) "." DINGO_STR(BUILD);
 
 CanInput canIn[NUM_CAN_INPUTS];
 CanOutputs canOutputs;
@@ -221,7 +225,7 @@ static LuaThread luaThread;
 
 void InitDevice()
 {
-    __asm__ volatile("" :: "r"(kDingoBoard));
+    __asm__ volatile("" :: "r"(kDingoBoard), "r"(kDingoVersion));
 
     #if HAS_SE_LEDS
     Error::Initialize(&statusLed, &errorLed);

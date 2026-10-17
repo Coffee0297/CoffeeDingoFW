@@ -7,6 +7,10 @@ from `core/device_config.h`; the `testing` CI build publishes it as a prerelease
 
 ## [5.6.4] — 2026-10-17
 
+### Added
+- **Version marker** in the image (`DINGO_FW=5.6.4`, next to `DINGO_BOARD=`): dingoConfig reads the version from the
+  file itself, whatever it is called, and says so when the name claims another version.
+
 ### Fixed
 - **A car with the Ignition block set up never fell asleep.** The main module kept sending its ignition state
   frame (base+30, ten a second) while muted (sleep on cue), so the bus never went quiet: the others' CAN-idle
