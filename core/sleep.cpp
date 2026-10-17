@@ -182,6 +182,14 @@ uint8_t SleepCountdownSec() { return nCountdown; }
 uint8_t SleepBlockers() { return nBlockers; }
 uint8_t SleepWhy() { return nWhy; }
 WakeReason GetWakeReason() { return eWake; }
+
+// Quiet wake (5.6.3): woken by CAN traffic, the module stays silent until it hears a real frame (anything but
+// another module's goodbye). A goodbye wakes every sleeping module; were they to restart talking (they forget
+// "sleep now" across the STOP reset), they would wake each other for ever. With nothing real on the bus it
+// goes back to sleep without a goodbye of its own.
+static bool bQuietWake = false;
+bool QuietWake() { return bQuietWake; }
+void EndQuietWake() { if (bQuietWake) { bQuietWake = false; SendSleepInfo(); } }
 uint8_t GetWakeSource() { return nWakeSource; }
 uint16_t GetWakeCount() { return nWakes; }
 
@@ -189,7 +197,9 @@ void CaptureWakeAfterStop()
 {
     // EXTI pending bits = the lines that ended STOP: CAN RX, USB D+/D-, or a digital input
     const uint32_t pr = EXTI->PR;
-    uint32_t reason = static_cast<uint32_t>(WakeReason::PowerOn), source = 0;
+    // Only an armed source ends STOP: with no digital input or USB line pending it was CAN (a short frame can
+    // leave no pending bit by the time this runs).
+    uint32_t reason = static_cast<uint32_t>(stConfig.stDevice.bWakeOnCan ? WakeReason::Can : WakeReason::PowerOn), source = 0;
     if (pr & (1u << PAL_PAD(LINE_CAN_RX))) reason = static_cast<uint32_t>(WakeReason::Can);
 #if HAS_USB
     if (pr & ((1u << PAL_PAD(LINE_USB_DP)) | (1u << PAL_PAD(LINE_USB_DM)))) reason = static_cast<uint32_t>(WakeReason::Usb);
@@ -212,6 +222,7 @@ void ReadWakeAtBoot()
         eWake = static_cast<WakeReason>(v & 0xFF);
         nWakeSource = (v >> 8) & 0xFF;
         nWakes = (uint16_t)(v >> 16);
+        bQuietWake = eWake == WakeReason::Can;
     }
     // a power-on or reset (not a wake) starts the count again
     kWakeKeep[0] = 0;

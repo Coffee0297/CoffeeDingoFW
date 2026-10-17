@@ -12,6 +12,7 @@
 // changes.
 //=============================================================================
 #include "lua_port.h"
+#include "can.h"
 #include "port.h"        // LUA_HEAP_SIZE
 #include <cstring>
 #include <cstdint>
@@ -194,7 +195,8 @@ static int l_txCan(lua_State *L)
         data[i - 1] = (uint8_t)(lua_tointeger(L, -1) & 0xFF);
         lua_pop(L, 1);
     }
-    LuaBridgeTxCan((uint32_t)id, ext, data, (int)n);
+    if (!CanTxMuted())   // muted (sleep on cue, or a quiet wake): a Lua frame would keep the bus awake
+        LuaBridgeTxCan((uint32_t)id, ext, data, (int)n);
     return 0;
 }
 

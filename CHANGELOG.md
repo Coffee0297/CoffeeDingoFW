@@ -5,6 +5,28 @@ from `core/device_config.h`; the `testing` CI build publishes it as a prerelease
 
 ## [Unreleased]
 
+## [5.6.3] — 2026-10-17
+
+### Added
+- **Wake announcement**: after every boot (a wake from sleep or a power-on) the module sends its SleepInfo
+  frame unasked on base+0: why it woke (power-on, CAN, which digital input, USB) and how often. With the
+  goodbye frame it already sends before sleep (`[32,'Z','Z','Z',why]`), the bus hears both ends.
+
+### Fixed
+- **A fleet that put itself to sleep woke itself up again, for ever.** A goodbye frame is CAN traffic, so it
+  woke every module already asleep; they restarted (STOP ends in a reset), forgot "sleep now" and started
+  talking, which woke the rest. A module woken by CAN now restarts quiet: nothing periodic (telemetry, CAN
+  outputs, repeating CAN messages, Lua `txCan`, the "running" info message) until it hears a frame that is not a goodbye, then it
+  announces why it woke. With nothing real on the bus it sleeps again without a goodbye of its own.
+- **PDM wake cause lost**: the word that keeps it across the STOP reset lay inside the heap, which a debugger
+  or emulator loading the image zero-fills (and an allocation from the top could overwrite). RAM is 32 bytes
+  shorter in the linker scripts so the word sits outside it. A wake with no digital input or USB line
+  pending is reported as CAN (the only other armed source).
+- Mute transmit (sleep on cue) now withholds every periodic frame: the user CAN outputs, repeating CAN
+  message blocks and Lua `txCan` too, not only the telemetry. A muted module that still sent one (an indicator clock, a
+  backup clock, a "sleep now" frame) kept every other module's CAN-idle timer from running out: the fleet
+  went silent but never slept. Config replies, bridge frames and one-shot CAN messages still go.
+
 ## [5.6.2] — 2026-10-17
 
 ### Fixed

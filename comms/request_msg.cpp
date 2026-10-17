@@ -59,21 +59,7 @@ void CheckRequestMsgs(CANRxFrame *frame)
     #if CAN_SLEEP
     // Sleep info (5.6): why it last woke, how often, and how long until it sleeps
     if ((frame->DLC == 8) && (frame->data8[0] == static_cast<uint8_t>(MsgCmd::SleepInfo)))
-    {
-        CANTxFrame txMsg;
-        txMsg.SID = stConfig.stDevice.nBaseId + CONFIG_TX_OFFSET;
-        txMsg.IDE = CAN_IDE_STD;
-        txMsg.DLC = 8;
-        txMsg.data8[0] = static_cast<uint8_t>(MsgCmd::SleepInfo);
-        txMsg.data8[1] = static_cast<uint8_t>(GetWakeReason());
-        txMsg.data8[2] = GetWakeSource();
-        txMsg.data8[3] = GetWakeCount() & 0xFF;
-        txMsg.data8[4] = GetWakeCount() >> 8;
-        txMsg.data8[5] = SleepCountdownSec();
-        txMsg.data8[6] = SleepBlockers();
-        txMsg.data8[7] = 0;
-        PostTxFrame(&txMsg);
-    }
+        SendSleepInfo();
     #endif
 
     // Identify: blink the LEDs so the operator can find this module (5.6)
@@ -327,3 +313,24 @@ void CheckRequestMsgs(CANRxFrame *frame)
         PostTxFrame(&txMsg);
     }
 }
+
+#if CAN_SLEEP
+// [SleepInfo, wakeReason, wakeSource, wakesLo, wakesHi, countdown s, blockers, 0] on base+0. Asked for with
+// MsgCmd::SleepInfo, and sent unasked once after every boot (5.6.3), so the bus hears why a module woke.
+void SendSleepInfo()
+{
+    CANTxFrame txMsg;
+    txMsg.SID = stConfig.stDevice.nBaseId + CONFIG_TX_OFFSET;
+    txMsg.IDE = CAN_IDE_STD;
+    txMsg.DLC = 8;
+    txMsg.data8[0] = static_cast<uint8_t>(MsgCmd::SleepInfo);
+    txMsg.data8[1] = static_cast<uint8_t>(GetWakeReason());
+    txMsg.data8[2] = GetWakeSource();
+    txMsg.data8[3] = GetWakeCount() & 0xFF;
+    txMsg.data8[4] = GetWakeCount() >> 8;
+    txMsg.data8[5] = SleepCountdownSec();
+    txMsg.data8[6] = SleepBlockers();
+    txMsg.data8[7] = 0;
+    PostTxFrame(&txMsg);
+}
+#endif

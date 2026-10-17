@@ -1,4 +1,7 @@
 #include "can.h"
+#if CAN_SLEEP
+#include "sleep.h"
+#endif
 #include "hal.h"
 #include "port.h"
 #include "device_config.h"
@@ -42,15 +45,21 @@ static volatile uint16_t gNoAckBackoff = 0;
 bool CanNoPeer() { return gNoAckBackoff > 0; }
 
 // --- Mute (FW #52 "MuteTxCAN") -------------------------------------------------------------------
-// While the var-map signal picked as nMuteTxInput is true the cyclic telemetry is withheld, so a
-// fleet can fall silent on cue and let every module's CAN-idle sleep timer run out. Only the
-// cyclic frames are muted: config replies, forwarded (bridge) frames and user CAN outputs still go.
+// While the var-map signal picked as nMuteTxInput is true every periodic frame is withheld: the cyclic
+// telemetry, the user CAN outputs and repeating CAN message blocks. So a fleet can fall silent on cue and
+// let every module's CAN-idle sleep timer run out. Config replies, forwarded (bridge) frames and one-shot
+// CAN messages still go.
 extern float *pVarMap[VAR_MAP_SIZE];
 static inline bool CyclicTxMuted()
 {
+#if CAN_SLEEP
+    if (QuietWake()) return true;
+#endif
     const uint16_t n = stConfig.stDevice.nMuteTxInput;
     return n != 0 && n < VAR_MAP_SIZE && pVarMap[n] != nullptr && *pVarMap[n] != 0.0f;
 }
+
+bool CanTxMuted() { return CyclicTxMuted(); }
 
 static inline void CanAbortAllTx()
 {
@@ -187,6 +196,12 @@ void CanRxThread(void *)
             res = PostRxFrame(&msg);
             if (res != MSG_OK)
                 gCanRxMailboxDrops++;
+#if CAN_SLEEP
+            // a real frame ends a quiet wake; another module's goodbye [Sleep, 'Z', 'Z', 'Z', ...] does not
+            if (QuietWake() && !(msg.DLC >= 4 && msg.data8[0] == static_cast<uint8_t>(MsgCmd::Sleep) &&
+                                 msg.data8[1] == 'Z' && msg.data8[2] == 'Z' && msg.data8[3] == 'Z'))
+                EndQuietWake();
+#endif
 
             if(stConfig.stDevice.bConnectUsbToCan)
             {

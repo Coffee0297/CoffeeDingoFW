@@ -21,7 +21,7 @@ MEMORY
     flash5 (rx) : org = 0x00000000, len = 0
     flash6 (rx) : org = 0x00000000, len = 0
     flash7 (rx) : org = 0x00000000, len = 0
-    ram0   (wx) : org = 0x20000000, len = 128k    /* SRAM1 + SRAM2 */
+    ram0   (wx) : org = 0x20000000, len = 128k - 32    /* SRAM1 + SRAM2; the top 32 bytes keep the wake cause across the STOP reset (core/sleep.cpp kWakeKeep), outside the heap */
     ram1   (wx) : org = 0x20000000, len = 112k    /* SRAM1 */
     ram2   (wx) : org = 0x00000000, len = 16k     /* SRAM2 */
     ram3   (wx) : org = 0x00000000, len = 0

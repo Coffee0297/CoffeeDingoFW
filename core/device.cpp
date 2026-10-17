@@ -247,6 +247,9 @@ void InitDevice()
         
     if(!InitCan(&stConfig.stDevice) == HAL_RET_SUCCESS) // Starts CAN threads
         Error::SetFatalError(FatalErrorType::ErrCAN, MsgSrc::Init);
+    #if CAN_SLEEP
+    if (!QuietWake()) SendSleepInfo();   // 5.6.3: tell the bus why it is awake (a quiet CAN wake says so when it ends)
+    #endif
 
     #if HAS_USB
     if (!InitUsb() == HAL_RET_SUCCESS) // Starts USB threads
@@ -371,7 +374,9 @@ void States()
         for (uint8_t i = 0; i < NUM_DIG_OUTPUTS; i++)
             digOut[i].ForceOff();
         #endif
-        // 5.6: say so before going quiet, so the tool tells "asleep" from "unplugged"
+        // 5.6: say so before going quiet, so the tool tells "asleep" from "unplugged" (not from a quiet wake:
+        // its goodbye would wake the others again)
+        if (!QuietWake())
         {
             CANTxFrame tx;
             tx.SID = stConfig.stDevice.nBaseId + CONFIG_TX_OFFSET;
@@ -560,6 +565,8 @@ void CyclicUpdate()
     {
         if (!canMsg[i].Due(SYS_TIME)) continue;
         const Config_CanMsg *c = canMsg[i].Config();
+        // muted (sleep on cue): a repeating message is periodic and would keep the bus awake; a one-shot still goes
+        if (c->eMode == CanMsgMode::Repeat && CanTxMuted()) continue;
         CANTxFrame tx;
         tx.IDE = c->nIDE ? CAN_IDE_EXT : CAN_IDE_STD;
         if (c->nIDE) tx.EID = c->nID; else tx.SID = c->nID;

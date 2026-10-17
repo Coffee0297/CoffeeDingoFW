@@ -1,4 +1,5 @@
 #include "can_outputs.h"
+#include "can.h"
 #include "mailbox.h"
 #include "dbc.h"
 
@@ -107,7 +108,8 @@ void CanOutputs::Update()
                 }
             }
 
-            PostTxFrame(&canOut[i].stFrame);
+            if (!CanTxMuted())   // muted to let the fleet sleep: a periodic frame would keep the bus awake
+                PostTxFrame(&canOut[i].stFrame);
         }
     }
 }

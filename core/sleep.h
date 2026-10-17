@@ -16,6 +16,11 @@ uint8_t SleepBlockers();
 // Why the module last woke (kept across the wake reset), and how many times it woke since power-on.
 WakeReason GetWakeReason();
 uint8_t GetWakeSource();
+// Sends the SleepInfo frame (why it woke, wakes, countdown, blockers); done unasked once after boot.
+void SendSleepInfo();
+// Woken by CAN and not yet heard a real frame: everything periodic stays quiet (see core/sleep.cpp).
+bool QuietWake();
+void EndQuietWake();
 uint16_t GetWakeCount();
 void CaptureWakeAfterStop();   // EnterStopMode: right after WFI, before the reset
 void ReadWakeAtBoot();         // InitDevice

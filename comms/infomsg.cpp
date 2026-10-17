@@ -3,6 +3,9 @@
 #include "config.h"
 #include "device_config.h"
 #include "status.h"
+#if CAN_SLEEP
+#include "sleep.h"
+#endif
 
 static InfoMsg StateRunMsg(MsgType::Info, MsgSrc::State_Run);
 #if CAN_SLEEP
@@ -106,6 +109,10 @@ void InfoMsg::Check(bool bTrigger, uint16_t nId, uint16_t nData0, uint16_t nData
 
     if (bSent)
         return;
+#if CAN_SLEEP
+    if (QuietWake())   // a quiet wake sends nothing (it would wake the others); it goes when the quiet ends
+        return;
+#endif
 
     SendInfoMsg(m_type, m_src, nId, nData0, nData1, nData2);
     bSent = true;
