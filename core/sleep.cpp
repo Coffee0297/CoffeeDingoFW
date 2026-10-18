@@ -41,6 +41,7 @@ static volatile uint32_t *const kWakeKeep = (volatile uint32_t *)0x2001FFE0;
 static volatile uint32_t *const kWakeKeep = (volatile uint32_t *)0x10000FF0;
 #endif
 #define WAKE_MAGIC 0x57414B45u   // "WAKE"
+#define WAKE_NEW   0x80000000u   // kWakeKeep[1]: the reason is of a wake not yet read (a plain reset keeps only the count)
 
 // External variables from pdm.cpp that we need access to
 extern DeviceConfig stConfig;
@@ -209,23 +210,26 @@ void CaptureWakeAfterStop()
         if ((stConfig.stDevice.nWakeDigInputMask & (1u << i)) && (pr & (1u << PAL_PAD(digIn[i].GetLine()))))
         { reason = static_cast<uint32_t>(WakeReason::DigitalInput); source = i + 1; break; }
 #endif
-    const uint32_t wakes = (kWakeKeep[0] == WAKE_MAGIC ? (kWakeKeep[1] >> 16) : 0) + 1;
-    kWakeKeep[1] = (wakes << 16) | (source << 8) | reason;
+    const uint32_t wakes = ((kWakeKeep[0] == WAKE_MAGIC ? (kWakeKeep[1] >> 16) & 0x7FFF : 0) + 1) & 0x7FFF;
+    kWakeKeep[1] = WAKE_NEW | (wakes << 16) | (source << 8) | reason;
     kWakeKeep[0] = WAKE_MAGIC;
 }
 
 void ReadWakeAtBoot()
 {
-    if (kWakeKeep[0] == WAKE_MAGIC)
+    // The count runs from power-on: it was cleared at every boot, so it read 1 after any number of wakes. Power-on
+    // leaves no magic (count 0); a reset that is not a wake keeps the count but reports power-on.
+    if (kWakeKeep[0] != WAKE_MAGIC)
+        return;
+    const uint32_t v = kWakeKeep[1];
+    nWakes = (uint16_t)((v >> 16) & 0x7FFF);
+    if (v & WAKE_NEW)
     {
-        const uint32_t v = kWakeKeep[1];
         eWake = static_cast<WakeReason>(v & 0xFF);
         nWakeSource = (v >> 8) & 0xFF;
-        nWakes = (uint16_t)(v >> 16);
         bQuietWake = eWake == WakeReason::Can;
+        kWakeKeep[1] = v & ~WAKE_NEW;
     }
-    // a power-on or reset (not a wake) starts the count again
-    kWakeKeep[0] = 0;
 }
 
 void EnableLineEventWithPull(ioline_t line, InputPull pull)

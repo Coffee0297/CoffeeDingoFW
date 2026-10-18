@@ -5,6 +5,12 @@ from `core/device_config.h`; the `testing` CI build publishes it as a prerelease
 
 ## [Unreleased]
 
+## [5.6.5] — 2026-10-18
+
+### Fixed
+- **Wake count** (`core/sleep.cpp`): "wakes since power-on" read 1 after any number of wakes: the count was cleared
+  at every boot. It now runs from power-on; a reset that is not a wake keeps the count and reports power-on.
+
 ## [5.6.4] — 2026-10-17
 
 ### Added
