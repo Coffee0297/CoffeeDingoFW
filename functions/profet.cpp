@@ -14,6 +14,8 @@ void Profet::Update(bool bOutEnabled)
         eState = ProfetState::Off;
         fCurrent = 0;
         fOutput = 0;
+        fWarning = 0;
+        fOpenLoad = 0;
         return;
     }
 
@@ -156,6 +158,8 @@ void Profet::Update(bool bOutEnabled)
     fOutput = eState == ProfetState::On ? 1 : 0;
     fOvercurrent = eState == ProfetState::Overcurrent ? 1 : 0;
     fFault = eState == ProfetState::Fault ? 1 : 0;
+    fWarning = GetReportedState() == ProfetState::Warning ? 1 : 0;
+    fOpenLoad = GetReportedState() == ProfetState::OpenLoad ? 1 : 0;
 
     palClearLine(LINE_E2);
 }
