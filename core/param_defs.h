@@ -273,13 +273,13 @@
     {0x2200 + (i), 16, &stConfig.stAnalogInput[i].stRotary.nPointPair[0], &stConfigTemp.stAnalogInput[i].stRotary.nPointPair[0], ParamType::UInt32, 0, 0, 0xFFFFFFFF}, \
     {0x2200 + (i), 17, &stConfig.stAnalogInput[i].stRotary.nPointPair[1], &stConfigTemp.stAnalogInput[i].stRotary.nPointPair[1], ParamType::UInt32, 0, 0, 0xFFFFFFFF}, \
     {0x2200 + (i), 18, &stConfig.stAnalogInput[i].stRotary.nPointPair[2], &stConfigTemp.stAnalogInput[i].stRotary.nPointPair[2], ParamType::UInt32, 0, 0, 0xFFFFFFFF}, \
-    {0x2200 + (i), 19, &stConfig.stAnalogInput[i].stRotary.nPointPair[3], &stConfigTemp.stAnalogInput[i].stRotary.nPointPair[3], ParamType::UInt32, 0, 0, 0xFFFFFFFF}, \
-    ANALOG_INPUT_POINT_PAIR_5(i), \
-#if ROTARY_MAX_POS > 8, \
-#define ANALOG_INPUT_POINT_PAIR_5(i), \
-    {0x2200 + (i), 20, &stConfig.stAnalogInput[i].stRotary.nPointPair[4], &stConfigTemp.stAnalogInput[i].stRotary.nPointPair[4], ParamType::UInt32, 0, 0, 0xFFFFFFFF}, \
-#else, \
-#define ANALOG_INPUT_POINT_PAIR_5(i), \
+    {0x2200 + (i), 19, &stConfig.stAnalogInput[i].stRotary.nPointPair[3], &stConfigTemp.stAnalogInput[i].stRotary.nPointPair[3], ParamType::UInt32, 0, 0, 0xFFFFFFFF} \
+    ANALOG_INPUT_POINT_PAIR_5(i)
+#if ROTARY_MAX_POS > 8
+#define ANALOG_INPUT_POINT_PAIR_5(i) , \
+    {0x2200 + (i), 20, &stConfig.stAnalogInput[i].stRotary.nPointPair[4], &stConfigTemp.stAnalogInput[i].stRotary.nPointPair[4], ParamType::UInt32, 0, 0, 0xFFFFFFFF}
+#else
+#define ANALOG_INPUT_POINT_PAIR_5(i)
 #endif
 #endif
 
