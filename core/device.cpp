@@ -28,6 +28,9 @@
 #if HAS_STARTER_DISABLE > 0
 #include "starter.h"
 #endif
+#if HAS_IGNITION
+#include "ignition.h"
+#endif
 #if HAS_USB
 #include "usb.h"
 #endif
@@ -52,6 +55,9 @@ Wiper wiper;
 #endif
 #if HAS_STARTER_DISABLE > 0
 Starter starter;
+#endif
+#if HAS_IGNITION
+Ignition ignition;
 #endif
 #if NUM_KEYPADS > 0
 Keypad keypad[NUM_KEYPADS];
@@ -272,6 +278,11 @@ void CyclicUpdate()
         for (uint8_t i = 0; i < NUM_KEYPADS; i++)
             keypad[i].CheckMsg(rxMsg);
         #endif
+
+        #if HAS_IGNITION
+        if (rxMsg.IDE == CAN_IDE_STD)
+            ignition.CheckMsg(rxMsg.SID, rxMsg.data8, rxMsg.DLC, SYS_TIME);
+        #endif
     }
 
     //=========================================================================
@@ -324,6 +335,10 @@ void CyclicUpdate()
     #if NUM_TIMERS > 0
     for (uint8_t i = 0; i < NUM_TIMERS; i++)
         timer[i].Update();
+    #endif
+
+    #if HAS_IGNITION
+    ignition.Update(SYS_TIME);
     #endif
 
     #if NUM_KEYPADS > 0
@@ -497,6 +512,17 @@ void InitVarMap()
     {
         pVarMap[index++] = &timer[i].fVal;
     }
+    #endif
+
+    // Appended after the timers for the same reason
+    #if HAS_IGNITION
+    pVarMap[index++] = &ignition.fIgnition;
+    pVarMap[index++] = &ignition.fAccessory;
+    pVarMap[index++] = &ignition.fCranking;
+    pVarMap[index++] = &ignition.fRunning;
+    pVarMap[index++] = &ignition.fReady;
+    pVarMap[index++] = &ignition.fDash;
+    pVarMap[index++] = &ignition.fLinkOk;
     #endif
 
     //VarMap size must match the expected size
