@@ -31,7 +31,7 @@
 #define NUM_MATH 8
 #define NUM_CAN_MSGS 4
 #define NUM_TIMERS 8
-#define NUM_TABLES 2
+#define NUM_TABLES 4
 #define NUM_KEYPADS 2
 #define HAS_WIPERS TRUE
 #define HAS_STARTER_DISABLE TRUE
@@ -73,7 +73,7 @@
 #define DEVICE_THREAD_STACK 2048
 #define CAN_THREAD_STACK 512
 
-#define NUM_TX_MSGS 32
+#define NUM_TX_MSGS 33
 #define DEFAULT_BASE_ID 0x0DE
 
 #define ADC1_NUM_CHANNELS 7
