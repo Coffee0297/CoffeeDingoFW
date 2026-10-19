@@ -17,6 +17,9 @@
 #include "curve.h"
 #include "latch_gate.h"
 #include "pid.h"
+#if HAS_COMFORT_BLINK
+#include "comfort_blink.h"
+#endif
 #if NUM_OUTPUTS > 0
 #include "profet.h"
 #endif
@@ -122,6 +125,9 @@ struct DeviceConfig{
   #endif
   #if HAS_STARTER_DISABLE
   Config_Starter stStarter;
+  #endif
+  #if HAS_COMFORT_BLINK
+  Config_ComfortBlink stComfortBlink;
   #endif
   #if NUM_KEYPADS > 0
   Config_Keypad stKeypad[NUM_KEYPADS];

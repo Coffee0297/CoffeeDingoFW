@@ -154,6 +154,7 @@ CPPSRC = $(ALLCPPSRC) \
 				 functions/can_input.cpp \
 				 functions/can_msg.cpp \
 				 functions/can_outputs.cpp \
+				 functions/comfort_blink.cpp \
 				 functions/condition.cpp \
 				 functions/counter.cpp \
 				 functions/curve.cpp \

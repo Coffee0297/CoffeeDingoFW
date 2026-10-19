@@ -80,6 +80,11 @@ const ParamInfo stParams[] = {
     ALL_PID_PARAMS,
     #endif
 
+    #if HAS_COMFORT_BLINK
+    // Comfort Blink (0x1F00)
+    COMFORT_BLINK_PARAMS(),
+    #endif
+
     // CAN Outputs (0x2000+)
     ALL_CAN_OUTPUT_PARAMS,
 
