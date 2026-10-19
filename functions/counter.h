@@ -18,6 +18,7 @@ struct Config_Counter{
   bool bWrapAround;
   bool bHoldToReset;
   uint16_t nResetTime; //ms
+  bool bRetain;
 };
 
 class Counter

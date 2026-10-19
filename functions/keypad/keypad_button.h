@@ -17,6 +17,7 @@ struct Config_KeypadButton{
   bool bFaultBlink;
   uint8_t nBlinkColors[4];
   uint8_t nFaultBlinkColor;
+  bool bRetain;
 };
 
 class KeypadButton;

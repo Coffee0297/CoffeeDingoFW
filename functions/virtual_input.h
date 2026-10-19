@@ -17,6 +17,7 @@ struct Config_VirtualInput{
   bool bNot2;
   uint16_t nVar2;
   InputMode eMode;
+  bool bRetain;
 };
 
 class VirtualInput
@@ -37,6 +38,7 @@ public:
     }
 
     void Update();
+    void Restore(bool bVal) { input.Restore(bVal); }
 
     float fVal;
 
