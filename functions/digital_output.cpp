@@ -2,14 +2,20 @@
 
 void Digital_Output::Update()
 {
-    if(!pConfig->bEnabled)
-    {
-        fVal = 0;
-        palWriteLine(m_line, 0);
-        return;
-    }
+    bool bOn = pConfig->bEnabled && (*pInput != 0);
 
-    bool bOn = (*pInput != 0);
-    palWriteLine(m_line, bOn ? PAL_HIGH : PAL_LOW);
+    // PWM: the timer's period/compare callbacks drive the line (port_pwm.h), same as the Profet outputs
+    if (bOn && pwm.IsEnabled())
+    {
+        pwm.EnsureStarted();
+        pwm.On();
+    }
+    else
+    {
+        pwm.Off();
+        palWriteLine(m_line, bOn ? PAL_HIGH : PAL_LOW);
+    }
+    pwm.Update();
+
     fVal = bOn;
 }
