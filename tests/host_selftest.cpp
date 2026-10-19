@@ -2,6 +2,7 @@
 // the board's port.h. From the repo root:
 //   g++ -std=c++20 -I tests/host -I functions -I core -I utils tests/host_selftest.cpp functions/timer.cpp -o build/host_selftest && build/host_selftest
 //   g++ -std=c++20 -DMATH_ONLY -I tests/host -I functions -I core -I utils tests/host_selftest.cpp functions/math_block.cpp -o build/host_math && build/host_math
+//   g++ -std=c++20 -Wall -DANALOG_SCALE_ONLY -I tests/host -I functions -I core -I utils tests/host_selftest.cpp functions/input.cpp -o build/host_analog_scale && build/host_analog_scale
 // Each feature adds its own section below, picked with -D<NAME>_ONLY, and its build line here.
 #include <cassert>
 #include <cstdio>
@@ -41,6 +42,32 @@ int main()
     c.bEnabled = false; m.Update(); assert(m.fVal == 0);
 
     std::puts("host_selftest MATH OK");
+    return 0;
+}
+#elif defined(ANALOG_SCALE_ONLY)
+#include <cmath>
+enum class AnalogChannel { AnIn1 };
+static float fHostVolts;
+uint16_t GetAdcRaw(AnalogChannel) { return (uint16_t)(fHostVolts * 4095 / 3.3f); }
+float GetAdcVolts(AnalogChannel) { return fHostVolts; }
+#include "analog_input.cpp"
+
+int main()
+{
+    Config_AnalogInput c{};
+    c.bEnabled = true; c.fScaleGain = 0.05f; c.fScaleOffset = -25.0f;   // 0.5 V = 0, 4.5 V = 200
+    Analog_Input a(AnalogChannel::AnIn1); a.SetConfig(&c);
+    auto at = [&](float v) { fHostVolts = v; a.Update(); return a.fScaledVal; };
+
+    assert(at(2.5f) == 0);                                // scaling off: 0
+    c.bScale = true;
+    assert(std::fabs(at(0.5f) - 0) < 1e-3f);
+    assert(std::fabs(at(4.5f) - 200) < 1e-3f);
+    assert(std::fabs(at(2.5f) - 100) < 1e-3f);
+    assert(std::fabs(at(0.0f) + 25) < 1e-3f);             // below the range: extrapolated, no clamp
+    c.bEnabled = false; assert(at(2.5f) == 0);            // input off: 0
+
+    std::puts("host_analog_scale OK");
     return 0;
 }
 #else
