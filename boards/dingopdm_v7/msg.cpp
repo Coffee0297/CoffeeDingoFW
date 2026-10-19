@@ -605,3 +605,17 @@ CANTxMsg TxMsg33()
 
     return stMsg;
 }
+
+CANTxMsg TxMsg34()
+{
+    CANTxMsg stMsg;
+    //=======================================================
+    // Build Msg 34 (Ignition state, main module only)
+    //=======================================================
+    stMsg.frame.SID = stConfig.stDevice.nBaseId + CYCLIC_TX_OFFSET + 34;
+    stMsg.frame.DLC = 8;
+
+    stMsg.bSend = GetIgnitionFrame(stMsg.frame.data8);
+
+    return stMsg;
+}

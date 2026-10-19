@@ -41,5 +41,6 @@ def build_db(base_id):
     db.messages.append(dingopdm_max.build_msg_31(base_id + 2))
     db.messages.append(dingopdm_max.build_msg_32(base_id + 2))
     db.messages.append(dingopdm_max.build_msg_33(base_id + 2))
+    db.messages.append(dingopdm_max.build_msg_34(base_id + 2))
 
     return db

@@ -26,6 +26,9 @@
 #if HAS_COMFORT_BLINK
 #include "comfort_blink.h"
 #endif
+#if HAS_IGNITION
+#include "ignition.h"
+#endif
 #if NUM_KEYPADS > 0
 #include "keypad/keypad.h"
 #endif
@@ -78,6 +81,9 @@ extern Starter starter;
 #endif
 #if HAS_COMFORT_BLINK
 extern ComfortBlink comfortBlink;
+#endif
+#if HAS_IGNITION
+extern Ignition ignition;
 #endif
 #if NUM_KEYPADS > 0
 extern Keypad keypad[NUM_KEYPADS];
@@ -144,6 +150,9 @@ void ApplyAllConfig()
     #endif
     #if HAS_COMFORT_BLINK
     ApplyConfig(ComfortBlink::nBaseIndex);
+    #endif
+    #if HAS_IGNITION
+    ApplyConfig(Ignition::nBaseIndex);
     #endif
     #if NUM_KEYPADS > 0
     ApplyConfig(Keypad::nBaseIndex);
@@ -313,6 +322,15 @@ void ApplyConfig(uint16_t nIndex)
     if (nBaseIndex == ComfortBlink::nBaseIndex)
     {
         comfortBlink.SetConfig(&stConfig.stComfortBlink);
+    }
+    #endif
+
+    #if HAS_IGNITION
+    if (nBaseIndex == Ignition::nBaseIndex)
+    {
+        ignition.SetConfig(&stConfig.stIgnition);
+
+        UpdateCanFilters(); // Follower Rx ID
     }
     #endif
 

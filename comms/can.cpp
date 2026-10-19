@@ -313,6 +313,11 @@ void UpdateCanFilters()
             }
         }
         #endif
+
+        #if HAS_IGNITION
+        if (stConfig.stIgnition.bEnabled && stConfig.stIgnition.eRole == IgnRole::Follower)
+            Add(stConfig.stIgnition.nMainStateId, false);
+        #endif
     }
 
     // Filtering disabled, or more IDs than filter slots - accept everything rather than drop frames

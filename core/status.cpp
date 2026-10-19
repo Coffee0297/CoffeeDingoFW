@@ -437,6 +437,13 @@ int16_t GetPidOutput(uint8_t nPid)
     return 0;
 }
 
+#if HAS_IGNITION
+bool GetIgnitionFrame(uint8_t *data)
+{
+    return ignition.StateFrame(data);
+}
+#endif
+
 #if NUM_KEYPADS > 0
 bool GetAnyKeypadEnable()
 {
