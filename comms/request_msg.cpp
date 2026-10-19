@@ -73,7 +73,15 @@ void CheckRequestMsgs(CANRxFrame *frame)
         (frame->data8[1] == 'B') && (frame->data8[2] == 'O') && 
         (frame->data8[3] == 'O') && (frame->data8[4] == 'T') && (frame->data8[5] == 'L'))
     {
-        RequestBootloader();
+        // Byte 6: 0 = USB-DFU, 1 = OpenBLT update over CAN (F446 boards only, ignored elsewhere)
+        if (frame->data8[6] == 1)
+        {
+            #if defined(STM32F4XX)
+            RequestBootloaderCan(stConfig.stDevice.nBaseId, static_cast<uint8_t>(stConfig.stDevice.eCanSpeed));
+            #endif
+        }
+        else
+            RequestBootloader();
     }
     #endif
 
