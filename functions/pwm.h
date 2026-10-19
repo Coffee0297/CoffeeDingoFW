@@ -5,6 +5,8 @@
 #include "port.h"
 
 #define PWM_UPDATE_TIME 2.0 //ms
+// 1 MHz timer clock, 16-bit period: below 16 Hz the period doesn't fit, 1-15 Hz run at 16 Hz
+#define PWM_MIN_FREQ 16 //Hz
 
 #if NUM_OUTPUTS > 0
 
