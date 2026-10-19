@@ -36,7 +36,7 @@ void Condition::Update()
             break;
 
         case Operator::BitwiseAnd:
-            fVal = (uint16_t)(*pInput) & (uint16_t)(pConfig->fArg);
+            fVal = ((uint16_t)(*pInput) & (uint16_t)(pConfig->fArg)) > 0;
             break;
 
         case Operator::BitwiseNand:
