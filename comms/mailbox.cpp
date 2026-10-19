@@ -1,4 +1,5 @@
 #include "mailbox.h"
+#include "can.h"
 #include "ch.hpp"
 #include "port.h"
 
@@ -26,6 +27,14 @@ static chibios_rt::Mutex txUsbMutex;
 
 msg_t PostTxFrame(CANTxFrame *frame)
 {
+    // No CAN peer ACKing: the frame would only sit in a full queue (and stall PostTxFrameWithRetry senders),
+    // but a USB host alone with the module on a bench still wants it
+    if (CanNoPeer())
+    {
+        PostTxUsbFrame(frame);
+        return MSG_OK;
+    }
+
     txMutex.lock();
     for (int i = 0; i < MAILBOX_SIZE; i++) {
         if (!txMsgUsed[i]) {
