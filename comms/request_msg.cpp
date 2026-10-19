@@ -7,6 +7,9 @@
 #include "device_config.h"
 #include "mailbox.h"
 #include "enums.h"
+#if CAN_SLEEP
+#include "sleep.h"
+#endif
 
 // External variables from pdm.cpp that we need access to
 extern DeviceConfig stConfig;
@@ -41,6 +44,12 @@ void CheckRequestMsgs(CANRxFrame *frame)
         PostTxFrame(&txMsg);
 
         bSleepRequest = true;
+    }
+
+    if ((frame->DLC == 8) &&
+        (frame->data8[0] == static_cast<uint8_t>(MsgCmd::SleepInfo)))
+    {
+        SendSleepInfo();
     }
     #endif
 
