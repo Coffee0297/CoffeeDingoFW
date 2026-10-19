@@ -38,6 +38,13 @@
 #include "sleep.h"
 #endif
 
+// Flash tools read these from the image file to tell which board (board.h) and version it is for.
+// InitDevice reads them once, or --gc-sections drops them.
+#define STR_(x) #x
+#define STR(x) STR_(x)
+static const char kDingoBoard[] = "DINGO_BOARD=" BOARD_NAME;
+static const char kDingoFw[] = "DINGO_FW=" STR(MAJOR_VERSION) "." STR(MINOR_VERSION) "." STR(BUILD);
+
 CanInput canIn[NUM_CAN_INPUTS];
 CanOutputs canOutputs;
 VirtualInput virtIn[NUM_VIRT_INPUTS];
@@ -123,6 +130,9 @@ static chibios_rt::ThreadReference slowThreadRef;
 
 void InitDevice()
 {
+    (void)*(volatile const char *)kDingoBoard;
+    (void)*(volatile const char *)kDingoFw;
+
     #if HAS_SE_LEDS
     Error::Initialize(&statusLed, &errorLed);
     #endif

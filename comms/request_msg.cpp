@@ -114,7 +114,7 @@ void CheckRequestMsgs(CANRxFrame *frame)
         txMsg.IDE = CAN_IDE_STD;
         txMsg.DLC = 8;
         txMsg.data8[0] = static_cast<uint8_t>(MsgCmd::Version);
-        txMsg.data8[1] = 0;
+        txMsg.data8[1] = BOARD_ID;
         txMsg.data8[2] = 0;
         txMsg.data8[3] = 0;
         txMsg.data8[4] = MAJOR_VERSION;

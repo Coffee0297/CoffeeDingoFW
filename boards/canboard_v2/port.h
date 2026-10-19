@@ -3,6 +3,8 @@
 #include "hal.h"
 #include "enums.h"
 
+#define BOARD_ID 2 //Version reply byte 1: 0 PDM, 1 PDM-MAX, 2 CANBoard, 3 PT-DPDM4
+
 #define PROCESS_STACK 0x0400
 
 #define HAS_SE_LEDS FALSE
