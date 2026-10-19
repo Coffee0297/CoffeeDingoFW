@@ -26,6 +26,7 @@ struct Config_Output{
   float fUnderLimit;      //A, 0 = off
   uint16_t nUnderTime;    //ms
   bool bUnderTrip;        //false = report only, true = trip to Fault
+  bool bStayAlive;        //left on while asleep
 
   Config_PwmOutput stPwm;
 
@@ -134,6 +135,13 @@ public:
     }
 
     void ClearFault();
+    // Asleep with the output on: solid on, the PWM timers stop in STOP.
+    // No firmware current protection until the wake reset, only the Profet's own
+    void StayOn()
+    {
+        pwm.Off();
+        palSetLine(m_in);
+    }
 
     float GetCurrent() { return *const_cast<volatile float*>(&fCurrent); }
     ProfetState GetState() { return eState; }

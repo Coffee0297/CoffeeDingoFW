@@ -53,8 +53,10 @@ bool CheckEnterSleep()
     nNumOutputsOn = 0;
     for (int i = 0; i < NUM_OUTPUTS; i++)
     {
+        // A stay-alive output that is on doesn't keep the device awake, one in overcurrent/fault does
         if ((GetOutputState(i) != ProfetState::Off) &&
-            !(stConfig.stDevice.bSleepIgnoreAlwaysOn && (stConfig.stOutput[i].nInput == 1)))
+            !(stConfig.stDevice.bSleepIgnoreAlwaysOn && (stConfig.stOutput[i].nInput == 1)) &&
+            !(stConfig.stOutput[i].bStayAlive && (GetOutputState(i) == ProfetState::On)))
             nNumOutputsOn++;
     }
 
@@ -222,10 +224,16 @@ void EnterSleep()
     // Clear CAN sleep request so we don't immediately re-enter sleep after waking up
     bSleepRequest = false;
 
-    // Forced sleep can arrive with outputs on - shut them off, no current protection while stopped
+    // Forced sleep can arrive with outputs on - shut them off, no current protection while stopped.
+    // Stay-alive outputs that are on stay on, the user opted out of that protection
     #if NUM_OUTPUTS > 0
     for (uint8_t i = 0; i < NUM_OUTPUTS; i++)
-        pf[i].ForceOff(true); // DEN comes back on wake: wake is a reset and the Profet constructor sets it
+    {
+        if (stConfig.stOutput[i].bStayAlive && (pf[i].GetState() == ProfetState::On))
+            pf[i].StayOn();
+        else
+            pf[i].ForceOff(true); // DEN comes back on wake: wake is a reset and the Profet constructor sets it
+    }
     #endif
 
     // The SlowThread may not have stored the last change yet

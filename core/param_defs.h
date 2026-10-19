@@ -78,7 +78,8 @@
     {0x1000 + (i), 30, &stConfig.stOutput[i].nSoftStartTimeout,          &stConfigTemp.stOutput[i].nSoftStartTimeout,          ParamType::UInt16, 0, 0, 60000}, \
     {0x1000 + (i), 31, &stConfig.stOutput[i].nSoftStopTime,              &stConfigTemp.stOutput[i].nSoftStopTime,              ParamType::UInt16, 0, 0, 10000}, \
     {0x1000 + (i), 32, &stConfig.stOutput[i].fHardShortLimit,            &stConfigTemp.stOutput[i].fHardShortLimit,            ParamType::Float,  F(0.0f), F(0.0f), F(100.0f)}, \
-    {0x1000 + (i), 33, &stConfig.stOutput[i].nThermalTau,                &stConfigTemp.stOutput[i].nThermalTau,                ParamType::UInt16, 0, 0, 600}
+    {0x1000 + (i), 33, &stConfig.stOutput[i].nThermalTau,                &stConfigTemp.stOutput[i].nThermalTau,                ParamType::UInt16, 0, 0, 600}, \
+    {0x1000 + (i), 34, &stConfig.stOutput[i].bStayAlive,                 &stConfigTemp.stOutput[i].bStayAlive,                 ParamType::Bool,   0, 0, 1}
 #endif
 
 //=============================================================================
