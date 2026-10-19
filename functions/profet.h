@@ -21,6 +21,8 @@ struct Config_Output{
   int8_t nPrimaryOutput;  //index of primary to follow, -1 = unpaired
 
   Config_PwmOutput stPwm;
+
+  uint16_t nSoftStopTime; //ms, 0 = off, PWM duty ramps down to 0 on turn off
 };
 
 //=============================================================================
@@ -163,6 +165,10 @@ private:
 
     bool bInRushActive;
     uint32_t nInRushOnTime;
+
+    bool bSoftStopping;
+    uint32_t nSoftStopStart;
+    uint8_t nSoftStopDuty;  // duty when the soft stop began
 
     volatile uint16_t nOcCount;       // Number of overcurrents
     uint32_t nOcTriggerTime; // Time of overcurrent
