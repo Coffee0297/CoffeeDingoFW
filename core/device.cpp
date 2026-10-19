@@ -335,6 +335,8 @@ void CyclicUpdate()
     // Outputs last, so they act on this cycle's inputs and logic
     //=========================================================================
     #if NUM_OUTPUTS > 0
+    bool bShed = *pVarMap[stConfig.stDevice.nShedInput];
+
     // Two passes so dual-channel DSEL settles once per pass instead of once per output
     for (uint8_t nPass = 0; nPass < 2; nPass++)
     {
@@ -354,7 +356,7 @@ void CyclicUpdate()
         for (uint8_t i = 0; i < NUM_OUTPUTS; i++)
         {
             if (pf[i].GetDselPass() == nPass)
-                pf[i].Update(starter.fVal[i]);
+                pf[i].Update(starter.fVal[i] && !(bShed && stConfig.stOutput[i].bShed));
         }
     }
     #endif

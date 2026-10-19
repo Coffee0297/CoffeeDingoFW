@@ -21,6 +21,8 @@ struct Config_Output{
   int8_t nPrimaryOutput;  //index of primary to follow, -1 = unpaired
 
   Config_PwmOutput stPwm;
+
+  bool bShed; //held off while the device shed input is true
 };
 
 //=============================================================================
