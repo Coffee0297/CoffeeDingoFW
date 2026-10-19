@@ -7,6 +7,9 @@
 
 #define PROCESS_STACK 0x0400
 
+// 4KB CCM (ram4), CPU only (no DMA), zeroed at startup like .bss
+#define CCM_BSS __attribute__((section(".ram4_clear")))
+
 #define HAS_SE_LEDS FALSE
 #define HAS_USB FALSE
 #define HAS_I2C FALSE
