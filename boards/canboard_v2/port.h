@@ -31,7 +31,7 @@
 #define NUM_COUNTERS 4
 #define NUM_CONDITIONS 8
 #define NUM_MATH 0
-#define NUM_TIMERS 0
+#define NUM_TIMERS 4
 #define NUM_KEYPADS 0
 #define HAS_WIPERS FALSE
 #define HAS_STARTER_DISABLE FALSE
