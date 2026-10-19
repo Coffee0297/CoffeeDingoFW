@@ -20,7 +20,8 @@
     {0x0000, 5, &stConfig.stDevice.bDisableCanWake,     &stConfigTemp.stDevice.bDisableCanWake,   ParamType::Bool,   0, 0, 1}, \
     {0x0000, 6, &stConfig.stDevice.bConnectUsbToCan,    &stConfigTemp.stDevice.bConnectUsbToCan,  ParamType::Bool,   1, 0, 1}, \
     {0x0000, 7, &stConfig.stDevice.nMuteCanTxInput,     &stConfigTemp.stDevice.nMuteCanTxInput,   ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
-    {0x0000, 8, &stConfig.stDevice.nForceSleepInput,    &stConfigTemp.stDevice.nForceSleepInput,  ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}
+    {0x0000, 8, &stConfig.stDevice.nForceSleepInput,    &stConfigTemp.stDevice.nForceSleepInput,  ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
+    {0x0000, 12, &stConfig.stDevice.nRetryAllInput,     &stConfigTemp.stDevice.nRetryAllInput,    ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}
 
 //=============================================================================
 // Output Parameters - Base 0x1000
@@ -52,7 +53,8 @@
     {0x1000 + (i), 28, &stConfig.stOutput[i].nUnderTime,                 &stConfigTemp.stOutput[i].nUnderTime,                 ParamType::UInt16, 1000, 0, 60000}, \
     {0x1000 + (i), 29, &stConfig.stOutput[i].bUnderTrip,                 &stConfigTemp.stOutput[i].bUnderTrip,                 ParamType::Bool,   0, 0, 1}, \
     {0x1000 + (i), 32, &stConfig.stOutput[i].fHardShortLimit,            &stConfigTemp.stOutput[i].fHardShortLimit,            ParamType::Float,  F(0.0f), F(0.0f), F(100.0f)}, \
-    {0x1000 + (i), 33, &stConfig.stOutput[i].nThermalTau,                &stConfigTemp.stOutput[i].nThermalTau,                ParamType::UInt16, 0, 0, 600}
+    {0x1000 + (i), 33, &stConfig.stOutput[i].nThermalTau,                &stConfigTemp.stOutput[i].nThermalTau,                ParamType::UInt16, 0, 0, 600}, \
+    {0x1000 + (i), 25, &stConfig.stOutput[i].bClearOnReassert,           &stConfigTemp.stOutput[i].bClearOnReassert,           ParamType::Bool,   0, 0, 1}
 #endif
 
 //=============================================================================

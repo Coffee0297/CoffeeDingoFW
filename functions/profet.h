@@ -31,6 +31,7 @@ struct Config_Output{
 
   float fHardShortLimit; //A, 0 = off, above it trips to Fault at once
   uint16_t nThermalTau; //s, 0 = off, wire load time constant
+  bool bClearOnReassert; //latched fault clears when the input goes off
 };
 
 //=============================================================================
@@ -122,6 +123,8 @@ public:
         eState = ProfetState::Off;
         fOutput = 0;
     }
+
+    void ClearFault();
 
     float GetCurrent() { return *const_cast<volatile float*>(&fCurrent); }
     ProfetState GetState() { return eState; }

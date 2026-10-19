@@ -49,6 +49,7 @@ struct Config_Device{
   bool bConnectUsbToCan;
   uint16_t nMuteCanTxInput;
   uint16_t nForceSleepInput;
+  uint16_t nRetryAllInput;
 };
 
 struct DeviceConfig{

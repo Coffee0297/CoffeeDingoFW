@@ -348,6 +348,18 @@ void CyclicUpdate()
     // Outputs last, so they act on this cycle's inputs and logic
     //=========================================================================
     #if NUM_OUTPUTS > 0
+    // Retry all on a rising edge, at most every 2 s so a held or hammered button can't keep re-energising a short
+    static bool bLastRetryAll = false;
+    static uint32_t nRetryAllTime = 0;
+    bool bRetryAll = *pVarMap[stConfig.stDevice.nRetryAllInput];
+    if (bRetryAll && !bLastRetryAll && (SYS_TIME - nRetryAllTime) >= 2000)
+    {
+        nRetryAllTime = SYS_TIME;
+        for (uint8_t i = 0; i < NUM_OUTPUTS; i++)
+            pf[i].ClearFault();
+    }
+    bLastRetryAll = bRetryAll;
+
     // Two passes so dual-channel DSEL settles once per pass instead of once per output
     for (uint8_t nPass = 0; nPass < 2; nPass++)
     {

@@ -138,7 +138,9 @@ void Profet::Update(bool bOutEnabled)
         pwm.Off();
 
         palClearLine(m_in);
-        // Fault requires power cycle, no way out
+        // Fault requires power cycle, a retry-all or (if enabled) the input going off
+        if (pConfig->bClearOnReassert && !(*pInput))
+            ClearFault();
         break;
 
     default: // Warning/OpenLoad/Undercurrent are overlays, never in eState
@@ -184,6 +186,20 @@ void Profet::Update(bool bOutEnabled)
     fUndercurrent = GetReportedState() == ProfetState::Undercurrent ? 1 : 0;
 
     palClearLine(LINE_E2);
+}
+
+// Back to Off with the retry count cleared, so the output turns on again if requested
+void Profet::ClearFault()
+{
+    if (eState == ProfetState::Overcurrent || eState == ProfetState::Fault)
+    {
+        eState = ProfetState::Off;
+        nOcCount = 0;
+    }
+
+    // A follower latches Fault when it mirrors its primary's, and would hold the primary in Fault
+    if (pFollower != nullptr && pFollower->eState == ProfetState::Fault)
+        pFollower->eState = ProfetState::Off;
 }
 
 void Profet::FollowerUpdate()
