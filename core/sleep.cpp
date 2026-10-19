@@ -253,7 +253,7 @@ void EnterSleep()
     // Forced sleep can arrive with outputs on - shut them off, no current protection while stopped
     #if NUM_OUTPUTS > 0
     for (uint8_t i = 0; i < NUM_OUTPUTS; i++)
-        pf[i].ForceOff();
+        pf[i].ForceOff(true); // DEN comes back on wake: wake is a reset and the Profet constructor sets it
     #endif
 
     // Goodbye, so the tool can tell asleep from unplugged: [Sleep, 'Z', 'Z', 'Z', why (1 auto, 2 forced, 3 request)].
