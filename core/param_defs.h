@@ -263,7 +263,10 @@
     {0x2200 + (i), 6, &stConfig.stAnalogInput[i].stRotary.bInvert, &stConfigTemp.stAnalogInput[i].stRotary.bInvert, ParamType::Bool, 0, 0, 1}, \
     {0x2200 + (i), 7, &stConfig.stAnalogInput[i].stRotary.fOffset, &stConfigTemp.stAnalogInput[i].stRotary.fOffset, ParamType::Float, F(0.0f), F(-1e9f), F(1e9f)}, \
     {0x2200 + (i), 8, &stConfig.stAnalogInput[i].stRotary.fStep, &stConfigTemp.stAnalogInput[i].stRotary.fStep, ParamType::Float, F(100.0f), F(1e-6f), F(1e9f)}, \
-    {0x2200 + (i), 9, &stConfig.stAnalogInput[i].stRotary.fMaxPos, &stConfigTemp.stAnalogInput[i].stRotary.fMaxPos, ParamType::Float, F(10.0f), F(0.0f), F(1e9f)}
+    {0x2200 + (i), 9, &stConfig.stAnalogInput[i].stRotary.fMaxPos, &stConfigTemp.stAnalogInput[i].stRotary.fMaxPos, ParamType::Float, F(10.0f), F(0.0f), F(1e9f)}, \
+    {0x2200 + (i), 10, &stConfig.stAnalogInput[i].bScale, &stConfigTemp.stAnalogInput[i].bScale, ParamType::Bool, 0, 0, 1}, \
+    {0x2200 + (i), 11, &stConfig.stAnalogInput[i].fScaleGain, &stConfigTemp.stAnalogInput[i].fScaleGain, ParamType::Float, F(1.0f), F(-1e9f), F(1e9f)}, \
+    {0x2200 + (i), 12, &stConfig.stAnalogInput[i].fScaleOffset, &stConfigTemp.stAnalogInput[i].fScaleOffset, ParamType::Float, F(0.0f), F(-1e9f), F(1e9f)}
 #endif
 
 //=============================================================================

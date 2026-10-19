@@ -10,11 +10,14 @@ void Analog_Input::Update()
     {
         fRotaryPos = 0;
         fSwitchVal = 0;
+        fScaledVal = 0;
         return;
     }
 
     RotaryUpdate();
     SwitchUpdate();
+
+    fScaledVal = pConfig->bScale ? (pConfig->fScaleGain * fValMillivolts + pConfig->fScaleOffset) : 0;
 }
 
 void Analog_Input::RotaryUpdate()

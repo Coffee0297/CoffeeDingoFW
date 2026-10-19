@@ -560,6 +560,11 @@ void InitVarMap()
     }
     #endif
 
+    #if NUM_ANALOG_INPUTS > 0
+    for (uint8_t i = 0; i < NUM_ANALOG_INPUTS; i++)
+        pVarMap[index++] = &analogIn[i].fScaledVal;
+    #endif
+
     #if NUM_OUTPUTS > 0
     for (uint8_t i = 0; i < NUM_OUTPUTS; i++)
     {
