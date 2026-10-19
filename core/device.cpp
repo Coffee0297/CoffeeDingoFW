@@ -346,6 +346,7 @@ void CyclicUpdate()
             pf[i].ClearFault();
     }
     bLastRetryAll = bRetryAll;
+    bool bShed = *pVarMap[stConfig.stDevice.nShedInput];
 
     // Two passes so dual-channel DSEL settles once per pass instead of once per output
     for (uint8_t nPass = 0; nPass < 2; nPass++)
@@ -366,7 +367,7 @@ void CyclicUpdate()
         for (uint8_t i = 0; i < NUM_OUTPUTS; i++)
         {
             if (pf[i].GetDselPass() == nPass)
-                pf[i].Update(starter.fVal[i]);
+                pf[i].Update(starter.fVal[i] && !(bShed && stConfig.stOutput[i].bShed));
         }
     }
     #endif

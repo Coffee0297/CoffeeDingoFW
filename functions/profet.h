@@ -32,6 +32,7 @@ struct Config_Output{
   float fHardShortLimit; //A, 0 = off, above it trips to Fault at once
   uint16_t nSoftStartTimeout; //ms, 0 = off, soft start held above the inrush limit, trips if not done in time
   uint16_t nSoftStopTime; //ms, 0 = off, PWM duty ramps down to 0 on turn off
+  bool bShed; //held off while the device shed input is true
 };
 
 //=============================================================================
