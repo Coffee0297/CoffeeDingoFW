@@ -60,6 +60,11 @@ const ParamInfo stParams[] = {
     ALL_MATH_PARAMS,
     #endif
 
+    #if NUM_CAN_MSGS > 0
+    // CAN Messages (0x1D00+)
+    ALL_CAN_MSG_PARAMS,
+    #endif
+
     // CAN Outputs (0x2000+)
     ALL_CAN_OUTPUT_PARAMS,
 
