@@ -5,6 +5,7 @@ void Analog_Input::Update()
     if(!pConfig->bEnabled)
     {
         fVal = 0;
+        fScaledVal = 0;
         return;
     }
 
@@ -13,6 +14,8 @@ void Analog_Input::Update()
 
     RotaryUpdate();
     SwitchUpdate();
+
+    fScaledVal = pConfig->bScale ? (pConfig->fScaleGain * fValMillivolts + pConfig->fScaleOffset) : 0;
 }
 
 void Analog_Input::RotaryUpdate()

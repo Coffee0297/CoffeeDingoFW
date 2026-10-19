@@ -51,7 +51,7 @@
     VAR_MAP_SYS_VARS + \
     (NUM_DIG_INPUTS * 1) + \
     (NUM_CAN_INPUTS * 2) + \
-    (NUM_ANALOG_INPUTS * 4) + \
+    (NUM_ANALOG_INPUTS * 5) + \
     (NUM_DIG_OUTPUTS * 1) + \
     (NUM_VIRT_INPUTS * 1) + \
     (NUM_OUTPUTS * 4) + \
