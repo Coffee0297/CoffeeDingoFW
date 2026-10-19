@@ -7,6 +7,10 @@
 #include "device_config.h"
 #include "mailbox.h"
 #include "enums.h"
+#include "dbc.h"
+#if NUM_OUTPUTS > 0
+#include "overload_log.h"
+#endif
 
 // External variables from pdm.cpp that we need access to
 extern DeviceConfig stConfig;
@@ -124,4 +128,59 @@ void CheckRequestMsgs(CANRxFrame *frame)
 
         PostTxFrame(&txMsg);
     }
+
+    #if NUM_OUTPUTS > 0
+    // Trip log read-back, frame layouts at MsgCmd::OvlCount
+    MsgCmd eCmd = static_cast<MsgCmd>(frame->data8[0]);
+    if ((frame->DLC == 8) &&
+        ((eCmd == MsgCmd::OvlCount) || (eCmd == MsgCmd::OvlHeader) || (eCmd == MsgCmd::OvlData) ||
+         (eCmd == MsgCmd::OvlClear) || (eCmd == MsgCmd::OvlTime)))
+    {
+        CANTxFrame txMsg = {};
+        txMsg.SID = stConfig.stDevice.nBaseId + CONFIG_TX_OFFSET;
+        txMsg.IDE = CAN_IDE_STD;
+        txMsg.DLC = 8;
+        txMsg.data8[0] = frame->data8[0];
+        txMsg.data8[1] = frame->data8[1];
+        uint8_t idx = frame->data8[1];
+
+        LockConfig(); // DeviceThread writes the log under this lock
+        switch (eCmd)
+        {
+        case MsgCmd::OvlCount:
+            txMsg.data8[1] = OvlLogCount();
+            Dbc::EncodeInt(txMsg.data8, SYS_TIME, 16, 32);
+            break;
+        case MsgCmd::OvlTime:
+            Dbc::EncodeInt(txMsg.data8, OvlLogTime(idx), 16, 32);
+            break;
+        case MsgCmd::OvlHeader:
+        {
+            uint8_t nOut, nState;
+            float fPeak, fLimit;
+            txMsg.data8[2] = 0xFF;
+            if (OvlLogGetHeader(idx, nOut, nState, fPeak, fLimit))
+            {
+                txMsg.data8[2] = nOut;
+                txMsg.data8[3] = nState;
+                Dbc::EncodeInt(txMsg.data8, (uint16_t)(fPeak * 10.0f), 32, 16);
+                Dbc::EncodeInt(txMsg.data8, (uint16_t)(fLimit * 10.0f), 48, 16);
+            }
+            break;
+        }
+        case MsgCmd::OvlData:
+            txMsg.data8[2] = frame->data8[2];
+            txMsg.data8[3] = frame->data8[3];
+            OvlLogGetData(idx, (frame->data8[2] << 8) | frame->data8[3], &txMsg.data8[4], 4);
+            break;
+        default: // OvlClear
+            OvlLogClear();
+            txMsg.DLC = 1;
+            break;
+        }
+        UnlockConfig();
+
+        PostTxFrame(&txMsg);
+    }
+    #endif
 }
