@@ -12,4 +12,6 @@ void EnterSleep();
 void InitSleep();
 void SendSleepInfo();
 uint8_t SleepCountdownSec();
+bool QuietWake();
+void CheckQuietWake(const CANRxFrame *frame);
 void EnableLineEventWithPull(ioline_t line, InputPull pull);
