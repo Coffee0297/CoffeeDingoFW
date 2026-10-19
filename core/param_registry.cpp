@@ -12,6 +12,9 @@ const ParamInfo stParams[] = {
     // Device Config (0x0000)
     DEVICE_CONFIG_PARAMS(),
 
+    // Config lock (0x0200)
+    LOCK_PARAMS(),
+
     // Outputs (0x1000+)
     #if NUM_OUTPUTS > 0
     ALL_OUTPUT_PARAMS,
@@ -126,6 +129,10 @@ const ParamInfo* FindParam(uint16_t index, uint8_t subindex) {
 uint32_t ReadParam(const ParamInfo* param, bool temp)
 {
     if(param == nullptr || param->pVal == nullptr || param->pTempVal == nullptr)
+        return 0;
+
+    // The password is write-only; the staged copy stays readable so WriteAll can apply and CRC it
+    if (!temp && param->pVal == &stConfig.stLock.nPassword)
         return 0;
 
     void* targetPtr = temp ? param->pTempVal : param->pVal;
