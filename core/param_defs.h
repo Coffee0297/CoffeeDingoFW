@@ -56,7 +56,8 @@
     {0x1000 + (i), 25, &stConfig.stOutput[i].bClearOnReassert,           &stConfigTemp.stOutput[i].bClearOnReassert,           ParamType::Bool,   0, 0, 1}, \
     {0x1000 + (i), 27, &stConfig.stOutput[i].fUnderLimit,                &stConfigTemp.stOutput[i].fUnderLimit,                ParamType::Float,  F(0.0f), F(0.0f), F(100.0f)}, \
     {0x1000 + (i), 28, &stConfig.stOutput[i].nUnderTime,                 &stConfigTemp.stOutput[i].nUnderTime,                 ParamType::UInt16, 1000, 0, 60000}, \
-    {0x1000 + (i), 29, &stConfig.stOutput[i].bUnderTrip,                 &stConfigTemp.stOutput[i].bUnderTrip,                 ParamType::Bool,   0, 0, 1}
+    {0x1000 + (i), 29, &stConfig.stOutput[i].bUnderTrip,                 &stConfigTemp.stOutput[i].bUnderTrip,                 ParamType::Bool,   0, 0, 1}, \
+    {0x1000 + (i), 32, &stConfig.stOutput[i].fHardShortLimit,            &stConfigTemp.stOutput[i].fHardShortLimit,            ParamType::Float,  F(0.0f), F(0.0f), F(100.0f)}
 #endif
 
 //=============================================================================

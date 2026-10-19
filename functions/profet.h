@@ -29,6 +29,7 @@ struct Config_Output{
   Config_PwmOutput stPwm;
 
   bool bClearOnReassert; //latched fault clears when the input goes off
+  float fHardShortLimit; //A, 0 = off, above it trips to Fault at once
 };
 
 //=============================================================================
