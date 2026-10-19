@@ -21,6 +21,8 @@ struct Config_Output{
   int8_t nPrimaryOutput;  //index of primary to follow, -1 = unpaired
 
   Config_PwmOutput stPwm;
+
+  uint16_t nSoftStartTimeout; //ms, 0 = off, soft start held above the inrush limit, trips if not done in time
 };
 
 //=============================================================================

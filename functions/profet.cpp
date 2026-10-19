@@ -50,6 +50,11 @@ void Profet::Update(bool bOutEnabled)
 
     bInRushActive = (SYS_TIME - nInRushOnTime) < pConfig->nInrushTime;
 
+    // Current-limited soft start: the ramp holds above the inrush limit instead of tripping,
+    // and the output trips if the ramp hasn't finished within the timeout
+    bool bLimitedStart = pConfig->nSoftStartTimeout > 0 && pwm.IsSoftStarting();
+    bool bHoldSoftStart = false;
+
     switch (eState)
     {
     case ProfetState::Off:
@@ -88,11 +93,23 @@ void Profet::Update(bool bOutEnabled)
         }
 
         // Inrush overcurrent
-        if (fCurrent > pConfig->fInrushLimit && bInRushActive)
+        if (fCurrent > pConfig->fInrushLimit && bInRushActive && !bLimitedStart)
         {
             nOcTriggerTime = SYS_TIME;
             nOcCount++;
             eState = ProfetState::Overcurrent;
+        }
+
+        if (bLimitedStart)
+        {
+            bHoldSoftStart = fCurrent > pConfig->fInrushLimit;
+
+            if ((SYS_TIME - nInRushOnTime) > pConfig->nSoftStartTimeout)
+            {
+                nOcTriggerTime = SYS_TIME;
+                nOcCount++;
+                eState = ProfetState::Overcurrent;
+            }
         }
 
         break;
@@ -131,7 +148,7 @@ void Profet::Update(bool bOutEnabled)
         break;
     }
 
-    pwm.Update();
+    pwm.Update(bHoldSoftStart);
 
     // Set var map values
     fOutput = eState == ProfetState::On ? 1 : 0;
@@ -240,7 +257,12 @@ void Profet::MeasureCurrent()
         }
     }
     else
+    {
+        // Also the PWM fallback: at turn-on a low duty has no sample window yet, so it must not
+        // reuse the last on-time reading (a held soft start would never start again after a trip)
         nIS = GetAdcRaw(m_ain);
+        nLastIS = nIS;
+    }
 
     CalculateCurrent();
 }
