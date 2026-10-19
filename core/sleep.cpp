@@ -36,6 +36,9 @@ static WakeReason eWakeReason = WakeReason::PowerOn;
 static uint8_t nWakeSource;
 static uint16_t nWakes;
 
+// Woken by CAN and not yet heard a real frame: nothing periodic goes out (see CheckQuietWake)
+static volatile bool bQuietWake;
+
 // External variables from pdm.cpp that we need access to
 extern DeviceConfig stConfig;
 bool bSleepRequest;
@@ -75,7 +78,8 @@ bool CheckEnterSleep()
 
     // No outputs on, no CAN msgs received and no USB connected
     // Go to sleep after timeout
-    bEnterSleep = stConfig.stDevice.bSleepEnabled &&
+    // A quiet wake was asleep a moment ago and heard nothing real since: it goes back to sleep
+    bEnterSleep = (stConfig.stDevice.bSleepEnabled || bQuietWake) &&
                   (nNumOutputsOn == 0) &&
                   (nLastNumOutputsOn == 0) &&
                   !GetUsbConnected() &&
@@ -143,7 +147,27 @@ void InitSleep()
             eWakeReason = static_cast<WakeReason>(nKeep & 0xFF);
             nWakeSource = (nKeep >> 8) & 0xFF;
             nWakeKeep[1] = nKeep & ~WAKE_NEW;
+            bQuietWake = (eWakeReason == WakeReason::Can);
         }
+    }
+}
+
+bool QuietWake()
+{
+    return bQuietWake;
+}
+
+// CAN RX thread. A goodbye wakes every sleeping module; if each then started talking (they forget "sleep now"
+// across the wake reset) they would wake each other for ever. So only a frame that isn't another module's
+// goodbye [Sleep, 'Z', 'Z', 'Z', ...] ends a quiet wake; then the module announces why it is awake.
+void CheckQuietWake(const CANRxFrame *frame)
+{
+    if (bQuietWake &&
+        !((frame->DLC == 8) && (frame->data8[0] == static_cast<uint8_t>(MsgCmd::Sleep)) &&
+          (frame->data8[1] == 'Z') && (frame->data8[2] == 'Z') && (frame->data8[3] == 'Z')))
+    {
+        bQuietWake = false;
+        SendSleepInfo();
     }
 }
 
@@ -203,20 +227,24 @@ void EnterSleep()
         pf[i].ForceOff();
     #endif
 
-    // Goodbye, so the tool can tell asleep from unplugged: [Sleep, 'Z', 'Z', 'Z', why (1 auto, 2 forced, 3 request)]
-    CANTxFrame txMsg;
-    txMsg.SID = stConfig.stDevice.nBaseId + CONFIG_TX_OFFSET;
-    txMsg.IDE = CAN_IDE_STD;
-    txMsg.DLC = 8;
-    txMsg.data8[0] = static_cast<uint8_t>(MsgCmd::Sleep);
-    txMsg.data8[1] = 'Z';
-    txMsg.data8[2] = 'Z';
-    txMsg.data8[3] = 'Z';
-    txMsg.data8[4] = nWhy;
-    txMsg.data8[5] = 0;
-    txMsg.data8[6] = 0;
-    txMsg.data8[7] = 0;
-    PostTxFrame(&txMsg);
+    // Goodbye, so the tool can tell asleep from unplugged: [Sleep, 'Z', 'Z', 'Z', why (1 auto, 2 forced, 3 request)].
+    // Not from a quiet wake: it would wake the others again.
+    if (!bQuietWake)
+    {
+        CANTxFrame txMsg;
+        txMsg.SID = stConfig.stDevice.nBaseId + CONFIG_TX_OFFSET;
+        txMsg.IDE = CAN_IDE_STD;
+        txMsg.DLC = 8;
+        txMsg.data8[0] = static_cast<uint8_t>(MsgCmd::Sleep);
+        txMsg.data8[1] = 'Z';
+        txMsg.data8[2] = 'Z';
+        txMsg.data8[3] = 'Z';
+        txMsg.data8[4] = nWhy;
+        txMsg.data8[5] = 0;
+        txMsg.data8[6] = 0;
+        txMsg.data8[7] = 0;
+        PostTxFrame(&txMsg);
+    }
 
     // Let CanTxThread flush queued frames before the transceiver goes to standby
     chThdSleepMilliseconds(100);

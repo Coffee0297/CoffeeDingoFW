@@ -151,7 +151,8 @@ void InitDevice()
         Error::SetFatalError(FatalErrorType::ErrCAN, MsgSrc::Init);
 
     #if CAN_SLEEP
-    SendSleepInfo(); // tell the bus why it is awake
+    if (!QuietWake()) // a quiet wake says so when it ends
+        SendSleepInfo(); // tell the bus why it is awake
     #endif
 
     #if HAS_USB
