@@ -5,6 +5,9 @@
 #include "mailbox.h"
 #include "msg.h"
 #include "param_protocol.h"
+#if CAN_SLEEP
+#include "sleep.h"
+#endif
 
 #include <iterator>
 
@@ -105,6 +108,10 @@ void CanRxThread(void *)
         if (res == MSG_OK)
         {
             nLastCanRxTime = SYS_TIME;
+
+            #if CAN_SLEEP
+            CheckQuietWake(&msg);
+            #endif
 
             // Config frames go straight to the param thread
             if (!RouteParamFrame(&msg))
@@ -294,6 +301,10 @@ uint32_t GetLastCanRxTime()
 
 bool CanTxMuted()
 {
+    #if CAN_SLEEP
+    if (QuietWake())
+        return true;
+    #endif
     return *pVarMap[stConfig.stDevice.nMuteCanTxInput];
 }
 
