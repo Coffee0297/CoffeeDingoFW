@@ -14,6 +14,7 @@
 #include "math_block.h"
 #include "can_msg.h"
 #include "table.h"
+#include "curve.h"
 #if NUM_OUTPUTS > 0
 #include "profet.h"
 #endif
@@ -76,6 +77,10 @@ struct DeviceConfig{
 
   #if NUM_TABLES > 0
   Config_Table stTable[NUM_TABLES];
+  #endif
+
+  #if NUM_CURVES > 0
+  Config_Curve stCurve[NUM_CURVES];
   #endif
 
   #if NUM_DIG_INPUTS > 0

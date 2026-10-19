@@ -83,6 +83,11 @@ const ParamInfo stParams[] = {
     ALL_ANALOG_INPUT_PARAMS,
     #endif
 
+    #if NUM_CURVES > 0
+    // Curves (0x2400+)
+    ALL_CURVE_PARAMS,
+    #endif
+
     #if NUM_KEYPADS > 0
     // Keypads (0x3000+)
     ALL_KEYPAD_PARAMS,

@@ -156,6 +156,7 @@ CPPSRC = $(ALLCPPSRC) \
 				 functions/can_outputs.cpp \
 				 functions/condition.cpp \
 				 functions/counter.cpp \
+				 functions/curve.cpp \
 				 functions/flasher.cpp \
 				 functions/input.cpp \
 				 functions/math_block.cpp \

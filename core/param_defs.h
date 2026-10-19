@@ -347,6 +347,22 @@
 #endif
 
 //=============================================================================
+// Curve Parameters - Base 0x2400
+//=============================================================================
+#if NUM_CURVES > 0
+#define CURVE_POINT_PARAMS(i, k) \
+    {0x2400 + (i), 3 + (k),  &stConfig.stCurve[i].fX[k], &stConfigTemp.stCurve[i].fX[k], ParamType::Float, F(0.0f), F(-1e9f), F(1e9f)}, \
+    {0x2400 + (i), 15 + (k), &stConfig.stCurve[i].fY[k], &stConfigTemp.stCurve[i].fY[k], ParamType::Float, F(0.0f), F(-1e9f), F(1e9f)}
+#define CURVE_PARAMS(i) \
+    {0x2400 + (i), 0, &stConfig.stCurve[i].bEnabled, &stConfigTemp.stCurve[i].bEnabled, ParamType::Bool,   0, 0, 1}, \
+    {0x2400 + (i), 1, &stConfig.stCurve[i].nInput,   &stConfigTemp.stCurve[i].nInput,   ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
+    {0x2400 + (i), 2, &stConfig.stCurve[i].nPoints,  &stConfigTemp.stCurve[i].nPoints,  ParamType::UInt8,  2, 2, CURVE_MAX_POINTS}, \
+    CURVE_POINT_PARAMS(i, 0), CURVE_POINT_PARAMS(i, 1), CURVE_POINT_PARAMS(i, 2),  CURVE_POINT_PARAMS(i, 3), \
+    CURVE_POINT_PARAMS(i, 4), CURVE_POINT_PARAMS(i, 5), CURVE_POINT_PARAMS(i, 6),  CURVE_POINT_PARAMS(i, 7), \
+    CURVE_POINT_PARAMS(i, 8), CURVE_POINT_PARAMS(i, 9), CURVE_POINT_PARAMS(i, 10), CURVE_POINT_PARAMS(i, 11)
+#endif
+
+//=============================================================================
 // Keypad Parameters - Base 0x3000
 //=============================================================================
 #if NUM_KEYPADS > 0

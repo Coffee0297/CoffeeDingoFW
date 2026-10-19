@@ -30,6 +30,7 @@
 #define NUM_CONDITIONS 32
 #define NUM_MATH 8
 #define NUM_CAN_MSGS 4
+#define NUM_CURVES 4
 #define NUM_TIMERS 8
 #define NUM_TABLES 4
 #define NUM_KEYPADS 2
@@ -67,6 +68,7 @@
     (NUM_OUTPUTS * 1) + \
     (NUM_MATH * 1) + \
     (NUM_TABLES * 1) + \
+    (NUM_CURVES * 1) + \
     VAR_MAP_WIPER_VARS + \
     (NUM_KEYPADS * (KEYPAD_MAX_BUTTONS + KEYPAD_MAX_DIALS + KEYPAD_MAX_ANALOG_INPUTS)) \
 )   

@@ -19,6 +19,7 @@
 #include "math_block.h"
 #include "can_msg.h"
 #include "table.h"
+#include "curve.h"
 #include "mailbox.h"
 #include "msg.h"
 #include "error.h"
@@ -59,6 +60,9 @@ CanMsg canMsg[NUM_CAN_MSGS];
 #endif
 #if NUM_TABLES > 0
 Table table[NUM_TABLES];
+#endif
+#if NUM_CURVES > 0
+Curve curve[NUM_CURVES];
 #endif
 #if HAS_WIPERS > 0
 Wiper wiper;
@@ -346,6 +350,12 @@ void CyclicUpdate()
         mathBlock[i].Update();
     #endif
 
+    // Before the conditions, so a condition can compare a curve result
+    #if NUM_CURVES > 0
+    for (uint8_t i = 0; i < NUM_CURVES; i++)
+        curve[i].Update();
+    #endif
+
     #if NUM_CONDITIONS > 0    
     for (uint8_t i = 0; i < NUM_CONDITIONS; i++)
         condition[i].Update();
@@ -616,6 +626,12 @@ void InitVarMap()
     #if NUM_TABLES > 0
     for (uint8_t i = 0; i < NUM_TABLES; i++)
         pVarMap[index++] = &table[i].fVal;
+    #endif
+
+    // Appended after the timers for the same reason
+    #if NUM_CURVES > 0
+    for (uint8_t i = 0; i < NUM_CURVES; i++)
+        pVarMap[index++] = &curve[i].fVal;
     #endif
 
     #if NUM_OUTPUTS > 0
