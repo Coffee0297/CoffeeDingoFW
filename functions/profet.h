@@ -30,6 +30,7 @@ struct Config_Output{
 
   bool bClearOnReassert; //latched fault clears when the input goes off
   float fHardShortLimit; //A, 0 = off, above it trips to Fault at once
+  uint16_t nSoftStartTimeout; //ms, 0 = off, soft start held above the inrush limit, trips if not done in time
 };
 
 //=============================================================================

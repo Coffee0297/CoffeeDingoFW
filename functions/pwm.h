@@ -48,10 +48,11 @@ public:
             Init();
     }
 
-    void Update();
+    void Update(bool bHoldSoftStart);
 
     bool IsEnabled(){return pConfig->bEnabled;};
     uint16_t GetFrequency(){return nLastFreq;};
+    bool IsSoftStarting(){return pConfig->bEnabled && pConfig->bSoftStart && !bSoftStartComplete;};
 
     uint8_t GetDutyCycle()
     {
@@ -107,5 +108,6 @@ private:
     
     uint32_t nSoftStartTime;
     uint32_t nSoftStartEndTime;
+    uint32_t nLastUpdateTime;
 };
 #endif
