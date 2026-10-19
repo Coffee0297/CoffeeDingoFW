@@ -16,6 +16,7 @@
 #include "counter.h"
 #include "condition.h"
 #include "timer.h"
+#include "math_block.h"
 #include "mailbox.h"
 #include "msg.h"
 #include "error.h"
@@ -47,6 +48,9 @@ Counter counter[NUM_COUNTERS];
 Condition condition[NUM_CONDITIONS];
 #if NUM_TIMERS > 0
 Timer timer[NUM_TIMERS];
+#endif
+#if NUM_MATH > 0
+MathBlock mathBlock[NUM_MATH];
 #endif
 #if HAS_WIPERS > 0
 Wiper wiper;
@@ -328,6 +332,12 @@ void CyclicUpdate()
         counter[i].Update();
     #endif
 
+    // Before the conditions, so a condition can compare a math result
+    #if NUM_MATH > 0
+    for (uint8_t i = 0; i < NUM_MATH; i++)
+        mathBlock[i].Update();
+    #endif
+
     #if NUM_CONDITIONS > 0    
     for (uint8_t i = 0; i < NUM_CONDITIONS; i++)
         condition[i].Update();
@@ -563,6 +573,12 @@ void InitVarMap()
     #if NUM_ANALOG_INPUTS > 0
     for (uint8_t i = 0; i < NUM_ANALOG_INPUTS; i++)
         pVarMap[index++] = &analogIn[i].fScaledVal;
+    #endif
+
+    // Appended after the timers for the same reason
+    #if NUM_MATH > 0
+    for (uint8_t i = 0; i < NUM_MATH; i++)
+        pVarMap[index++] = &mathBlock[i].fVal;
     #endif
 
     #if NUM_OUTPUTS > 0

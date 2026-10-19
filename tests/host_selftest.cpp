@@ -7,6 +7,7 @@
 //   g++ -std=c++20 -Wall -DCONDITION_DELAY_ONLY -I tests/host -I functions -I core -I utils tests/host_selftest.cpp functions/condition.cpp -o build/host_condition_delay && build/host_condition_delay
 //   g++ -std=c++20 -DCAN_INPUT_TIMEOUT_ONLY -I tests/host -I functions -I core -I utils tests/host_selftest.cpp functions/can_input.cpp functions/input.cpp utils/dbc.cpp -o build/host_can_input_timeout && build/host_can_input_timeout
 //   g++ -std=c++20 -DWIRE_LOAD_ONLY -I tests/host -I functions -I core -I utils tests/host_selftest.cpp -o build/host_wire_load && build/host_wire_load
+//   g++ -std=c++20 -DMATH_ONLY -I tests/host -I functions -I core -I utils tests/host_selftest.cpp functions/math_block.cpp -o build/host_math && build/host_math
 // Each feature adds its own section below, picked with -D<NAME>_ONLY, and its build line here.
 //   g++ -std=c++20 -Wall -DPWM_METER_ONLY -I tests/host -I functions -I core -I utils tests/host_selftest.cpp -o build/host_pwm_meter && build/host_pwm_meter
 //   g++ -std=c++20 -Wall -DANALOG_SCALE_ONLY -I tests/host -I functions -I core -I utils tests/host_selftest.cpp functions/input.cpp -o build/host_analog_scale && build/host_analog_scale
@@ -323,6 +324,38 @@ int main()
     assert(pos(400 * (ROTARY_MAX_POS + 1)) == ROTARY_NO_POS);
 
     std::puts("host_rotary_cal OK");
+    return 0;
+}
+#elif defined(MATH_ONLY)
+#include "math_block.h"
+
+int main()
+{
+    float zero = 0, a = 2, b = 3;
+    pVarMap[0] = &zero; pVarMap[1] = &a; pVarMap[2] = &b;
+    Config_Math c{};
+    c.bEnabled = true; c.nInputA = 1; c.nInputB = 2; c.fFactor = 1;
+    MathBlock m;
+    auto eval = [&](MathOp op) { c.eOp = op; m.SetConfig(&c); m.Update(); return m.fVal; };
+
+    assert(eval(MathOp::Add) == 5);
+    assert(eval(MathOp::Sub) == -1);
+    assert(eval(MathOp::Mul) == 6);
+    assert(eval(MathOp::Min) == 2);
+    assert(eval(MathOp::Max) == 3);
+    assert(eval(MathOp::Average) == 2.5f);
+    b = 0; assert(eval(MathOp::Div) == 0);          // no inf / NaN into the outputs
+    a = 6; b = 3; assert(eval(MathOp::Div) == 2);
+
+    // oil - coolant, then x0.5 + 10; B is the constant when its input is 0
+    a = 110; b = 90; c.fFactor = 0.5f; c.fOffset = 10;
+    assert(eval(MathOp::Sub) == 20);
+    c.nInputB = 0; c.fConstB = 100; assert(eval(MathOp::Sub) == 15);
+    b = 50; m.Update(); assert(m.fVal == 15);        // the constant, not the variable
+
+    c.bEnabled = false; m.Update(); assert(m.fVal == 0);
+
+    std::puts("host_selftest MATH OK");
     return 0;
 }
 #else

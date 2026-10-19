@@ -55,6 +55,11 @@ const ParamInfo stParams[] = {
     ALL_TIMER_PARAMS,
     #endif
 
+    #if NUM_MATH > 0
+    // Math blocks (0x1C00+)
+    ALL_MATH_PARAMS,
+    #endif
+
     // CAN Outputs (0x2000+)
     ALL_CAN_OUTPUT_PARAMS,
 

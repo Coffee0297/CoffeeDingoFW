@@ -27,6 +27,7 @@
 #define NUM_WIPER_SPEED_MAP 0
 #define NUM_COUNTERS 4
 #define NUM_CONDITIONS 8
+#define NUM_MATH 0
 #define NUM_TIMERS 0
 #define NUM_KEYPADS 0
 #define HAS_WIPERS FALSE
@@ -59,6 +60,7 @@
     (NUM_COUNTERS * 1) + \
     (NUM_TIMERS * 1) + \
     (NUM_OUTPUTS * 1) + \
+    (NUM_MATH * 1) + \
     VAR_MAP_WIPER_VARS + \
     (NUM_KEYPADS * (KEYPAD_MAX_BUTTONS + KEYPAD_MAX_DIALS + KEYPAD_MAX_ANALOG_INPUTS)) \
 )

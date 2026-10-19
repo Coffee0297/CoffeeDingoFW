@@ -225,6 +225,20 @@
 #endif
 
 //=============================================================================
+// Math Parameters - Base 0x1C00
+//=============================================================================
+#if NUM_MATH > 0
+#define MATH_PARAMS(i) \
+    {0x1C00 + (i), 0, &stConfig.stMath[i].bEnabled, &stConfigTemp.stMath[i].bEnabled, ParamType::Bool,   0, 0, 1}, \
+    {0x1C00 + (i), 1, &stConfig.stMath[i].eOp,      &stConfigTemp.stMath[i].eOp,      ParamType::Enum,   static_cast<uint32_t>(MathOp::Add), 0, 6}, \
+    {0x1C00 + (i), 2, &stConfig.stMath[i].nInputA,  &stConfigTemp.stMath[i].nInputA,  ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
+    {0x1C00 + (i), 3, &stConfig.stMath[i].nInputB,  &stConfigTemp.stMath[i].nInputB,  ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
+    {0x1C00 + (i), 4, &stConfig.stMath[i].fConstB,  &stConfigTemp.stMath[i].fConstB,  ParamType::Float,  F(0.0f), F(-1e9f), F(1e9f)}, \
+    {0x1C00 + (i), 5, &stConfig.stMath[i].fFactor,  &stConfigTemp.stMath[i].fFactor,  ParamType::Float,  F(1.0f), F(-1e9f), F(1e9f)}, \
+    {0x1C00 + (i), 6, &stConfig.stMath[i].fOffset,  &stConfigTemp.stMath[i].fOffset,  ParamType::Float,  F(0.0f), F(-1e9f), F(1e9f)}
+#endif
+
+//=============================================================================
 // CAN Output Parameters - Base 0x2000
 //=============================================================================
 #define CAN_OUTPUT_PARAMS(i) \
