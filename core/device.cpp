@@ -5,6 +5,7 @@
 #include "mcu_utils.h"
 #include "device_config.h"
 #include "config.h"
+#include "config_ext.h"
 #include "param_protocol.h"
 #include "config_handler.h"
 #include "hw_devices.h"
@@ -133,6 +134,10 @@ struct SlowThread : chibios_rt::BaseStaticThread<256>
             bDeviceOverTemp = tempSensor.OverTempLimit();
             bDeviceCriticalTemp = tempSensor.CritTempLimit();
 
+            #if HAS_EXT_MEMORY
+            WriteRetained();
+            #endif
+
             // palToggleLine(LINE_E2);
             chThdSleepMilliseconds(250);
         }
@@ -158,6 +163,10 @@ void InitDevice()
     InitConfig();
 
     ApplyAllConfig();
+
+    #if HAS_EXT_MEMORY
+    RestoreRetained();
+    #endif
 
     InitParamThread();
 
