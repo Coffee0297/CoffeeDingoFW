@@ -84,7 +84,27 @@ void Profet::Update(bool bOutEnabled)
         // Check for turn off
         if (eReqState == ProfetState::Off)
         {
-            eState = ProfetState::Off;
+            // Soft stop ramps a PWM output's duty down first, but a disabled output (starter disable) cuts at once
+            if (pwm.IsEnabled() && pConfig->nSoftStopTime > 0 && bOutEnabled)
+            {
+                if (!bSoftStopping)
+                {
+                    bSoftStopping = true;
+                    nSoftStopStart = SYS_TIME;
+                    nSoftStopDuty = pwm.GetDutyCycle();
+                }
+
+                if ((SYS_TIME - nSoftStopStart) >= pConfig->nSoftStopTime)
+                    eState = ProfetState::Off;
+            }
+            else
+                eState = ProfetState::Off;
+        }
+        else if (bSoftStopping)
+        {
+            // Back on during the soft stop - return to the duty it had
+            bSoftStopping = false;
+            pwm.SetDutyCycle(nSoftStopDuty);
         }
 
         // Overcurrent
@@ -192,6 +212,16 @@ void Profet::Update(bool bOutEnabled)
         eOverlay = ProfetState::Warning;
     else
         eOverlay = ProfetState::On;
+
+    // After pwm.Update() so the ramp overrides the duty it sets
+    if (bSoftStopping && eState == ProfetState::On)
+    {
+        uint32_t nElapsed = SYS_TIME - nSoftStopStart;
+        if (nElapsed < pConfig->nSoftStopTime)
+            pwm.SetDutyCycle(nSoftStopDuty * (pConfig->nSoftStopTime - nElapsed) / pConfig->nSoftStopTime);
+    }
+    else
+        bSoftStopping = false;
 
     // Set var map values
     fOutput = eState == ProfetState::On ? 1 : 0;
