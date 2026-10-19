@@ -6,7 +6,7 @@
 
 #define PWM_UPDATE_TIME 2.0 //ms
 
-#if NUM_OUTPUTS > 0
+#if (NUM_OUTPUTS > 0) || (NUM_DIG_OUTPUTS > 0)
 
 extern float *pVarMap[VAR_MAP_SIZE];
 
