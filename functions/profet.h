@@ -32,6 +32,7 @@ struct Config_Output{
   float fHardShortLimit; //A, 0 = off, above it trips to Fault at once
   uint16_t nThermalTau; //s, 0 = off, wire load time constant
   bool bClearOnReassert; //latched fault clears when the input goes off
+  uint16_t nSoftStartTimeout; //ms, 0 = off, soft start held above the inrush limit, trips if not done in time
 };
 
 //=============================================================================
