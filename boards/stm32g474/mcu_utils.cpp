@@ -11,8 +11,7 @@ void EnterStopMode()
     
     __WFI();
 
-    // Resume here after wakeup
-    NVIC_SystemReset();
+    // Resume here after wakeup, interrupts still disabled; the caller resets
 }
 
  void RequestBootloader()
