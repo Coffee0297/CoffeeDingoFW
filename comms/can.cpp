@@ -12,6 +12,12 @@ static volatile uint32_t nLastCanRxTime;
 // While set only replies to dingoConfig are sent, see SetCanTxQuiet()
 static volatile bool bTxQuiet;
 
+// No peer ACKing (alone on the bus, or the bus is down): bxCAN retransmits each unacked frame at line rate.
+// After a few TX timeouts in a row abort the mailboxes and send to USB only for a while, then re-probe.
+#define CAN_NOACK_FAIL_STREAK 3
+#define CAN_NOACK_BACKOFF_CYCLES 50 // cyclic rounds, 50 x CAN_TX_CYCLIC_MSG_DELAY
+static volatile uint16_t nNoAckBackoff;
+
 extern DeviceConfig stConfig;
 
 static THD_WORKING_AREA(waCanCyclicTxThread, CAN_THREAD_STACK);
@@ -23,6 +29,9 @@ void CanCyclicTxThread(void *)
 
     while (1)
     {
+        // Counts down to the round that goes to CAN again and re-probes for a peer
+        if (nNoAckBackoff > 0)
+            nNoAckBackoff--;
 
         if (!IsParamOpInProgress() && !bTxQuiet && !CanTxMuted())
         {
@@ -50,12 +59,14 @@ void CanTxThread(void *)
     chRegSetThreadName("CAN Tx");
 
     CANTxFrame msg;
+    uint8_t nTxFails = 0;
 
     while (1)
     {
         // Blocks until a frame is queued, no polling while idle
         // Timeout only so the thread can check for termination
-        if (FetchTxFrame(&msg, TIME_MS2I(100)) == MSG_OK)
+        // Frames queued before a back-off already went to USB, don't feed them to a bus nobody ACKs
+        if (FetchTxFrame(&msg, TIME_MS2I(100)) == MSG_OK && !CanNoPeer())
         {
             // IDE is set by each sender (CAN outputs can be extended), RTR isn't always initialized
             msg.RTR = CAN_RTR_DATA;
@@ -64,7 +75,18 @@ void CanTxThread(void *)
                                       (msg.SID == stConfig.stDevice.nBaseId + CONFIG_TX_OFFSET);
 
             if (!bTxQuiet || bConfigReply)
-                canTransmitTimeout(&CAND1, CAN_ANY_MAILBOX, &msg, TIME_MS2I(10));
+            {
+                if (canTransmitTimeout(&CAND1, CAN_ANY_MAILBOX, &msg, TIME_MS2I(10)) == MSG_OK)
+                    nTxFails = 0;
+                else if (++nTxFails >= CAN_NOACK_FAIL_STREAK)
+                {
+                    // Every TX mailbox stuck retransmitting: abort them (no-op in ChibiOS' FDCAN driver)
+                    for (canmbx_t nMbx = 1; nMbx <= CAN_TX_MAILBOXES; nMbx++)
+                        canTryAbortX(&CAND1, nMbx);
+                    nNoAckBackoff = CAN_NOACK_BACKOFF_CYCLES;
+                    nTxFails = 0;
+                }
+            }
 
             // Pacing between frames, set CAN_TX_MSG_SPLIT to 0 to send at bus rate
             #if CAN_TX_MSG_SPLIT > 0
@@ -292,4 +314,9 @@ uint32_t GetLastCanRxTime()
 bool CanTxMuted()
 {
     return *pVarMap[stConfig.stDevice.nMuteCanTxInput];
+}
+
+bool CanNoPeer()
+{
+    return nNoAckBackoff > 0;
 }
