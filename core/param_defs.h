@@ -48,7 +48,8 @@
     {0x1000 + (i), 21, &stConfig.stOutput[i].stPwm.bVariableFreq,        &stConfigTemp.stOutput[i].stPwm.bVariableFreq,        ParamType::Bool,   0, 0, 1}, \
     {0x1000 + (i), 22, &stConfig.stOutput[i].stPwm.nFreqInput,           &stConfigTemp.stOutput[i].stPwm.nFreqInput,           ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
     {0x1000 + (i), 23, &stConfig.stOutput[i].stPwm.nFreqInputDenom,      &stConfigTemp.stOutput[i].stPwm.nFreqInputDenom,      ParamType::UInt16, 1, 1, 5000}, \
-    {0x1000 + (i), 24, &stConfig.stOutput[i].stPwm.bRampDutyChanges,     &stConfigTemp.stOutput[i].stPwm.bRampDutyChanges,     ParamType::Bool,   0, 0, 1}
+    {0x1000 + (i), 24, &stConfig.stOutput[i].stPwm.bRampDutyChanges,     &stConfigTemp.stOutput[i].stPwm.bRampDutyChanges,     ParamType::Bool,   0, 0, 1}, \
+    {0x1000 + (i), 31, &stConfig.stOutput[i].nSoftStopTime,              &stConfigTemp.stOutput[i].nSoftStopTime,              ParamType::UInt16, 0, 0, 10000}
 #endif
 
 //=============================================================================
