@@ -505,6 +505,11 @@ void InitVarMap()
         pVarMap[index++] = &pf[i].fWarning;
         pVarMap[index++] = &pf[i].fOpenLoad;
     }
+
+    for (uint8_t i = 0; i < NUM_OUTPUTS; i++)
+    {
+        pVarMap[index++] = &pf[i].fUndercurrent;
+    }
     #endif
 
     //VarMap size must match the expected size

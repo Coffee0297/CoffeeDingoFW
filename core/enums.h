@@ -94,7 +94,8 @@ enum class MsgSrc : uint8_t
     USBConnection,
     Init,
     OutputWarning,
-    OpenLoad
+    OpenLoad,
+    Undercurrent
 };
 
 //=============================================================================
@@ -189,7 +190,8 @@ enum class ProfetState : uint8_t
     Overcurrent,
     Fault,
     Warning,
-    OpenLoad
+    OpenLoad,
+    Undercurrent
 };
 
 enum class ProfetResetMode : uint8_t
