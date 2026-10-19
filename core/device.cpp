@@ -22,6 +22,7 @@
 #include "request_msg.h"
 #include "infomsg.h"
 #include "status.h"
+#include "fault_log.h"
 #if HAS_WIPERS > 0
 #include "wiper/wiper.h"
 #endif
@@ -113,6 +114,10 @@ struct SlowThread : chibios_rt::BaseStaticThread<256>
             bDeviceOverTemp = tempSensor.OverTempLimit();
             bDeviceCriticalTemp = tempSensor.CritTempLimit();
 
+            #if HAS_EXT_MEMORY && (NUM_OUTPUTS > 0)
+            WriteFaultLog();
+            #endif
+
             // palToggleLine(LINE_E2);
             chThdSleepMilliseconds(250);
         }
@@ -139,6 +144,10 @@ void InitDevice()
     #endif
 
     InitConfig();
+
+    #if HAS_EXT_MEMORY && (NUM_OUTPUTS > 0)
+    InitFaultLog();
+    #endif
 
     ApplyAllConfig();
 
@@ -361,6 +370,10 @@ void CyclicUpdate()
                 pf[i].Update(starter.fVal[i]);
         }
     }
+    #endif
+
+    #if HAS_EXT_MEMORY && (NUM_OUTPUTS > 0)
+    UpdateFaultLog();
     #endif
 
     #if NUM_DIG_OUTPUTS > 0
