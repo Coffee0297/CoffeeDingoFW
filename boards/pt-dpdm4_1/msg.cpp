@@ -558,3 +558,20 @@ CANTxMsg TxMsg30()
 
     return stMsg;
 }
+
+CANTxMsg TxMsg31()
+{
+    CANTxMsg stMsg;
+    //=======================================================
+    // Build Msg 31 (Out 1-8 Wire Load %)
+    //=======================================================
+    stMsg.frame.IDE = CAN_IDE_STD;
+    stMsg.frame.SID = stConfig.stDevice.nBaseId + CYCLIC_TX_OFFSET + 31;
+    stMsg.frame.DLC = 8;
+    for (uint8_t i = 0; i < 8; i++)
+        stMsg.frame.data8[i] = GetOutputLoad(i);
+
+    stMsg.bSend = GetAnyWireLoadEnable();
+
+    return stMsg;
+}

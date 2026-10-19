@@ -4,6 +4,7 @@
 #include "port.h"
 #include "enums.h"
 #include "pwm.h"
+#include "wire_load.h"
 
 #if NUM_OUTPUTS > 0
 
@@ -21,6 +22,8 @@ struct Config_Output{
   int8_t nPrimaryOutput;  //index of primary to follow, -1 = unpaired
 
   Config_PwmOutput stPwm;
+
+  uint16_t nThermalTau; //s, 0 = off, wire load time constant
 };
 
 //=============================================================================
@@ -134,6 +137,7 @@ public:
     float fCurrent;
     float fOvercurrent;
     float fFault;
+    float fLoad;  // wire load %, 100 = steady current at the limit
 
 private:
     const uint16_t m_num;
@@ -163,6 +167,9 @@ private:
 
     bool bInRushActive;
     uint32_t nInRushOnTime;
+
+    float fI2;            // filtered current squared
+    uint32_t nLoadTime;
 
     volatile uint16_t nOcCount;       // Number of overcurrents
     uint32_t nOcTriggerTime; // Time of overcurrent
