@@ -5,6 +5,16 @@ from `core/device_config.h`; the `testing` CI build publishes it as a prerelease
 
 ## [Unreleased]
 
+## [5.6.6] — 2026-10-19
+
+### Fixed
+- **Virtual input NOR** (`functions/virtual_input.cpp`) was NAND (`!a || !b`: on unless both are on). It is now a
+  real NOR: on only when neither is on. A config that used it as NAND must swap to NOT inputs + AND, or OR.
+- **Condition AND / NAND** (`functions/condition.cpp`): AND gave the masked number instead of 0/1, and NAND gave
+  `~(a & b)`, non-zero almost always. Both now read 1/0 on "any masked bit set", like a CAN input.
+- **Lua with no stored program** ran a built-in 1 Hz demo square wave on slot 0. Now nothing runs, and clearing a
+  program stops its callbacks and zeroes every Lua slot.
+
 ## [5.6.5] — 2026-10-18
 
 ### Fixed

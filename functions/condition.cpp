@@ -48,11 +48,11 @@ void Condition::Update()
             break;
 
         case Operator::BitwiseAnd:
-            fVal = (uint16_t)(in) & (uint16_t)(set);
+            fVal = ((uint16_t)(in) & (uint16_t)(set)) ? 1.0f : 0.0f;   // any masked bit set, as a CAN input
             break;
 
         case Operator::BitwiseNand:
-            fVal = ~((uint16_t)(in) & (uint16_t)(set));
+            fVal = ((uint16_t)(in) & (uint16_t)(set)) ? 0.0f : 1.0f;
             break;
 
         default:

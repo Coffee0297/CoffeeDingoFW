@@ -2,10 +2,38 @@
 //   g++ -std=c++20 -DDINGO_HOST_TEST -I functions -I core tests/host_selftest.cpp functions/table.cpp functions/timer.cpp -o build/host_selftest && build/host_selftest
 // Counter (it needs a bigger var map than the others, so it builds on its own):
 //   g++ -std=c++20 -DDINGO_HOST_TEST -DCOUNTER_ONLY -I functions -I core tests/host_selftest.cpp functions/counter.cpp -o build/host_counter && build/host_counter
+// Virtual input NOR and Condition AND/NAND (5.6.6):
+//   g++ -std=c++20 -DDINGO_HOST_TEST -DLOGIC_ONLY -I tests/host -I functions -I core -I utils tests/host_selftest.cpp functions/virtual_input.cpp functions/input.cpp functions/condition.cpp -o build/host_logic && build/host_logic
 #include <cassert>
 #include <cmath>
 #include <cstdio>
-#ifdef COUNTER_ONLY
+#ifdef LOGIC_ONLY
+#include "virtual_input.h"
+#include "condition.h"
+float *pVarMap[VAR_MAP_SIZE];
+uint32_t nHostTimeMs = 0;
+
+int main()
+{
+    float zero = 0, a = 0, b = 0;
+    pVarMap[0] = &zero; pVarMap[1] = &a; pVarMap[2] = &b;
+    Config_VirtualInput c{};
+    c.bEnabled = true; c.nVar0 = 1; c.nVar1 = 2; c.eCond0 = BoolOperator::Nor; c.eMode = InputMode::Momentary;
+    VirtualInput v; v.SetConfig(&c);
+    for (int i = 0; i < 4; i++) { a = i & 1; b = i >> 1; v.Update(); assert(v.fVal == (i == 0 ? 1 : 0)); }   // on only when neither
+
+    Config_Condition k{};
+    k.bEnabled = true; k.nInput = 1; k.eOperator = Operator::BitwiseAnd; k.fArg = 4; k.fArgOff = 4;
+    Condition cd; cd.SetConfig(&k);
+    a = 6; cd.Update(); assert(cd.fVal == 1);   // was 4 (the masked number)
+    a = 3; cd.Update(); assert(cd.fVal == 0);
+    k.eOperator = Operator::BitwiseNand;
+    a = 3; cd.Update(); assert(cd.fVal == 1);
+    a = 6; cd.Update(); assert(cd.fVal == 0);   // was ~4, non-zero
+    std::puts("host_logic OK");
+    return 0;
+}
+#elif defined(COUNTER_ONLY)
 #include "counter.h"
 float *pVarMap[VAR_MAP_SIZE];
 uint32_t nHostTimeMs = 0;

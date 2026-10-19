@@ -179,17 +179,11 @@ static chibios_rt::ThreadReference slowThreadRef;
 #if HAS_LUA
 extern volatile bool gLuaReload;
 
-// Fallback demo program (no stored script yet): a ~1 Hz square wave on Lua output
-// slot 0 via a Timer, proving setLuaOut + Timer + onTick end-to-end.
-static const char LUA_DEFAULT_SCRIPT[] =
-    "local t = Timer.new()\n"
-    "function onTick()\n"
-    "  if t:getElapsedSeconds() >= 1.0 then t:reset() end\n"
-    "  setLuaOut(0, (t:getElapsedSeconds() < 0.5) and 1 or 0)\n"
-    "end\n"
-    "setTickRate(50)\n";
+// No stored program: clear what a previous one left (its callbacks and slot values), so an
+// emptied script stops instead of running on. Was a 1 Hz demo square wave on slot 0.
+static const char LUA_EMPTY_SCRIPT[] = "onTick = nil onCanRx = nil";
 
-// Load the stored program if present, else the demo. Runs on the LuaThread so
+// Load the stored program if present, else clear the old one. Runs on the LuaThread so
 // the (stack-hungry) parser uses the LuaThread's stack.
 static void LuaLoadFromConfig()
 {
@@ -198,7 +192,8 @@ static void LuaLoadFromConfig()
         stConfig.stLua.acScript[stConfig.stLua.nLength] = '\0';
         LuaLoadString(stConfig.stLua.acScript);
     } else {
-        LuaLoadString(LUA_DEFAULT_SCRIPT);
+        LuaLoadString(LUA_EMPTY_SCRIPT);
+        for (uint16_t i = 0; i < NUM_LUA_OUTPUTS; i++) fLuaOut[i] = 0;
     }
 }
 
