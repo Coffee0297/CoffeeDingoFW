@@ -128,7 +128,7 @@ public:
     Profet *pFollower = nullptr;  // non-null if this output is a primary with a follower
 
     bool IsPwmEnabled() { return pwm.IsEnabled(); }
-    uint16_t GetFrequency() { return pConfig->stPwm.nFreq; }
+    uint16_t GetFrequency() { return pwm.GetFrequency(); }
 
     float fOutput;
     float fCurrent;
