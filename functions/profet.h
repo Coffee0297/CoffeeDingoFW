@@ -21,6 +21,8 @@ struct Config_Output{
   int8_t nPrimaryOutput;  //index of primary to follow, -1 = unpaired
 
   Config_PwmOutput stPwm;
+
+  bool bClearOnReassert; //latched fault clears when the input goes off
 };
 
 //=============================================================================
@@ -112,6 +114,8 @@ public:
         eState = ProfetState::Off;
         fOutput = 0;
     }
+
+    void ClearFault();
 
     float GetCurrent() { return *const_cast<volatile float*>(&fCurrent); }
     ProfetState GetState() { return eState; }
