@@ -9,6 +9,7 @@
 //   g++ -std=c++20 -DWIRE_LOAD_ONLY -I tests/host -I functions -I core -I utils tests/host_selftest.cpp -o build/host_wire_load && build/host_wire_load
 //   g++ -std=c++20 -DMATH_ONLY -I tests/host -I functions -I core -I utils tests/host_selftest.cpp functions/math_block.cpp -o build/host_math && build/host_math
 //   g++ -std=c++20 -DCAN_MSG_ONLY -I tests/host -I functions -I core -I utils tests/host_selftest.cpp functions/can_msg.cpp -o build/host_can_msg && build/host_can_msg
+//   g++ -std=c++20 -DCAN_MSG_CHECKSUM_ONLY -I tests/host -I functions -I core -I utils tests/host_selftest.cpp functions/can_msg.cpp utils/dbc.cpp -o build/host_can_msg_cs && build/host_can_msg_cs
 // Each feature adds its own section below, picked with -D<NAME>_ONLY, and its build line here.
 //   g++ -std=c++20 -Wall -DPWM_METER_ONLY -I tests/host -I functions -I core -I utils tests/host_selftest.cpp -o build/host_pwm_meter && build/host_pwm_meter
 //   g++ -std=c++20 -Wall -DANALOG_SCALE_ONLY -I tests/host -I functions -I core -I utils tests/host_selftest.cpp functions/input.cpp -o build/host_analog_scale && build/host_analog_scale
@@ -415,6 +416,49 @@ int main()
     assert(d[0] == 0x1F && d[1] == 0xFF);           // 17 & 0xF = 1 in bits 4-7, neighbours untouched
 
     std::puts("host_selftest CHECKSUM OK");
+    return 0;
+}
+#elif defined(CAN_MSG_CHECKSUM_ONLY)
+#include <cstring>
+#include "can_msg.h"
+#include "dbc.h"
+
+int main()
+{
+    const uint8_t s[] = {'1', '2', '3', '4', '5', '6', '7', '8', '9', 0};    // published check values
+    assert(Dbc::Checksum(CanOutputKind::Crc8SaeJ1850, s, 10, 9) == 0x4B);
+    assert(Dbc::Checksum(CanOutputKind::Crc8Autosar, s, 10, 9) == 0xDF);
+
+    float in = 1;
+    pVarMap[3] = &in;
+    Config_CanMsg c{};
+    c.bEnabled = true; c.nInput = 3; c.nID = 0x123; c.nDLC = 8; c.nInterval = 100;
+    for (uint8_t i = 0; i < 8; i++) c.nData[i] = 0x10 * i + 1;
+    c.nCounterByte = 0xFF;
+    static CanMsg k; k.SetConfig(&c);   // static: zeroed like the firmware's globals
+    uint8_t d[8];
+
+    k.Fill(d); assert(std::memcmp(d, c.nData, 8) == 0);            // no counter, no checksum: the data as set
+
+    c.nCounterByte = 1; c.nData[1] = 0xA7;                          // counter in the low nibble, high nibble kept
+    for (int n = 0; n < 17; n++) { k.Fill(d); assert(d[1] == (0xA0 | (n & 0x0F))); }
+
+    c.eChecksum = CanOutputKind::ChecksumXor; c.nChecksumByte = 7;
+    k.Fill(d);                                                      // counter first, checksum over it
+    uint8_t x = 0; for (int i = 0; i < 7; i++) x ^= d[i];
+    assert(d[1] == 0xA1 && d[7] == x);
+    c.eChecksum = CanOutputKind::ChecksumSum; k.Fill(d);
+    x = 0; for (int i = 0; i < 7; i++) x += d[i];
+    assert(d[7] == x);
+    c.eChecksum = CanOutputKind::Crc8SaeJ1850; c.nChecksumByte = 0; k.Fill(d);
+    assert(d[0] == Dbc::Checksum(CanOutputKind::Crc8SaeJ1850, d, 8, 0));
+
+    c.nDLC = 4; c.nChecksumByte = 5; c.nCounterByte = 6; k.Fill(d);   // past the DLC: off
+    assert(d[5] == c.nData[5] && d[6] == c.nData[6]);
+    c.eChecksum = CanOutputKind::RollingCounter; c.nChecksumByte = 3; k.Fill(d);   // 1 is no checksum kind
+    assert(d[3] == c.nData[3]);
+
+    std::puts("host_selftest CAN_MSG_CHECKSUM OK");
     return 0;
 }
 #else

@@ -253,7 +253,10 @@
     {0x1D00 + (i), 5,  &stConfig.stCanMsg[i].eMode,     &stConfigTemp.stCanMsg[i].eMode,     ParamType::Enum,   static_cast<uint32_t>(CanMsgMode::Repeat), 0, 1}, \
     CAN_MSG_DATA_PARAM(i, 0), CAN_MSG_DATA_PARAM(i, 1), CAN_MSG_DATA_PARAM(i, 2), CAN_MSG_DATA_PARAM(i, 3), \
     CAN_MSG_DATA_PARAM(i, 4), CAN_MSG_DATA_PARAM(i, 5), CAN_MSG_DATA_PARAM(i, 6), CAN_MSG_DATA_PARAM(i, 7), \
-    {0x1D00 + (i), 14, &stConfig.stCanMsg[i].nInterval, &stConfigTemp.stCanMsg[i].nInterval, ParamType::UInt16, 100, 10, 60000}
+    {0x1D00 + (i), 14, &stConfig.stCanMsg[i].nInterval, &stConfigTemp.stCanMsg[i].nInterval, ParamType::UInt16, 100, 10, 60000}, \
+    {0x1D00 + (i), 15, &stConfig.stCanMsg[i].eChecksum, &stConfigTemp.stCanMsg[i].eChecksum, ParamType::Enum,   static_cast<uint32_t>(CanOutputKind::Signal), 0, static_cast<uint32_t>(CanOutputKind::Crc8Autosar)}, \
+    {0x1D00 + (i), 16, &stConfig.stCanMsg[i].nChecksumByte, &stConfigTemp.stCanMsg[i].nChecksumByte, ParamType::UInt8, 7, 0, 7}, \
+    {0x1D00 + (i), 17, &stConfig.stCanMsg[i].nCounterByte, &stConfigTemp.stCanMsg[i].nCounterByte, ParamType::UInt8, 0xFF, 0, 0xFF}
 #endif
 
 //=============================================================================
