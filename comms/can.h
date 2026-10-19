@@ -11,3 +11,5 @@ void UpdateCanFilters();
 uint32_t GetLastCanRxTime();
 // Stop all transmit except replies to dingoConfig, used before sleep
 void SetCanTxQuiet(bool bQuiet);
+// Mute input set: no periodic frames (telemetry, CAN outputs), so the bus can go idle and the fleet sleep
+bool CanTxMuted();
