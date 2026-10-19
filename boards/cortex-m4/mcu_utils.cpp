@@ -22,9 +22,22 @@ void EnterStopMode()
     *((volatile unsigned long *)0x2001FFF0) = 0xDEADBEEF; // End of RAM
 
     // Reset the microcontroller to start the bootloader on next boot
-    // See enter_bootloader.S, which overrides the reset handler
-    // to jump to the bootloader if the magic code is set
+    // The OpenBLT reset handler (bootloader/dingopdm) jumps to the
+    // ROM USB-DFU bootloader if the magic code is set
     NVIC_SystemReset();
     
     // No further code will execute after this point
+}
+
+void RequestBootloaderCan(uint16_t nBaseId, uint8_t nCanSpeed)
+{
+    // OpenBLT can't read the FRAM config: hand it the CAN settings at the top of RAM,
+    // magic last (bootloader/Source/ARMCM4_STM32F4/can.c, dingopdm/hooks.c)
+    volatile uint32_t *pHandoff = (volatile uint32_t *)0x2001FFF0;
+    pHandoff[1] = nBaseId;
+    pHandoff[2] = nCanSpeed;
+    pHandoff[0] = 0xB00710AD;
+    __DSB();
+
+    NVIC_SystemReset();
 }
