@@ -15,6 +15,7 @@
 //   g++ -std=c++20 -Wall -DANALOG_SCALE_ONLY -I tests/host -I functions -I core -I utils tests/host_selftest.cpp functions/input.cpp -o build/host_analog_scale && build/host_analog_scale
 //   g++ -std=c++20 -Wall -DROTARY_CAL_ONLY -I tests/host -I functions -I core -I utils tests/host_selftest.cpp functions/input.cpp -o build/host_rotary_cal && build/host_rotary_cal
 //   g++ -std=c++20 -Wall -DCHECKSUM_ONLY -I tests/host -I functions -I core -I utils tests/host_selftest.cpp utils/dbc.cpp -o build/host_checksum && build/host_checksum
+//   g++ -std=c++20 -Wall -DTABLE_ONLY -I tests/host -I functions -I core -I utils tests/host_selftest.cpp functions/table.cpp -o build/host_table && build/host_table
 #include <cassert>
 #include <cstdio>
 #include "port.h"
@@ -459,6 +460,51 @@ int main()
     assert(d[3] == c.nData[3]);
 
     std::puts("host_selftest CAN_MSG_CHECKSUM OK");
+    return 0;
+}
+#elif defined(TABLE_ONLY)
+#include <cmath>
+#include "table.h"
+
+static bool near(float a, float b) { return std::fabs(a - b) < 1e-4f; }
+
+int main()
+{
+    Config_Table c{};
+    c.bEnabled = true; c.nXSize = 3; c.nYSize = 2;
+    const float xs[] = {0, 10, 20}, ys[] = {0, 100};
+    for (int i = 0; i < 3; i++) c.fXAxis[i] = xs[i];
+    for (int i = 0; i < 2; i++) c.fYAxis[i] = ys[i];
+    for (int x = 0; x < 3; x++) { c.fCell[0][x] = xs[x]; c.fCell[1][x] = 100 + xs[x]; }   // row y=0: 0 10 20, y=100: 100 110 120
+
+    assert(near(Table::Interpolate(c, 0, 0), 0));
+    assert(near(Table::Interpolate(c, 5, 0), 5));         // along x
+    assert(near(Table::Interpolate(c, 15, 0), 15));
+    assert(near(Table::Interpolate(c, 10, 50), 60));      // along y
+    assert(near(Table::Interpolate(c, 5, 50), 55));       // bilinear
+    assert(near(Table::Interpolate(c, -99, 0), 0));       // held below
+    assert(near(Table::Interpolate(c, 999, 100), 120));   // held above on both axes
+    c.nYSize = 1;                                         // 1-D curve ignores y
+    assert(near(Table::Interpolate(c, 15, 12345), 15));
+    c.nXSize = 0; c.nYSize = 0;                           // degenerate sizes: cell [0][0]
+    assert(near(Table::Interpolate(c, 7, 7), 0));
+    c.nXSize = 200; c.nYSize = 200;                       // sizes above the max are held to 8x8
+    for (int i = 0; i < TABLE_AXIS_MAX; i++) { c.fXAxis[i] = (float)i; c.fYAxis[i] = (float)i; }
+    for (int y = 0; y < TABLE_AXIS_MAX; y++) for (int x = 0; x < TABLE_AXIS_MAX; x++) c.fCell[y][x] = (float)(10 * y + x);
+    assert(near(Table::Interpolate(c, 6.5f, 7.5f), 76.5f));
+
+    // the block: X and Y from the var map, 0 while disabled
+    float x = 5, y = 50;
+    pVarMap[0] = &x; pVarMap[1] = &y;
+    c.nXSize = 3; c.nYSize = 2;
+    for (int i = 0; i < 3; i++) c.fXAxis[i] = xs[i];
+    for (int i = 0; i < 2; i++) c.fYAxis[i] = ys[i];
+    for (int i = 0; i < 3; i++) { c.fCell[0][i] = xs[i]; c.fCell[1][i] = 100 + xs[i]; }
+    c.nXInput = 0; c.nYInput = 1;
+    Table t; t.SetConfig(&c); t.Update(); assert(near(t.fVal, 55));
+    c.bEnabled = false; t.Update(); assert(t.fVal == 0);
+
+    std::puts("host_table OK");
     return 0;
 }
 #else

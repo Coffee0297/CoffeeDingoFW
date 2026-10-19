@@ -575,3 +575,20 @@ CANTxMsg TxMsg31()
 
     return stMsg;
 }
+
+CANTxMsg TxMsg32()
+{
+    CANTxMsg stMsg;
+    //=======================================================
+    // Build Msg 32 (Table 1-2 outputs, float32 little-endian)
+    //=======================================================
+    stMsg.frame.IDE = CAN_IDE_STD;
+    stMsg.frame.SID = stConfig.stDevice.nBaseId + CYCLIC_TX_OFFSET + 32;
+    stMsg.frame.DLC = 8;
+    Dbc::EncodeFloat(stMsg.frame.data8, GetTableVal(0), 0);
+    Dbc::EncodeFloat(stMsg.frame.data8, GetTableVal(1), 32);
+
+    stMsg.bSend = GetAnyTableEnable();
+
+    return stMsg;
+}

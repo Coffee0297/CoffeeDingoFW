@@ -13,6 +13,7 @@
 #include "timer.h"
 #include "math_block.h"
 #include "can_msg.h"
+#include "table.h"
 #if NUM_OUTPUTS > 0
 #include "profet.h"
 #endif
@@ -71,6 +72,10 @@ struct DeviceConfig{
 
   #if NUM_CAN_MSGS > 0
   Config_CanMsg stCanMsg[NUM_CAN_MSGS];
+  #endif
+
+  #if NUM_TABLES > 0
+  Config_Table stTable[NUM_TABLES];
   #endif
 
   #if NUM_DIG_INPUTS > 0

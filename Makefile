@@ -160,6 +160,7 @@ CPPSRC = $(ALLCPPSRC) \
 				 functions/input.cpp \
 				 functions/math_block.cpp \
 				 functions/timer.cpp \
+				 functions/table.cpp \
 				 functions/virtual_input.cpp \
 				 utils/crc.cpp \
 				 utils/dbc.cpp \

@@ -18,6 +18,7 @@
 #include "timer.h"
 #include "math_block.h"
 #include "can_msg.h"
+#include "table.h"
 #include "mailbox.h"
 #include "msg.h"
 #include "error.h"
@@ -55,6 +56,9 @@ MathBlock mathBlock[NUM_MATH];
 #endif
 #if NUM_CAN_MSGS > 0
 CanMsg canMsg[NUM_CAN_MSGS];
+#endif
+#if NUM_TABLES > 0
+Table table[NUM_TABLES];
 #endif
 #if HAS_WIPERS > 0
 Wiper wiper;
@@ -353,6 +357,11 @@ void CyclicUpdate()
         timer[i].Update();
     #endif
 
+    #if NUM_TABLES > 0
+    for (uint8_t i = 0; i < NUM_TABLES; i++)
+        table[i].Update();
+    #endif
+
     #if NUM_KEYPADS > 0
     for (uint8_t i = 0; i < NUM_KEYPADS; i++)
         keypad[i].Update();
@@ -602,6 +611,11 @@ void InitVarMap()
     #if NUM_MATH > 0
     for (uint8_t i = 0; i < NUM_MATH; i++)
         pVarMap[index++] = &mathBlock[i].fVal;
+    #endif
+
+    #if NUM_TABLES > 0
+    for (uint8_t i = 0; i < NUM_TABLES; i++)
+        pVarMap[index++] = &table[i].fVal;
     #endif
 
     #if NUM_OUTPUTS > 0

@@ -49,6 +49,9 @@ extern MathBlock mathBlock[NUM_MATH];
 #if NUM_CAN_MSGS > 0
 extern CanMsg canMsg[NUM_CAN_MSGS];
 #endif
+#if NUM_TABLES > 0
+extern Table table[NUM_TABLES];
+#endif
 #if NUM_OUTPUTS > 0
 extern Profet pf[NUM_OUTPUTS];
 #endif
@@ -99,6 +102,9 @@ void ApplyAllConfig()
     #endif
     #if NUM_CAN_MSGS > 0
     ApplyConfig(CanMsg::nBaseIndex);
+    #endif
+    #if NUM_TABLES > 0
+    ApplyConfig(Table::nBaseIndex);
     #endif
     #if NUM_OUTPUTS > 0
     ApplyConfig(Profet::nBaseIndex);
@@ -194,6 +200,14 @@ void ApplyConfig(uint16_t nIndex)
     {
         for (uint8_t i = 0; i < NUM_CAN_MSGS; i++)
             canMsg[i].SetConfig(&stConfig.stCanMsg[i]);
+    }
+    #endif
+
+    #if NUM_TABLES > 0
+    if (nBaseIndex == Table::nBaseIndex)
+    {
+        for (uint8_t i = 0; i < NUM_TABLES; i++)
+            table[i].SetConfig(&stConfig.stTable[i]);
     }
     #endif
 
