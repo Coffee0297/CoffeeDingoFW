@@ -110,6 +110,17 @@
 //=============================================================================
 // Virtual Input Parameters - Base 0x1400
 //=============================================================================
+// Retain flags keep a value in the FRAM over power cycles and sleep; boards without FRAM don't list them
+#if HAS_EXT_MEMORY
+#define VIRTUAL_INPUT_RETAIN_PARAM(i) \
+    , {0x1400 + (i), 10, &stConfig.stVirtualInput[i].bRetain,  &stConfigTemp.stVirtualInput[i].bRetain,  ParamType::Bool,   0, 0, 1}
+#define COUNTER_RETAIN_PARAM(i) \
+    , {0x1600 + (i), 12, &stConfig.stCounter[i].bRetain,     &stConfigTemp.stCounter[i].bRetain,      ParamType::Bool,   0, 0, 1}
+#else
+#define VIRTUAL_INPUT_RETAIN_PARAM(i)
+#define COUNTER_RETAIN_PARAM(i)
+#endif
+
 #define VIRTUAL_INPUT_PARAMS(i) \
     {0x1400 + (i), 0,  &stConfig.stVirtualInput[i].bEnabled, &stConfigTemp.stVirtualInput[i].bEnabled, ParamType::Bool,   0, 0, 1}, \
     {0x1400 + (i), 1,  &stConfig.stVirtualInput[i].bNot0,    &stConfigTemp.stVirtualInput[i].bNot0,    ParamType::Bool,   0, 0, 1}, \
@@ -120,7 +131,8 @@
     {0x1400 + (i), 6,  &stConfig.stVirtualInput[i].eCond1,   &stConfigTemp.stVirtualInput[i].eCond1,   ParamType::Enum,   static_cast<uint32_t>(BoolOperator::And), 0, 2}, \
     {0x1400 + (i), 7,  &stConfig.stVirtualInput[i].bNot2,    &stConfigTemp.stVirtualInput[i].bNot2,    ParamType::Bool,   0, 0, 1}, \
     {0x1400 + (i), 8,  &stConfig.stVirtualInput[i].nVar2,    &stConfigTemp.stVirtualInput[i].nVar2,    ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
-    {0x1400 + (i), 9,  &stConfig.stVirtualInput[i].eMode,    &stConfigTemp.stVirtualInput[i].eMode,    ParamType::Enum,   static_cast<uint32_t>(InputMode::Momentary), 0, 1}
+    {0x1400 + (i), 9,  &stConfig.stVirtualInput[i].eMode,    &stConfigTemp.stVirtualInput[i].eMode,    ParamType::Enum,   static_cast<uint32_t>(InputMode::Momentary), 0, 1} \
+    VIRTUAL_INPUT_RETAIN_PARAM(i)
 
 //=============================================================================
 // Condition Parameters - Base 0x1500
@@ -149,7 +161,8 @@
     {0x1600 + (i), 8,  &stConfig.stCounter[i].eResetEdge,  &stConfigTemp.stCounter[i].eResetEdge,  ParamType::Enum,   static_cast<uint32_t>(InputEdge::Rising), 0, 2}, \
     {0x1600 + (i), 9,  &stConfig.stCounter[i].bWrapAround, &stConfigTemp.stCounter[i].bWrapAround, ParamType::Bool,   0, 0, 1}, \
     {0x1600 + (i), 10, &stConfig.stCounter[i].bHoldToReset,&stConfigTemp.stCounter[i].bHoldToReset, ParamType::Bool,   0, 0, 1}, \
-    {0x1600 + (i), 11, &stConfig.stCounter[i].nResetTime,  &stConfigTemp.stCounter[i].nResetTime,   ParamType::UInt16, 2000, 0, 10000}
+    {0x1600 + (i), 11, &stConfig.stCounter[i].nResetTime,  &stConfigTemp.stCounter[i].nResetTime,   ParamType::UInt16, 2000, 0, 10000} \
+    COUNTER_RETAIN_PARAM(i)
 
 //=============================================================================
 // Flasher Parameters - Base 0x1700
@@ -444,7 +457,8 @@
     {0x3100 + (k) * 32 + (b), 18, &stConfig.stKeypad[k].stButton[b].nBlinkColors[1],       &stConfigTemp.stKeypad[k].stButton[b].nBlinkColors[1], ParamType::UInt8,  0, 0, 7}, \
     {0x3100 + (k) * 32 + (b), 19, &stConfig.stKeypad[k].stButton[b].nBlinkColors[2],       &stConfigTemp.stKeypad[k].stButton[b].nBlinkColors[2], ParamType::UInt8,  0, 0, 7}, \
     {0x3100 + (k) * 32 + (b), 20, &stConfig.stKeypad[k].stButton[b].nBlinkColors[3],       &stConfigTemp.stKeypad[k].stButton[b].nBlinkColors[3], ParamType::UInt8,  0, 0, 7}, \
-    {0x3100 + (k) * 32 + (b), 21, &stConfig.stKeypad[k].stButton[b].nFaultBlinkColor,      &stConfigTemp.stKeypad[k].stButton[b].nFaultBlinkColor,ParamType::UInt8,  0, 0, 7}
+    {0x3100 + (k) * 32 + (b), 21, &stConfig.stKeypad[k].stButton[b].nFaultBlinkColor,      &stConfigTemp.stKeypad[k].stButton[b].nFaultBlinkColor,ParamType::UInt8,  0, 0, 7}, \
+    {0x3100 + (k) * 32 + (b), 22, &stConfig.stKeypad[k].stButton[b].bRetain,               &stConfigTemp.stKeypad[k].stButton[b].bRetain,         ParamType::Bool,   0, 0, 1}
 
 //=============================================================================
 // Keypad Dial Parameters - Base 0x3200 + (keypad * 4) + dial

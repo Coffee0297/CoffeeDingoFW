@@ -12,6 +12,7 @@
 //   g++ -std=c++20 -DCAN_MSG_CHECKSUM_ONLY -I tests/host -I functions -I core -I utils tests/host_selftest.cpp functions/can_msg.cpp utils/dbc.cpp -o build/host_can_msg_cs && build/host_can_msg_cs
 //   g++ -std=c++20 -Wall -DLATCH_GATE_ONLY -I tests/host -I functions -I core -I utils tests/host_selftest.cpp functions/latch_gate.cpp -o build/host_latch_gate && build/host_latch_gate
 //   g++ -std=c++20 -DPID_ONLY -I tests/host -I functions -I core -I utils tests/host_selftest.cpp functions/pid.cpp -o build/host_pid && build/host_pid
+//   g++ -std=c++20 -Wall -DRETAIN_ONLY -I tests/host -I functions -I core -I utils tests/host_selftest.cpp functions/input.cpp -o build/host_retain && build/host_retain
 // Each feature adds its own section below, picked with -D<NAME>_ONLY, and its build line here.
 //   g++ -std=c++20 -Wall -DPWM_METER_ONLY -I tests/host -I functions -I core -I utils tests/host_selftest.cpp -o build/host_pwm_meter && build/host_pwm_meter
 //   g++ -std=c++20 -Wall -DANALOG_SCALE_ONLY -I tests/host -I functions -I core -I utils tests/host_selftest.cpp functions/input.cpp -o build/host_analog_scale && build/host_analog_scale
@@ -692,6 +693,25 @@ int main()
     Reset(); c.bEnabled = false; sp = 40; p.Update(); assert(p.fVal == 0);
 
     std::puts("host_selftest PID OK");
+    return 0;
+}
+#elif defined(RETAIN_ONLY)
+#include "input.h"
+
+int main()
+{
+    // A restored latch is not toggled by an input that is already on at boot, the next press toggles it
+    Input in;
+    in.Restore(true);
+    assert(in.Check(InputMode::Latching, false, true) == true);
+    assert(in.Check(InputMode::Latching, false, false) == true);
+    assert(in.Check(InputMode::Latching, false, true) == false);
+    in.Restore(true);
+    assert(in.Check(InputMode::Latching, false, false) == true);   // input off at boot: kept too
+    in.Restore(true);
+    assert(in.Check(InputMode::Momentary, false, false) == false); // momentary follows its input
+
+    std::puts("host_retain OK");
     return 0;
 }
 #else

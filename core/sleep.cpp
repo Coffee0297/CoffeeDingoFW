@@ -6,6 +6,7 @@
 #include "status.h"
 #include "mcu_utils.h"
 #include "device_config.h"
+#include "config_ext.h"
 
 #if CAN_SLEEP
 // Static variables that were in pdm.cpp
@@ -91,6 +92,11 @@ void EnterSleep()
     #if NUM_OUTPUTS > 0
     for (uint8_t i = 0; i < NUM_OUTPUTS; i++)
         pf[i].ForceOff(true); // DEN comes back on wake: wake is a reset and the Profet constructor sets it
+    #endif
+
+    // The SlowThread may not have stored the last change yet
+    #if HAS_EXT_MEMORY
+    WriteRetained();
     #endif
 
     // Let CanTxThread flush queued frames before the transceiver goes to standby
