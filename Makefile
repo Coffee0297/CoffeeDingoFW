@@ -160,6 +160,7 @@ CPPSRC = $(ALLCPPSRC) \
 				 functions/flasher.cpp \
 				 functions/input.cpp \
 				 functions/math_block.cpp \
+				 functions/latch_gate.cpp \
 				 functions/timer.cpp \
 				 functions/table.cpp \
 				 functions/virtual_input.cpp \
