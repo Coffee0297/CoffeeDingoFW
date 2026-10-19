@@ -54,6 +54,9 @@ uint8_t GetTimerOutputs();
 uint8_t GetTimersRunning();
 uint16_t GetTimerElapsed(uint8_t nTimer);
 
+bool GetAnyPidEnable();
+int16_t GetPidOutput(uint8_t nPid);
+
 bool GetKeypadEnable(uint8_t nKeypad);
 uint32_t GetKeypadButtons(uint8_t nKeypad);
 float GetKeypadDialVal(uint8_t nKeypad, uint8_t nDial);

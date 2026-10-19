@@ -7,6 +7,7 @@
 #include "counter.h"
 #include "condition.h"
 #include "timer.h"
+#include "pid.h"
 #include "flasher.h"
 #include "virtual_input.h"
 #if NUM_OUTPUTS > 0
@@ -40,6 +41,9 @@ extern Counter counter[NUM_COUNTERS];
 extern Condition condition[NUM_CONDITIONS];
 #if NUM_TIMERS > 0
 extern Timer timer[NUM_TIMERS];
+#endif
+#if NUM_PIDS > 0
+extern Pid pid[NUM_PIDS];
 #endif
 #if NUM_OUTPUTS > 0
 extern Profet pf[NUM_OUTPUTS];
@@ -85,6 +89,9 @@ void ApplyAllConfig()
     ApplyConfig(Condition::nBaseIndex);
     #if NUM_TIMERS > 0
     ApplyConfig(Timer::nBaseIndex);
+    #endif
+    #if NUM_PIDS > 0
+    ApplyConfig(Pid::nBaseIndex);
     #endif
     #if NUM_OUTPUTS > 0
     ApplyConfig(Profet::nBaseIndex);
@@ -164,6 +171,14 @@ void ApplyConfig(uint16_t nIndex)
     {
         for (uint8_t i = 0; i < NUM_TIMERS; i++)
             timer[i].SetConfig(&stConfig.stTimer[i]);
+    }
+    #endif
+
+    #if NUM_PIDS > 0
+    if (nBaseIndex == Pid::nBaseIndex)
+    {
+        for (uint8_t i = 0; i < NUM_PIDS; i++)
+            pid[i].SetConfig(&stConfig.stPid[i]);
     }
     #endif
 

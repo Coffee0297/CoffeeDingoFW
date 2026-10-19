@@ -16,6 +16,7 @@
 #include "counter.h"
 #include "condition.h"
 #include "timer.h"
+#include "pid.h"
 #include "mailbox.h"
 #include "msg.h"
 #include "error.h"
@@ -46,6 +47,9 @@ Counter counter[NUM_COUNTERS];
 Condition condition[NUM_CONDITIONS];
 #if NUM_TIMERS > 0
 Timer timer[NUM_TIMERS];
+#endif
+#if NUM_PIDS > 0
+Pid pid[NUM_PIDS];
 #endif
 #if HAS_WIPERS > 0
 Wiper wiper;
@@ -331,6 +335,13 @@ void CyclicUpdate()
         keypad[i].Update();
     #endif
 
+    // Last of the logic, so a PID can use any of it, and before the outputs
+    // so a duty it drives is this cycle's
+    #if NUM_PIDS > 0
+    for (uint8_t i = 0; i < NUM_PIDS; i++)
+        pid[i].Update();
+    #endif
+
     //=========================================================================
     // Outputs last, so they act on this cycle's inputs and logic
     //=========================================================================
@@ -496,6 +507,16 @@ void InitVarMap()
     for (uint8_t i = 0; i < NUM_TIMERS; i++)
     {
         pVarMap[index++] = &timer[i].fVal;
+    }
+    #endif
+
+    #if NUM_PIDS > 0
+    for (uint8_t i = 0; i < NUM_PIDS; i++)
+    {
+        pVarMap[index++] = &pid[i].fVal;
+        pVarMap[index++] = &pid[i].fP;
+        pVarMap[index++] = &pid[i].fI;
+        pVarMap[index++] = &pid[i].fD;
     }
     #endif
 

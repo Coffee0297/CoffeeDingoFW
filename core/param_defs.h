@@ -193,6 +193,33 @@
 #endif
 
 //=============================================================================
+// PID Parameters - Base 0x2300
+//=============================================================================
+#if NUM_PIDS > 0
+#define PID_PARAMS(i) \
+    {0x2300 + (i), 0,  &stConfig.stPid[i].bEnabled,       &stConfigTemp.stPid[i].bEnabled,       ParamType::Bool,   0, 0, 1}, \
+    {0x2300 + (i), 1,  &stConfig.stPid[i].nSetpointInput, &stConfigTemp.stPid[i].nSetpointInput, ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
+    {0x2300 + (i), 2,  &stConfig.stPid[i].nProcessInput,  &stConfigTemp.stPid[i].nProcessInput,  ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
+    {0x2300 + (i), 3,  &stConfig.stPid[i].nActivateInput, &stConfigTemp.stPid[i].nActivateInput, ParamType::UInt16, 1, 0, VAR_MAP_SIZE - 1}, \
+    {0x2300 + (i), 4,  &stConfig.stPid[i].fFeedForward,   &stConfigTemp.stPid[i].fFeedForward,   ParamType::Float,  F(0.0f), F(-1e6f), F(1e6f)}, \
+    {0x2300 + (i), 5,  &stConfig.stPid[i].nFeedFwdInput,  &stConfigTemp.stPid[i].nFeedFwdInput,  ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
+    {0x2300 + (i), 6,  &stConfig.stPid[i].fKp,            &stConfigTemp.stPid[i].fKp,            ParamType::Float,  F(1.0f), F(0.0f), F(1e6f)}, \
+    {0x2300 + (i), 7,  &stConfig.stPid[i].fKi,            &stConfigTemp.stPid[i].fKi,            ParamType::Float,  F(0.0f), F(0.0f), F(1e6f)}, \
+    {0x2300 + (i), 8,  &stConfig.stPid[i].fKd,            &stConfigTemp.stPid[i].fKd,            ParamType::Float,  F(0.0f), F(0.0f), F(1e6f)}, \
+    {0x2300 + (i), 9,  &stConfig.stPid[i].fIMin,          &stConfigTemp.stPid[i].fIMin,          ParamType::Float,  F(-100.0f), F(-1e6f), F(1e6f)}, \
+    {0x2300 + (i), 10, &stConfig.stPid[i].fIMax,          &stConfigTemp.stPid[i].fIMax,          ParamType::Float,  F(100.0f), F(-1e6f), F(1e6f)}, \
+    {0x2300 + (i), 11, &stConfig.stPid[i].fOutMin,        &stConfigTemp.stPid[i].fOutMin,        ParamType::Float,  F(0.0f), F(-1e6f), F(1e6f)}, \
+    {0x2300 + (i), 12, &stConfig.stPid[i].fOutMax,        &stConfigTemp.stPid[i].fOutMax,        ParamType::Float,  F(100.0f), F(-1e6f), F(1e6f)}, \
+    {0x2300 + (i), 13, &stConfig.stPid[i].bInvert,        &stConfigTemp.stPid[i].bInvert,        ParamType::Bool,   0, 0, 1}, \
+    {0x2300 + (i), 14, &stConfig.stPid[i].fSpRate,        &stConfigTemp.stPid[i].fSpRate,        ParamType::Float,  F(0.0f), F(0.0f), F(1e6f)}, \
+    {0x2300 + (i), 15, &stConfig.stPid[i].fDeadband,      &stConfigTemp.stPid[i].fDeadband,      ParamType::Float,  F(0.0f), F(0.0f), F(1e6f)}, \
+    {0x2300 + (i), 16, &stConfig.stPid[i].fPvMin,         &stConfigTemp.stPid[i].fPvMin,         ParamType::Float,  F(0.0f), F(-1e6f), F(1e6f)}, \
+    {0x2300 + (i), 17, &stConfig.stPid[i].fPvMax,         &stConfigTemp.stPid[i].fPvMax,         ParamType::Float,  F(0.0f), F(-1e6f), F(1e6f)}, \
+    {0x2300 + (i), 18, &stConfig.stPid[i].fFallback,      &stConfigTemp.stPid[i].fFallback,      ParamType::Float,  F(0.0f), F(-1e6f), F(1e6f)}, \
+    {0x2300 + (i), 19, &stConfig.stPid[i].nPeriodMs,      &stConfigTemp.stPid[i].nPeriodMs,      ParamType::UInt16, 20, 2, 1000}
+#endif
+
+//=============================================================================
 // CAN Output Parameters - Base 0x2000
 //=============================================================================
 #define CAN_OUTPUT_PARAMS(i) \
