@@ -10,6 +10,8 @@ struct Config_Condition{
   uint16_t nInput;
   Operator eOperator;
   float fArg;
+  uint16_t nDelayOn;  //ms the compare must be true before the result turns on
+  uint16_t nDelayOff; //ms the compare must be false before the result turns off
 };
 
 class Condition
@@ -24,6 +26,7 @@ public:
     {
         pConfig = config;
         pInput = pVarMap[config->nInput];
+        nLastSame = SYS_TIME;
     }
 
     void Update();
@@ -34,4 +37,7 @@ private:
     Config_Condition* pConfig;
     
     float *pInput;
+
+    bool bOut;
+    uint32_t nLastSame; //Last time the compare matched bOut
 };
