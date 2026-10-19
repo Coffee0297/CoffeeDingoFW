@@ -499,6 +499,14 @@ void InitVarMap()
     }
     #endif
 
+    #if NUM_OUTPUTS > 0
+    // Output wire load %
+    for (uint8_t i = 0; i < NUM_OUTPUTS; i++)
+    {
+        pVarMap[index++] = &pf[i].fLoad;
+    }
+    #endif
+
     //VarMap size must match the expected size
     if (index != VAR_MAP_SIZE)
         Error::SetFatalError(FatalErrorType::ErrVarMap, MsgSrc::Init);
