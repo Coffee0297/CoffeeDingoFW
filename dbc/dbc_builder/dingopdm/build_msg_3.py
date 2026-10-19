@@ -14,7 +14,9 @@ def build_msg_3(base_id):
         0: "Off",
         1: "On",
         2: "Overcurrent",
-        3: "Fault"
+        3: "Fault",
+        4: "Warning",
+        5: "OpenLoad"
     }
     output_state_sigs = create_duplicate_signals("OutputState", 8, 1, 0, 4, 1, 0)
     for sig in output_state_sigs:
