@@ -35,17 +35,25 @@ enum class ParamType : uint8_t
     Enum = 8
 };
 
+// eType sits next to nSubIndex so the entry packs to 24 bytes instead of 28; the constructor keeps the
+// initialiser order used in param_defs.h
 struct ParamInfo
 {
     uint16_t nIndex;
     uint8_t nSubIndex;
+    ParamType eType;
     void* pVal;
     void* pTempVal; // Used for staging new value before applying
-    ParamType eType;
     uint32_t nDefaultVal;
     uint32_t nMinVal;
     uint32_t nMaxVal;
+
+    constexpr ParamInfo(uint16_t index, uint8_t sub, void* val, void* temp, ParamType type,
+                        uint32_t def, uint32_t min, uint32_t max)
+        : nIndex(index), nSubIndex(sub), eType(type), pVal(val), pTempVal(temp),
+          nDefaultVal(def), nMinVal(min), nMaxVal(max) {}
 };
+static_assert(sizeof(void*) != 4 || sizeof(ParamInfo) == 24);
 
 // Helpers: encode signed values as sign-extended uint32_t (wire format)
 constexpr uint32_t I8 (int8_t  v) { return static_cast<uint32_t>(v); }
