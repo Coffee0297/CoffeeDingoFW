@@ -22,7 +22,7 @@ void CanCyclicTxThread(void *)
     while (1)
     {
 
-        if (!IsParamOpInProgress() && !*pVarMap[stConfig.stDevice.nMuteCanTxInput])
+        if (!IsParamOpInProgress() && !CanTxMuted())
         {
             for (uint8_t i = 0; i < NUM_TX_MSGS; i++)
             {
@@ -271,4 +271,9 @@ void UpdateCanFilters()
 uint32_t GetLastCanRxTime()
 {
     return nLastCanRxTime;
+}
+
+bool CanTxMuted()
+{
+    return *pVarMap[stConfig.stDevice.nMuteCanTxInput];
 }
