@@ -82,6 +82,10 @@ const ParamInfo stParams[] = {
     // Curves (0x2400+)
     ALL_CURVE_PARAMS,
     #endif
+    #if NUM_LATCH_GATES > 0
+    // Latch / gate blocks (0x2600+)
+    ALL_LATCH_GATE_PARAMS,
+    #endif
 
     #if NUM_KEYPADS > 0
     // Keypads (0x3000+)

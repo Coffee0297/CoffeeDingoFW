@@ -18,6 +18,7 @@
 #include "timer.h"
 #include "math_block.h"
 #include "curve.h"
+#include "latch_gate.h"
 #include "mailbox.h"
 #include "msg.h"
 #include "error.h"
@@ -57,6 +58,9 @@ MathBlock mathBlock[NUM_MATH];
 #endif
 #if NUM_CURVES > 0
 Curve curve[NUM_CURVES];
+#endif
+#if NUM_LATCH_GATES > 0
+LatchGate latchGate[NUM_LATCH_GATES];
 #endif
 #if HAS_WIPERS > 0
 Wiper wiper;
@@ -357,6 +361,11 @@ void CyclicUpdate()
     #if HAS_COMFORT_BLINK
     comfortBlink.Update(SYS_TIME);
     #endif
+    // After the conditions and timers, so either can drive a latch or gate
+    #if NUM_LATCH_GATES > 0
+    for (uint8_t i = 0; i < NUM_LATCH_GATES; i++)
+        latchGate[i].Update();
+    #endif
 
     #if NUM_KEYPADS > 0
     for (uint8_t i = 0; i < NUM_KEYPADS; i++)
@@ -543,6 +552,12 @@ void InitVarMap()
     #if NUM_CURVES > 0
     for (uint8_t i = 0; i < NUM_CURVES; i++)
         pVarMap[index++] = &curve[i].fVal;
+    #endif
+    #if NUM_LATCH_GATES > 0
+    for (uint8_t i = 0; i < NUM_LATCH_GATES; i++)
+    {
+        pVarMap[index++] = &latchGate[i].fVal;
+    }
     #endif
 
     //VarMap size must match the expected size

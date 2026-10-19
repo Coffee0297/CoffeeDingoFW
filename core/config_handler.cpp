@@ -9,6 +9,7 @@
 #include "timer.h"
 #include "math_block.h"
 #include "curve.h"
+#include "latch_gate.h"
 #include "flasher.h"
 #include "virtual_input.h"
 #if NUM_OUTPUTS > 0
@@ -51,6 +52,9 @@ extern MathBlock mathBlock[NUM_MATH];
 #endif
 #if NUM_CURVES > 0
 extern Curve curve[NUM_CURVES];
+#endif
+#if NUM_LATCH_GATES > 0
+extern LatchGate latchGate[NUM_LATCH_GATES];
 #endif
 #if NUM_OUTPUTS > 0
 extern Profet pf[NUM_OUTPUTS];
@@ -105,6 +109,9 @@ void ApplyAllConfig()
     #endif
     #if NUM_CURVES > 0
     ApplyConfig(Curve::nBaseIndex);
+    #endif
+    #if NUM_LATCH_GATES > 0
+    ApplyConfig(LatchGate::nBaseIndex);
     #endif
     #if NUM_OUTPUTS > 0
     ApplyConfig(Profet::nBaseIndex);
@@ -202,6 +209,13 @@ void ApplyConfig(uint16_t nIndex)
     {
         for (uint8_t i = 0; i < NUM_CURVES; i++)
             curve[i].SetConfig(&stConfig.stCurve[i]);
+    }
+    #endif
+    #if NUM_LATCH_GATES > 0
+    if (nBaseIndex == LatchGate::nBaseIndex)
+    {
+        for (uint8_t i = 0; i < NUM_LATCH_GATES; i++)
+            latchGate[i].SetConfig(&stConfig.stLatchGate[i]);
     }
     #endif
 

@@ -184,6 +184,15 @@ enum class MathOp : uint8_t
 };
 
 //=============================================================================
+// Latch / gate
+//=============================================================================
+enum class LatchGateType : uint8_t
+{
+    Latch, // Set by a rising edge of the input, cleared by a rising edge of the control input or the auto-cancel time
+    Gate   // Follows the input while the control input is on, holds the last value otherwise
+};
+
+//=============================================================================
 // Output (Profet)
 //=============================================================================
 enum class ProfetModel : uint8_t
