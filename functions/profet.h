@@ -94,6 +94,9 @@ public:
 
     void Update(bool bOutEnabled);
 
+    // Bench test: force on (mode 1) or PWM (mode 2) for nHoldSec, limits and fault handling stay active
+    bool SetTest(uint8_t nMode, uint8_t nDuty, uint16_t nFreq, uint8_t nHoldSec);
+
     // Dual-channel devices share one IS pin, DSEL picks which channel it reports.
     // Outputs are updated in two passes so DSEL only settles twice per cycle:
     // pass 0 = single-channel and CH1, pass 1 = CH2
@@ -118,6 +121,8 @@ public:
     uint16_t GetOcCount() { return nOcCount; }
     uint8_t GetDutyCycle()
     {
+        if (eState == ProfetState::On && nTestMode)
+            return (nTestMode == 2) ? nTestDuty : 100;
         if (eState == ProfetState::On)
             return pwm.GetDutyCycle();
 
@@ -169,6 +174,13 @@ private:
 
     Pwm pwm;
     uint16_t nPwmReadDelay = 0;
+
+    // Bench test, set by the param thread under the config lock
+    uint8_t nTestMode;  // 0 none, 1 on, 2 pwm
+    uint8_t nTestDuty;
+    uint16_t nTestFreq;
+    uint32_t nTestEnd;
+    bool PwmRunning() { return (nTestMode == 2) || (nTestMode == 0 && pwm.IsEnabled()); }
 
     void FollowerUpdate();
     void MeasureCurrent();
