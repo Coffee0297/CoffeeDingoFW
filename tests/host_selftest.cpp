@@ -1,6 +1,7 @@
 // Host-side self-check for the pure function logic (no ChibiOS, no board). tests/host/port.h stands in for
 // the board's port.h. From the repo root:
 //   g++ -std=c++20 -I tests/host -I functions -I core -I utils tests/host_selftest.cpp functions/timer.cpp -o build/host_selftest && build/host_selftest
+//   g++ -std=c++20 -DMATH_ONLY -I tests/host -I functions -I core -I utils tests/host_selftest.cpp functions/math_block.cpp -o build/host_math && build/host_math
 // Each feature adds its own section below, picked with -D<NAME>_ONLY, and its build line here.
 #include <cassert>
 #include <cstdio>
@@ -10,6 +11,38 @@ float *pVarMap[VAR_MAP_SIZE];
 uint32_t nHostTimeMs = 0;
 
 #if 0 // feature sections: #elif defined(<NAME>_ONLY)
+#elif defined(MATH_ONLY)
+#include "math_block.h"
+
+int main()
+{
+    float zero = 0, a = 2, b = 3;
+    pVarMap[0] = &zero; pVarMap[1] = &a; pVarMap[2] = &b;
+    Config_Math c{};
+    c.bEnabled = true; c.nInputA = 1; c.nInputB = 2; c.fFactor = 1;
+    MathBlock m;
+    auto eval = [&](MathOp op) { c.eOp = op; m.SetConfig(&c); m.Update(); return m.fVal; };
+
+    assert(eval(MathOp::Add) == 5);
+    assert(eval(MathOp::Sub) == -1);
+    assert(eval(MathOp::Mul) == 6);
+    assert(eval(MathOp::Min) == 2);
+    assert(eval(MathOp::Max) == 3);
+    assert(eval(MathOp::Average) == 2.5f);
+    b = 0; assert(eval(MathOp::Div) == 0);          // no inf / NaN into the outputs
+    a = 6; b = 3; assert(eval(MathOp::Div) == 2);
+
+    // oil - coolant, then x0.5 + 10; B is the constant when its input is 0
+    a = 110; b = 90; c.fFactor = 0.5f; c.fOffset = 10;
+    assert(eval(MathOp::Sub) == 20);
+    c.nInputB = 0; c.fConstB = 100; assert(eval(MathOp::Sub) == 15);
+    b = 50; m.Update(); assert(m.fVal == 15);        // the constant, not the variable
+
+    c.bEnabled = false; m.Update(); assert(m.fVal == 0);
+
+    std::puts("host_selftest MATH OK");
+    return 0;
+}
 #else
 #include "timer.h"
 
