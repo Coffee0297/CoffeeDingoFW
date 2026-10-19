@@ -4,6 +4,7 @@
 #include "port.h"
 #include "enums.h"
 #include "pwm.h"
+#include "wire_load.h"
 
 #if NUM_OUTPUTS > 0
 
@@ -29,6 +30,7 @@ struct Config_Output{
   Config_PwmOutput stPwm;
 
   float fHardShortLimit; //A, 0 = off, above it trips to Fault at once
+  uint16_t nThermalTau; //s, 0 = off, wire load time constant
 };
 
 //=============================================================================
@@ -147,6 +149,7 @@ public:
     float fWarning;
     float fOpenLoad;
     float fUndercurrent;
+    float fLoad;  // wire load %, 100 = steady current at the limit
 
 private:
     const uint16_t m_num;
@@ -179,6 +182,9 @@ private:
 
     bool bInRushActive;
     uint32_t nInRushOnTime;
+
+    float fI2;            // filtered current squared
+    uint32_t nLoadTime;
 
     volatile uint16_t nOcCount;       // Number of overcurrents
     uint32_t nOcTriggerTime; // Time of overcurrent
