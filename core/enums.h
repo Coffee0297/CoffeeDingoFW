@@ -143,6 +143,16 @@ enum class ByteOrder : uint8_t
     BigEndian = 1     // Motorola byte order
 };
 
+enum class CanOutputKind : uint8_t
+{
+    Signal = 0,
+    RollingCounter = 1,
+    ChecksumXor = 2,
+    ChecksumSum = 3,
+    Crc8SaeJ1850 = 4,
+    Crc8Autosar = 5
+};
+
 //=============================================================================
 // Input
 //=============================================================================

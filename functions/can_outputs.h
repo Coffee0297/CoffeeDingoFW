@@ -30,6 +30,7 @@ private:
     static Config_CanOutput* pConfigs[NUM_CAN_OUTPUTS];
 
     static float *pInput[NUM_CAN_OUTPUTS];
+    static uint32_t nCount[NUM_CAN_OUTPUTS]; // RollingCounter value, masked to the bit length when encoded
 
     static CanOutput canOut[CAN_OUT_FRAMES];
     

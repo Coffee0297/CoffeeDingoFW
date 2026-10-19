@@ -23,6 +23,9 @@ public:
     static float DecodeFloat(const uint8_t *pData, uint8_t nStartBit, uint8_t nBitLength, float fScale = 1.0f, float fOffset = 0.0f, ByteOrder eByteOrder = ByteOrder::LittleEndian, bool bSigned = false);
     static void EncodeFloat(uint8_t *pData, float fValue, uint8_t nStartBit, uint8_t nBitLength, float fScale = 1.0f, float fOffset = 0.0f, ByteOrder eByteOrder = ByteOrder::LittleEndian);
 
+    // XOR / sum / CRC8 of pData[0..nLen) without byte nSkipByte
+    static uint8_t Checksum(CanOutputKind eKind, const uint8_t *pData, uint8_t nLen, uint8_t nSkipByte);
+
 private:
     static int32_t DecodeLE(const uint8_t *pData, uint8_t nStartBit, uint8_t nBitLength, bool bSigned);
     static int32_t DecodeBE(const uint8_t *pData, uint8_t nStartBit, uint8_t nBitLength, bool bSigned);
