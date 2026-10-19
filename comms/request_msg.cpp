@@ -124,4 +124,18 @@ void CheckRequestMsgs(CANRxFrame *frame)
 
         PostTxFrame(&txMsg);
     }
+
+    // Check for reset cause request
+    if ((frame->DLC == 8) &&
+        (frame->data8[0] == static_cast<uint8_t>(MsgCmd::ResetCause)))
+    {
+        CANTxFrame txMsg = {};
+        txMsg.SID = stConfig.stDevice.nBaseId + CONFIG_TX_OFFSET;
+        txMsg.IDE = CAN_IDE_STD;
+        txMsg.DLC = 8;
+        txMsg.data8[0] = static_cast<uint8_t>(MsgCmd::ResetCause);
+        txMsg.data8[1] = nResetCause;
+
+        PostTxFrame(&txMsg);
+    }
 }
