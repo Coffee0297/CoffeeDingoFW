@@ -54,6 +54,11 @@ int main()
     Reset(); c.fKi = 2; sp = 40;
     Run(20000); assert(std::fabs(pv - 40) < 0.2f);
 
+    // Constant setpoint when no setpoint input is set, read live
+    Reset(); c.fKi = 2; c.nSetpointInput = 0; c.fSetpoint = 40; sp = 99; p.SetConfig(&c);
+    Run(20000); assert(std::fabs(pv - 40) < 0.2f);
+    c.fSetpoint = 20; Run(20000); assert(std::fabs(pv - 20) < 0.2f);
+
     // Update period: nothing changes between periods
     Reset(); c.nPeriodMs = 100; sp = 10; p.Update(); sp = 50; nHostTimeMs += 50; p.Update(); assert(p.fVal == 10);
     nHostTimeMs += 50; p.Update(); assert(p.fVal == 50);
