@@ -11,6 +11,9 @@
 #include "counter.h"
 #include "condition.h"
 #include "timer.h"
+#if HAS_COMFORT_BLINK
+#include "comfort_blink.h"
+#endif
 #if NUM_OUTPUTS > 0
 #include "profet.h"
 #endif
@@ -33,7 +36,7 @@
 #include "analog_input.h"
 #endif  
 
-#define CONFIG_VERSION 0x0008 //Increment when config structure changes
+#define CONFIG_VERSION 0x0009 //Increment when config structure changes
 
 struct Config_Device{
   uint16_t nConfigVersion;
@@ -73,6 +76,9 @@ struct DeviceConfig{
   #endif
   #if HAS_STARTER_DISABLE
   Config_Starter stStarter;
+  #endif
+  #if HAS_COMFORT_BLINK
+  Config_ComfortBlink stComfortBlink;
   #endif
   #if NUM_KEYPADS > 0
   Config_Keypad stKeypad[NUM_KEYPADS];

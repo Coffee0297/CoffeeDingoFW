@@ -28,6 +28,9 @@
 #if HAS_STARTER_DISABLE > 0
 #include "starter.h"
 #endif
+#if HAS_COMFORT_BLINK
+#include "comfort_blink.h"
+#endif
 #if HAS_USB
 #include "usb.h"
 #endif
@@ -52,6 +55,9 @@ Wiper wiper;
 #endif
 #if HAS_STARTER_DISABLE > 0
 Starter starter;
+#endif
+#if HAS_COMFORT_BLINK
+ComfortBlink comfortBlink;
 #endif
 #if NUM_KEYPADS > 0
 Keypad keypad[NUM_KEYPADS];
@@ -326,6 +332,10 @@ void CyclicUpdate()
         timer[i].Update();
     #endif
 
+    #if HAS_COMFORT_BLINK
+    comfortBlink.Update(SYS_TIME);
+    #endif
+
     #if NUM_KEYPADS > 0
     for (uint8_t i = 0; i < NUM_KEYPADS; i++)
         keypad[i].Update();
@@ -497,6 +507,12 @@ void InitVarMap()
     {
         pVarMap[index++] = &timer[i].fVal;
     }
+    #endif
+
+    // Appended after the timers for the same reason
+    #if HAS_COMFORT_BLINK
+    pVarMap[index++] = &comfortBlink.fLeft;
+    pVarMap[index++] = &comfortBlink.fRight;
     #endif
 
     //VarMap size must match the expected size
