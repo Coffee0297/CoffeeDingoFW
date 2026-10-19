@@ -14,6 +14,19 @@ def build_msg_0(base_id):
     dig_input_sigs = create_duplicate_signals("DigitalInput", 2, 1, 0, 1, 1, 0)
     message.signals.extend(dig_input_sigs)
 
+    sleep_countdown_sig = cantools.database.Signal(
+        name="SleepCountdown",
+        start=2,
+        length=6,
+        byte_order="little_endian",
+        is_signed=False,
+        minimum=0,
+        maximum=63,
+        unit="s",
+        comment="Seconds until auto sleep, 63 = not counting down"
+    )
+    message.signals.append(sleep_countdown_sig)
+
     device_states = {
         0: "Run",
         1: "Sleep",

@@ -3,6 +3,8 @@
 #include "profet.h"
 #include "device.h"
 #include "status.h"
+#include "sleep.h"
+#include <algorithm>
 
 
 CANTxMsg TxMsg0()
@@ -13,7 +15,7 @@ CANTxMsg TxMsg0()
     //=======================================================
     stMsg.frame.SID = stConfig.stDevice.nBaseId + CYCLIC_TX_OFFSET + 0;
     stMsg.frame.DLC = 8; // Bytes to send
-    stMsg.frame.data8[0] = (GetDigInputVal(1) << 1) + GetDigInputVal(0);
+    stMsg.frame.data8[0] = (GetDigInputVal(1) << 1) + GetDigInputVal(0) + (std::min<uint8_t>(SleepCountdownSec(), 63) << 2);
     stMsg.frame.data8[1] = static_cast<uint8_t>(GetDeviceState()) + (PDM_TYPE << 4);
     stMsg.frame.data16[1] = (uint16_t)GetTotalCurrent();
     stMsg.frame.data16[2] = (uint16_t)(GetBattVolt() * 10.0);
