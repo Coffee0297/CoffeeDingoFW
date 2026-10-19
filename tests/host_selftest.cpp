@@ -4,6 +4,7 @@
 //   g++ -std=c++20 -DMATH_ONLY -I tests/host -I functions -I core -I utils tests/host_selftest.cpp functions/math_block.cpp -o build/host_math && build/host_math
 //   g++ -std=c++20 -DCAN_MSG_ONLY -I tests/host -I functions -I core -I utils tests/host_selftest.cpp functions/can_msg.cpp utils/dbc.cpp -o build/host_can_msg && build/host_can_msg
 //   g++ -std=c++20 -DCAN_MSG_CHECKSUM_ONLY -I tests/host -I functions -I core -I utils tests/host_selftest.cpp functions/can_msg.cpp utils/dbc.cpp -o build/host_can_msg_cs && build/host_can_msg_cs
+//   g++ -std=c++20 -Wall -DCHECKSUM_ONLY -I tests/host -I functions -I core -I utils tests/host_selftest.cpp utils/dbc.cpp -o build/host_checksum && build/host_checksum
 // Each feature adds its own section below, picked with -D<NAME>_ONLY, and its build line here.
 #include <cassert>
 #include <cstdio>
@@ -126,6 +127,28 @@ int main()
     assert(d[3] == c.nData[3]);
 
     std::puts("host_selftest CAN_MSG_CHECKSUM OK");
+    return 0;
+}
+#elif defined(CHECKSUM_ONLY)
+#include "dbc.h"
+
+int main()
+{
+    const uint8_t check[] = {'1', '2', '3', '4', '5', '6', '7', '8', '9'};
+    assert(Dbc::Checksum(CanOutputKind::Crc8SaeJ1850, check, 9, 0xFF) == 0x4B);   // published check values
+    assert(Dbc::Checksum(CanOutputKind::Crc8Autosar, check, 9, 0xFF) == 0xDF);
+
+    uint8_t f[8] = {0x01, 0x02, 0xAA, 0x04, 0x80, 0x80, 0x00, 0x00};
+    assert(Dbc::Checksum(CanOutputKind::ChecksumXor, f, 8, 2) == (0x01 ^ 0x02 ^ 0x04));       // skips byte 2
+    assert(Dbc::Checksum(CanOutputKind::ChecksumSum, f, 8, 2) == ((0x01 + 0x02 + 0x04 + 0x100) & 0xFF)); // mod 256
+    assert(Dbc::Checksum(CanOutputKind::Crc8SaeJ1850, f, 6, 2) != Dbc::Checksum(CanOutputKind::Crc8SaeJ1850, f, 6, 0xFF));
+
+    // rolling counter: the output encodes nCount++ with EncodeInt, which keeps the low bits = wrap at the length
+    uint8_t d[8] = {0xFF, 0xFF, 0, 0, 0, 0, 0, 0};
+    Dbc::EncodeInt(d, 17, 4, 4);
+    assert(d[0] == 0x1F && d[1] == 0xFF);           // 17 & 0xF = 1 in bits 4-7, neighbours untouched
+
+    std::puts("host_selftest CHECKSUM OK");
     return 0;
 }
 #else
