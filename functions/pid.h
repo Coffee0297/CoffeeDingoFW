@@ -26,6 +26,7 @@ struct Config_Pid{
   float fPvMax;
   float fFallback;
   uint16_t nPeriodMs;
+  float fSetpoint; //used when nSetpointInput is 0
 };
 
 class Pid
@@ -39,7 +40,7 @@ public:
     void SetConfig(Config_Pid* config)
     {
         pConfig = config;
-        pSetpoint = pVarMap[config->nSetpointInput];
+        pSetpoint = config->nSetpointInput ? pVarMap[config->nSetpointInput] : &config->fSetpoint;
         pProcess = pVarMap[config->nProcessInput];
         pActivate = pVarMap[config->nActivateInput];
         pFeedFwd = pVarMap[config->nFeedFwdInput];
