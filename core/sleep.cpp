@@ -2,7 +2,11 @@
 #include "device.h"
 #include "port.h"
 #include "can.h"
+#if HAS_USB
 #include "usb.h"
+#else
+static bool GetUsbConnected() { return false; }
+#endif
 #include "status.h"
 #include "mcu_utils.h"
 #include "device_config.h"
@@ -43,7 +47,9 @@ static volatile bool bQuietWake;
 // External variables from pdm.cpp that we need access to
 extern DeviceConfig stConfig;
 bool bSleepRequest;
+#if NUM_OUTPUTS > 0
 extern Profet pf[NUM_OUTPUTS];
+#endif
 
 bool CheckEnterSleep()
 {
@@ -51,6 +57,7 @@ bool CheckEnterSleep()
 
     // Count number of outputs on
     nNumOutputsOn = 0;
+    #if NUM_OUTPUTS > 0
     for (int i = 0; i < NUM_OUTPUTS; i++)
     {
         // A stay-alive output that is on doesn't keep the device awake, one in overcurrent/fault does
@@ -59,6 +66,15 @@ bool CheckEnterSleep()
             !(stConfig.stOutput[i].bStayAlive && (GetOutputState(i) == ProfetState::On)))
             nNumOutputsOn++;
     }
+    #endif
+    #if NUM_DIG_OUTPUTS > 0
+    for (uint8_t i = 0; i < NUM_DIG_OUTPUTS; i++)
+    {
+        if (GetDigOutputState(i) &&
+            !(stConfig.stDevice.bSleepIgnoreAlwaysOn && (stConfig.stDigOutput[i].nInput == 1)))
+            nNumOutputsOn++;
+    }
+    #endif
 
     // All outputs just turned off, save time - wait the sleep timeout before sleep
     if ((nNumOutputsOn == 0) && (nLastNumOutputsOn > 0))
@@ -260,10 +276,18 @@ void EnterSleep()
         PostTxFrame(&txMsg);
     }
 
+    // The control loop stops in STOP mode, don't leave a digital output latched on
+    #if NUM_DIG_OUTPUTS > 0
+    for (uint8_t i = 0; i < NUM_DIG_OUTPUTS; i++)
+        digOut[i].ForceOff();
+    #endif
+
     // Let CanTxThread flush queued frames before the transceiver goes to standby
     chThdSleepMilliseconds(100);
 
+    #ifdef LINE_CAN_STANDBY
     palSetLine(LINE_CAN_STANDBY); // CAN disabled
+    #endif
 
     // A PWM input's edge event would wake it, and the wake event below needs the same EXTI line
     for(uint8_t i = 0; i < NUM_DIG_INPUTS; i++)
@@ -290,10 +314,12 @@ void EnterSleep()
     }
 
     // USB detection - always active
+    #if HAS_USB
     palSetLineMode(LINE_USB_DP, PAL_MODE_INPUT);
     palEnableLineEvent(LINE_USB_DP, PAL_EVENT_MODE_BOTH_EDGES | PAL_STM32_PUPDR_FLOATING);
     palSetLineMode(LINE_USB_DM, PAL_MODE_INPUT);
     palEnableLineEvent(LINE_USB_DM, PAL_EVENT_MODE_BOTH_EDGES | PAL_STM32_PUPDR_FLOATING);
+    #endif
 
     EnterStopMode();
     CaptureWake();

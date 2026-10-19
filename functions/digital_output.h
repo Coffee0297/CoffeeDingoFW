@@ -33,6 +33,8 @@ public:
     bool SetTest(uint8_t nMode, uint8_t nHoldSec);
     uint8_t GetDutyCycle() { return fVal ? pwm.GetDutyCycle() : 0; }
     bool IsPwmEnabled() { return pwm.IsEnabled(); }
+    // Sleep: PWM stopped and the line low, the control loop doesn't run in STOP
+    void ForceOff() { pwm.Off(); palClearLine(m_line); }
 
     float fVal;
 
