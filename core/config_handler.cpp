@@ -41,6 +41,9 @@ extern Condition condition[NUM_CONDITIONS];
 #if NUM_TIMERS > 0
 extern Timer timer[NUM_TIMERS];
 #endif
+#if NUM_TABLES > 0
+extern Table table[NUM_TABLES];
+#endif
 #if NUM_OUTPUTS > 0
 extern Profet pf[NUM_OUTPUTS];
 #endif
@@ -85,6 +88,9 @@ void ApplyAllConfig()
     ApplyConfig(Condition::nBaseIndex);
     #if NUM_TIMERS > 0
     ApplyConfig(Timer::nBaseIndex);
+    #endif
+    #if NUM_TABLES > 0
+    ApplyConfig(Table::nBaseIndex);
     #endif
     #if NUM_OUTPUTS > 0
     ApplyConfig(Profet::nBaseIndex);
@@ -164,6 +170,14 @@ void ApplyConfig(uint16_t nIndex)
     {
         for (uint8_t i = 0; i < NUM_TIMERS; i++)
             timer[i].SetConfig(&stConfig.stTimer[i]);
+    }
+    #endif
+
+    #if NUM_TABLES > 0
+    if (nBaseIndex == Table::nBaseIndex)
+    {
+        for (uint8_t i = 0; i < NUM_TABLES; i++)
+            table[i].SetConfig(&stConfig.stTable[i]);
     }
     #endif
 

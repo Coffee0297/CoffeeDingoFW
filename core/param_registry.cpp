@@ -55,6 +55,11 @@ const ParamInfo stParams[] = {
     ALL_TIMER_PARAMS,
     #endif
 
+    #if NUM_TABLES > 0
+    // Tables (0x1B00+)
+    ALL_TABLE_PARAMS,
+    #endif
+
     // CAN Outputs (0x2000+)
     ALL_CAN_OUTPUT_PARAMS,
 

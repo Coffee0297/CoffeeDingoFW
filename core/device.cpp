@@ -16,6 +16,7 @@
 #include "counter.h"
 #include "condition.h"
 #include "timer.h"
+#include "table.h"
 #include "mailbox.h"
 #include "msg.h"
 #include "error.h"
@@ -46,6 +47,9 @@ Counter counter[NUM_COUNTERS];
 Condition condition[NUM_CONDITIONS];
 #if NUM_TIMERS > 0
 Timer timer[NUM_TIMERS];
+#endif
+#if NUM_TABLES > 0
+Table table[NUM_TABLES];
 #endif
 #if HAS_WIPERS > 0
 Wiper wiper;
@@ -326,6 +330,11 @@ void CyclicUpdate()
         timer[i].Update();
     #endif
 
+    #if NUM_TABLES > 0
+    for (uint8_t i = 0; i < NUM_TABLES; i++)
+        table[i].Update();
+    #endif
+
     #if NUM_KEYPADS > 0
     for (uint8_t i = 0; i < NUM_KEYPADS; i++)
         keypad[i].Update();
@@ -497,6 +506,11 @@ void InitVarMap()
     {
         pVarMap[index++] = &timer[i].fVal;
     }
+    #endif
+
+    #if NUM_TABLES > 0
+    for (uint8_t i = 0; i < NUM_TABLES; i++)
+        pVarMap[index++] = &table[i].fVal;
     #endif
 
     //VarMap size must match the expected size

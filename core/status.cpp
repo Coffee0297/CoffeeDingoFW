@@ -366,6 +366,28 @@ uint16_t GetTimerElapsed(uint8_t nTimer)
     return 0;
 }
 
+bool GetAnyTableEnable()
+{
+    #if NUM_TABLES > 0
+    for (uint8_t i = 0; i < NUM_TABLES; i++)
+    {
+        if (stConfig.stTable[i].bEnabled)
+            return true;
+    }
+    #endif
+    return false;
+}
+
+float GetTableVal(uint8_t nTable)
+{
+    #if NUM_TABLES > 0
+    if (nTable < NUM_TABLES)
+        return VolatileRead(table[nTable].fVal);
+    #endif
+    (void)nTable;
+    return 0;
+}
+
 #if NUM_KEYPADS > 0
 bool GetAnyKeypadEnable()
 {

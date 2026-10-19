@@ -313,6 +313,10 @@ BO_ 253 dingoPdmMaxMsg29: 8 Vector__XXX
  SG_ TimerElapsed_6 : 16|16@1+ (0.01,0) [0|655.35] "s" Vector__XXX
  SG_ TimerElapsed_5 : 0|16@1+ (0.01,0) [0|655.35] "s" Vector__XXX
 
+BO_ 254 dingoPdmMaxMsg30: 8 Vector__XXX
+ SG_ TableValue_2 : 32|32@1- (1,0) [0|0] "" Vector__XXX
+ SG_ TableValue_1 : 0|32@1- (1,0) [0|0] "" Vector__XXX
+
 
 
 
@@ -328,6 +332,7 @@ VAL_ 227 OutputState_4 0 "Off" 1 "On" 2 "Overcurrent" 3 "Fault" ;
 VAL_ 227 OutputState_3 0 "Off" 1 "On" 2 "Overcurrent" 3 "Fault" ;
 VAL_ 227 OutputState_2 0 "Off" 1 "On" 2 "Overcurrent" 3 "Fault" ;
 VAL_ 227 OutputState_1 0 "Off" 1 "On" 2 "Overcurrent" 3 "Fault" ;
-
+SIG_VALTYPE_ 254 TableValue_1 : 1;
+SIG_VALTYPE_ 254 TableValue_2 : 1;
 
 
