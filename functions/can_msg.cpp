@@ -1,4 +1,5 @@
 #include "can_msg.h"
+#include "dbc.h"
 
 bool CanMsg::Due(bool bMuted)
 {
@@ -24,4 +25,17 @@ bool CanMsg::Due(bool bMuted)
     }
 
     return false;
+}
+
+void CanMsg::Fill(uint8_t *pData)
+{
+    for (uint8_t i = 0; i < 8; i++)
+        pData[i] = pConfig->nData[i];
+
+    // Bytes past the DLC aren't sent, so a counter or checksum there is off
+    if (pConfig->nCounterByte < pConfig->nDLC)
+        pData[pConfig->nCounterByte] = (pData[pConfig->nCounterByte] & 0xF0) | (nCount++ & 0x0F);
+
+    if (pConfig->eChecksum >= CanOutputKind::ChecksumXor && pConfig->nChecksumByte < pConfig->nDLC)
+        pData[pConfig->nChecksumByte] = Dbc::Checksum(pConfig->eChecksum, pData, pConfig->nDLC, pConfig->nChecksumByte);
 }

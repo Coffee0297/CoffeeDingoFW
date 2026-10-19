@@ -386,8 +386,7 @@ void CyclicUpdate()
         else
             tx.SID = c.nID;
         tx.DLC = c.nDLC;
-        for (uint8_t j = 0; j < 8; j++)
-            tx.data8[j] = c.nData[j];
+        canMsg[i].Fill(tx.data8);
         PostTxFrame(&tx);
     }
     #endif
