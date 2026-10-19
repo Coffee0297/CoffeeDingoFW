@@ -47,6 +47,11 @@
 #define KEYPAD_MAX_ANALOG_INPUTS 4
 #define KEYPAD_MAX_DIALS 2
 
+#define HAS_LUA TRUE
+#define NUM_LUA_OUTPUTS 32
+#define LUA_HEAP_SIZE (40 * 1024)
+#define LUA_SCRIPT_MAX 4096
+
 #define HAS_NEOPIXELS FALSE
 
 //Always false
@@ -77,6 +82,7 @@
     (NUM_PIDS * 4) + \
     (HAS_COMFORT_BLINK * 2) + \
     (HAS_IGNITION * 7) + \
+    (NUM_LUA_OUTPUTS * 1) + \
     VAR_MAP_WIPER_VARS + \
     (NUM_KEYPADS * (KEYPAD_MAX_BUTTONS + KEYPAD_MAX_DIALS + KEYPAD_MAX_ANALOG_INPUTS)) \
 )   

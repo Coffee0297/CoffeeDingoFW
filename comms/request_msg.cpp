@@ -16,6 +16,8 @@
 #if NUM_OUTPUTS > 0
 #include "overload_log.h"
 #endif
+#include "lua_script.h"
+#include <cstring>
 
 // External variables from pdm.cpp that we need access to
 extern DeviceConfig stConfig;
@@ -296,6 +298,62 @@ void CheckRequestMsgs(CANRxFrame *frame)
             break;
         }
         UnlockConfig();
+
+        PostTxFrame(&txMsg);
+    }
+    #endif
+
+    #if HAS_LUA
+    // Lua program upload/read-back in 5-byte chunks, frame layouts at MsgCmd::LuaWrite
+    MsgCmd eLuaCmd = static_cast<MsgCmd>(frame->data8[0]);
+    if ((frame->DLC == 8) &&
+        ((eLuaCmd == MsgCmd::LuaWrite) || (eLuaCmd == MsgCmd::LuaWriteComplete) ||
+         (eLuaCmd == MsgCmd::LuaRead) || (eLuaCmd == MsgCmd::LuaErr)))
+    {
+        CANTxFrame txMsg = {};
+        txMsg.SID = stConfig.stDevice.nBaseId + CONFIG_TX_OFFSET;
+        txMsg.IDE = CAN_IDE_STD;
+        txMsg.DLC = 8;
+        txMsg.data8[0] = frame->data8[0];
+        txMsg.data8[1] = frame->data8[1];
+        txMsg.data8[2] = frame->data8[2];
+        uint16_t nOff = (frame->data8[1] << 8) | frame->data8[2];
+        const char *pErr = GetLuaError();
+        uint16_t nErrLen = strlen(pErr);
+
+        // The script is config: no upload while the config is locked
+        if (IsConfigLocked() && ((eLuaCmd == MsgCmd::LuaWrite) || (eLuaCmd == MsgCmd::LuaWriteComplete)))
+        {
+            txMsg.data8[0] = static_cast<uint8_t>(MsgCmd::Locked);
+            txMsg.data8[1] = 0;
+            txMsg.data8[2] = 0;
+            txMsg.data8[3] = 0;
+            txMsg.data8[4] = static_cast<uint8_t>(eLuaCmd);
+            PostTxFrame(&txMsg);
+            return;
+        }
+
+        for (uint8_t i = 0; i < 5; i++)
+        {
+            uint16_t n = nOff + i;
+            if ((eLuaCmd == MsgCmd::LuaWrite) && (n < LUA_SCRIPT_MAX))
+                stConfig.stLua.acScript[n] = frame->data8[3 + i];
+            else if ((eLuaCmd == MsgCmd::LuaRead) && (n < LUA_SCRIPT_MAX))
+                txMsg.data8[3 + i] = stConfig.stLua.acScript[n];
+            else if ((eLuaCmd == MsgCmd::LuaErr) && (n < nErrLen))
+                txMsg.data8[3 + i] = pErr[n];
+        }
+
+        if (eLuaCmd == MsgCmd::LuaWrite)
+            txMsg.DLC = 3;
+
+        if (eLuaCmd == MsgCmd::LuaWriteComplete)
+        {
+            stConfig.stLua.nLength = (nOff < LUA_SCRIPT_MAX) ? nOff : LUA_SCRIPT_MAX - 1;
+            txMsg.data8[3] = WriteConfig();
+            txMsg.DLC = 4;
+            ReloadLua();
+        }
 
         PostTxFrame(&txMsg);
     }

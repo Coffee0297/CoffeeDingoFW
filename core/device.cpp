@@ -23,6 +23,7 @@
 #include "curve.h"
 #include "latch_gate.h"
 #include "pid.h"
+#include "lua_script.h"
 #include "mailbox.h"
 #include "msg.h"
 #include "error.h"
@@ -255,6 +256,10 @@ void InitDevice()
     #endif
 
     deviceThread.start(NORMALPRIO);
+
+    #if HAS_LUA
+    InitLua();
+    #endif
 }
 
 void States()
@@ -372,6 +377,10 @@ void CyclicUpdate()
         #if HAS_IGNITION
         if (rxMsg.IDE == CAN_IDE_STD)
             ignition.CheckMsg(rxMsg.SID, rxMsg.data8, rxMsg.DLC, SYS_TIME);
+        #endif
+
+        #if HAS_LUA
+        LuaCanRx(rxMsg);
         #endif
     }
 
@@ -786,6 +795,11 @@ void InitVarMap()
     {
         pVarMap[index++] = &pf[i].fLoad;
     }
+    #endif
+
+    #if HAS_LUA
+    for (uint8_t i = 0; i < NUM_LUA_OUTPUTS; i++)
+        pVarMap[index++] = &fLuaOut[i];
     #endif
 
     //VarMap size must match the expected size

@@ -131,6 +131,10 @@ void SetAllDefaultParams(bool temp) {
     for (int i = 0; i < NUM_PARAMS; i++) {
         WriteParam(&stParams[i], stParams[i].nDefaultVal, temp);
     }
+    #if HAS_LUA
+    if (!temp)
+        stConfig.stLua = {}; // not a param; a failed config read can leave anything in it
+    #endif
 }
 
 void ApplyTempParams() {

@@ -81,6 +81,11 @@ enum class MsgCmd : uint8_t
     OvlClear = 47,  // [cmd] -> [cmd] (DLC 1)
     OvlTime = 51,   // [cmd, idx] -> [cmd, idx, trip uptime ms LE x4, 0, 0]
 
+    LuaWrite = 40,         // [cmd, offHi, offLo, 5 script bytes] -> [cmd, offHi, offLo] (DLC 3)
+    LuaWriteComplete = 41, // [cmd, lenHi, lenLo] -> store, reload -> [cmd, lenHi, lenLo, stored 0/1] (DLC 4)
+    LuaRead = 42,          // [cmd, offHi, offLo] -> [cmd, offHi, offLo, 5 script bytes]
+    LuaErr = 43,           // [cmd, offHi, offLo] -> [cmd, offHi, offLo, 5 bytes of the last error, 0 past the end]
+
     Invalid = 0xFF
 };
 
