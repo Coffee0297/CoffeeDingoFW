@@ -155,6 +155,7 @@ CPPSRC = $(ALLCPPSRC) \
 				 functions/condition.cpp \
 				 functions/counter.cpp \
 				 functions/flasher.cpp \
+				 functions/ignition.cpp \
 				 functions/input.cpp \
 				 functions/math_block.cpp \
 				 functions/timer.cpp \

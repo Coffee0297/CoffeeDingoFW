@@ -193,6 +193,30 @@ enum class MathOp : uint8_t
 };
 
 //=============================================================================
+// Ignition
+//=============================================================================
+enum class IgnMode : uint8_t
+{
+    SwitchButton, // Ignition switch + start button
+    ButtonOnly,   // One button does ignition and start
+    Key           // Key: ON held, START momentary
+};
+
+enum class IgnRole : uint8_t
+{
+    Main,     // Reads the inputs, runs the state machine, broadcasts the state
+    Follower  // Copies the main module's state frame
+};
+
+enum class IgnState : uint8_t
+{
+    Off,
+    On,
+    Cranking,
+    Running
+};
+
+//=============================================================================
 // Output (Profet)
 //=============================================================================
 enum class ProfetModel : uint8_t

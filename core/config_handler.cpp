@@ -19,6 +19,9 @@
 #if HAS_STARTER_DISABLE > 0
 #include "starter.h"
 #endif
+#if HAS_IGNITION
+#include "ignition.h"
+#endif
 #if NUM_KEYPADS > 0
 #include "keypad/keypad.h"
 #endif
@@ -53,6 +56,9 @@ extern Wiper wiper;
 #endif
 #if HAS_STARTER_DISABLE
 extern Starter starter;
+#endif
+#if HAS_IGNITION
+extern Ignition ignition;
 #endif
 #if NUM_KEYPADS > 0
 extern Keypad keypad[NUM_KEYPADS];
@@ -101,6 +107,9 @@ void ApplyAllConfig()
     #endif
     #if HAS_STARTER_DISABLE
     ApplyConfig(Starter::nBaseIndex);
+    #endif
+    #if HAS_IGNITION
+    ApplyConfig(Ignition::nBaseIndex);
     #endif
     #if NUM_KEYPADS > 0
     ApplyConfig(Keypad::nBaseIndex);
@@ -223,6 +232,15 @@ void ApplyConfig(uint16_t nIndex)
     if (nBaseIndex == Starter::nBaseIndex)
     {
         starter.SetConfig(&stConfig.stStarter);
+    }
+    #endif
+
+    #if HAS_IGNITION
+    if (nBaseIndex == Ignition::nBaseIndex)
+    {
+        ignition.SetConfig(&stConfig.stIgnition);
+
+        UpdateCanFilters(); // Follower Rx ID
     }
     #endif
 

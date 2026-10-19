@@ -12,6 +12,9 @@
 #include "condition.h"
 #include "timer.h"
 #include "math_block.h"
+#if HAS_IGNITION
+#include "ignition.h"
+#endif
 #if NUM_OUTPUTS > 0
 #include "profet.h"
 #endif
@@ -34,7 +37,7 @@
 #include "analog_input.h"
 #endif  
 
-#define CONFIG_VERSION 0x000A //Increment when config structure changes
+#define CONFIG_VERSION 0x000B //Increment when config structure changes
 
 struct Config_Device{
   uint16_t nConfigVersion;
@@ -95,6 +98,9 @@ struct DeviceConfig{
   #endif
   #if HAS_STARTER_DISABLE
   Config_Starter stStarter;
+  #endif
+  #if HAS_IGNITION
+  Config_Ignition stIgnition;
   #endif
   #if NUM_KEYPADS > 0
   Config_Keypad stKeypad[NUM_KEYPADS];

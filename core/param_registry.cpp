@@ -65,6 +65,11 @@ const ParamInfo stParams[] = {
     ALL_MATH_PARAMS,
     #endif
 
+    #if HAS_IGNITION
+    // Ignition (0x1E00)
+    IGNITION_PARAMS(),
+    #endif
+
     // CAN Outputs (0x2000+)
     ALL_CAN_OUTPUT_PARAMS,
 

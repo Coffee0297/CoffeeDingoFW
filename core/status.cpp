@@ -366,6 +366,13 @@ uint16_t GetTimerElapsed(uint8_t nTimer)
     return 0;
 }
 
+#if HAS_IGNITION
+bool GetIgnitionFrame(uint8_t *data)
+{
+    return ignition.StateFrame(data);
+}
+#endif
+
 #if NUM_KEYPADS > 0
 bool GetAnyKeypadEnable()
 {
