@@ -12,6 +12,11 @@ const ParamInfo stParams[] = {
     // Device Config (0x0000)
     DEVICE_CONFIG_PARAMS(),
 
+    #if CAN_SLEEP
+    // Wake frame (0x0100)
+    WAKE_FRAME_PARAMS(),
+    #endif
+
     // Outputs (0x1000+)
     #if NUM_OUTPUTS > 0
     ALL_OUTPUT_PARAMS,
