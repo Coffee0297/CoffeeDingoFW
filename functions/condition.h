@@ -10,6 +10,7 @@ struct Config_Condition{
   uint16_t nInput;
   Operator eOperator;
   float fArg;
+  float fHyst;
 };
 
 class Condition
