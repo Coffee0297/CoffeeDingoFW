@@ -66,6 +66,7 @@ enum class MsgCmd : uint8_t
     Restart = 36,
 
     OutputTest = 48, // [cmd, out, mode 0 off/1 on/2 pwm, duty, freqLo, freqHi, holdSec, 0], reply byte 7 = accepted
+    ResetCause = 55,
 
     Invalid = 0xFF
 };
