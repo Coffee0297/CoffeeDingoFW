@@ -15,6 +15,7 @@ struct Config_CanOutput{
   ByteOrder eByteOrder;
   bool bSigned;
   uint16_t nInterval; //ms
+  CanOutputKind eKind;
 };
 
 class CanOutput

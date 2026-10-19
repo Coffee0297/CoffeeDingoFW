@@ -4,6 +4,7 @@
 
 Config_CanOutput* CanOutputs::pConfigs[NUM_CAN_OUTPUTS];
 float* CanOutputs::pInput[NUM_CAN_OUTPUTS];
+uint32_t CanOutputs::nCount[NUM_CAN_OUTPUTS];
 CanOutput CanOutputs::canOut[CAN_OUT_FRAMES];
 int8_t CanOutputs::nAssignedOut[NUM_CAN_OUTPUTS];
 
@@ -38,6 +39,9 @@ void CanOutputs::InitAllFrames()
         uint16_t nNewInterval = pConfigs[i]->nInterval;
 
         if(nNewBitLen == 0 || nNewBitLen > 64) continue; // Invalid config, skip
+        // Checksums fill one whole byte: bits 0-7 (Intel) or 7-0 (Motorola) of it
+        if(pConfigs[i]->eKind >= CanOutputKind::ChecksumXor &&
+           (nNewBitLen != 8 || nNewStartBit % 8 != (pConfigs[i]->eByteOrder == ByteOrder::BigEndian ? 7 : 0))) continue;
         if(nNewInterval == 0) nNewInterval = 100; // Default to 100ms
 
         // Look for an existing frame with a matching ID
@@ -100,11 +104,22 @@ void CanOutputs::Update()
             // Update data from all assigned outputs before sending
             for (int j = 0; j < NUM_CAN_OUTPUTS; ++j)
             {
-                if (nAssignedOut[j] == i)
-                {
+                if (nAssignedOut[j] != i) continue;
+
+                if (pConfigs[j]->eKind == CanOutputKind::Signal)
                     Dbc::EncodeFloat( canOut[i].stFrame.data8, static_cast<float>(*pInput[j]), pConfigs[j]->nStartBit, pConfigs[j]->nBitLength,
                                     pConfigs[j]->fFactor, pConfigs[j]->fOffset, pConfigs[j]->eByteOrder);
-                }
+                else if (pConfigs[j]->eKind == CanOutputKind::RollingCounter)
+                    Dbc::EncodeInt(canOut[i].stFrame.data8, nCount[j]++, pConfigs[j]->nStartBit, pConfigs[j]->nBitLength, pConfigs[j]->eByteOrder);
+            }
+
+            // Checksums last, over the assembled frame
+            for (int j = 0; j < NUM_CAN_OUTPUTS; ++j)
+            {
+                if (nAssignedOut[j] != i || pConfigs[j]->eKind < CanOutputKind::ChecksumXor) continue;
+
+                uint8_t nByte = pConfigs[j]->nStartBit / 8;
+                canOut[i].stFrame.data8[nByte] = Dbc::Checksum(pConfigs[j]->eKind, canOut[i].stFrame.data8, canOut[i].stFrame.DLC, nByte);
             }
 
             PostTxFrame(&canOut[i].stFrame);
