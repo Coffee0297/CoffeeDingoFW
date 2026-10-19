@@ -16,6 +16,7 @@ struct Config_CanOutput{
   bool bSigned;
   uint16_t nInterval; //ms
   CanOutputKind eKind;
+  uint16_t nTriggerInput; //0 = send on the interval, else once per rising edge
 };
 
 class CanOutput
@@ -34,5 +35,7 @@ public:
 
     CANTxFrame stFrame;
     uint16_t nInterval; //ms
+    bool bTriggered; //Sent on trigger edges instead of the interval
+    bool bSendNow;
     uint32_t nLastTxTime;
 };
