@@ -79,11 +79,17 @@ struct Config_WakeFrame{
   uint32_t nValueHi;
 };
 
+struct Config_Lock{
+  uint32_t nPassword;   //0 = unlocked, write-only (reads return 0)
+  uint32_t nContact[8]; //Installer contact text, 32 ASCII chars, always readable
+};
+
 struct DeviceConfig{
   Config_Device stDevice;
   #if CAN_SLEEP
   Config_WakeFrame stWakeFrame;
   #endif
+  Config_Lock stLock;
   Config_VirtualInput stVirtualInput[NUM_VIRT_INPUTS];
   Config_Flasher stFlasher[NUM_FLASHERS];
   Config_CanInput stCanInput[NUM_CAN_INPUTS];

@@ -16,3 +16,4 @@ bool RouteParamFrame(CANRxFrame *frame);
 void SetAllDefaultParams(bool temp = false);
 
 bool IsParamOpInProgress();
+bool IsConfigLocked();
