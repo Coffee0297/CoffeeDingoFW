@@ -7,6 +7,8 @@
 #include "device_config.h"
 #include "mailbox.h"
 #include "enums.h"
+#include "lua_script.h"
+#include <cstring>
 
 // External variables from pdm.cpp that we need access to
 extern DeviceConfig stConfig;
@@ -124,4 +126,48 @@ void CheckRequestMsgs(CANRxFrame *frame)
 
         PostTxFrame(&txMsg);
     }
+
+    #if HAS_LUA
+    // Lua program upload/read-back in 5-byte chunks, frame layouts at MsgCmd::LuaWrite
+    MsgCmd eCmd = static_cast<MsgCmd>(frame->data8[0]);
+    if ((frame->DLC == 8) &&
+        ((eCmd == MsgCmd::LuaWrite) || (eCmd == MsgCmd::LuaWriteComplete) ||
+         (eCmd == MsgCmd::LuaRead) || (eCmd == MsgCmd::LuaErr)))
+    {
+        CANTxFrame txMsg = {};
+        txMsg.SID = stConfig.stDevice.nBaseId + CONFIG_TX_OFFSET;
+        txMsg.IDE = CAN_IDE_STD;
+        txMsg.DLC = 8;
+        txMsg.data8[0] = frame->data8[0];
+        txMsg.data8[1] = frame->data8[1];
+        txMsg.data8[2] = frame->data8[2];
+        uint16_t nOff = (frame->data8[1] << 8) | frame->data8[2];
+        const char *pErr = GetLuaError();
+        uint16_t nErrLen = strlen(pErr);
+
+        for (uint8_t i = 0; i < 5; i++)
+        {
+            uint16_t n = nOff + i;
+            if ((eCmd == MsgCmd::LuaWrite) && (n < LUA_SCRIPT_MAX))
+                stConfig.stLua.acScript[n] = frame->data8[3 + i];
+            else if ((eCmd == MsgCmd::LuaRead) && (n < LUA_SCRIPT_MAX))
+                txMsg.data8[3 + i] = stConfig.stLua.acScript[n];
+            else if ((eCmd == MsgCmd::LuaErr) && (n < nErrLen))
+                txMsg.data8[3 + i] = pErr[n];
+        }
+
+        if (eCmd == MsgCmd::LuaWrite)
+            txMsg.DLC = 3;
+
+        if (eCmd == MsgCmd::LuaWriteComplete)
+        {
+            stConfig.stLua.nLength = (nOff < LUA_SCRIPT_MAX) ? nOff : LUA_SCRIPT_MAX - 1;
+            txMsg.data8[3] = WriteConfig();
+            txMsg.DLC = 4;
+            ReloadLua();
+        }
+
+        PostTxFrame(&txMsg);
+    }
+    #endif
 }

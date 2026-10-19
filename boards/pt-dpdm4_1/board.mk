@@ -20,6 +20,7 @@ ALLXASMSRC += $(BOOTLOADERASM)
 
 CPPSRC_BOARD += comms/usb.cpp \
 				core/sleep.cpp \
+				core/lua_script.cpp \
 				functions/profet.cpp \
 				functions/pwm.cpp \
 				functions/digital_input.cpp \
@@ -45,3 +46,9 @@ UINC_BOARD += 	./functions/wiper \
 				./functions/keypad/blink \
 				./functions/keypad/grayhill \
 				./functions/keypad	
+
+# Embedded Lua 5.5, vendored in lua/
+ALLCSRC += $(wildcard ./lua/*.c)
+USE_COPT += -D'luai_makeseed()=0u' # no clock for time() on the module
+USE_COPT += -DLUAI_MAXCCALLS=32 # C stack depth (parser nesting, nested pcall/metamethods): ~200 B a level at -O0 in the 12 KB Lua stack
+UINC_BOARD += ./lua

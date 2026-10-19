@@ -40,6 +40,8 @@
 #define KEYPAD_MAX_ANALOG_INPUTS 0
 #define KEYPAD_MAX_DIALS 0
 
+#define HAS_LUA FALSE
+
 #define HAS_NEOPIXELS FALSE
 
 //Always false
