@@ -19,6 +19,9 @@ struct Config_Output{
   uint16_t nResetTime; //ms
   uint8_t nResetLimit;
   int8_t nPrimaryOutput;  //index of primary to follow, -1 = unpaired
+  float fWarnLimit;       //A, 0 = off
+  float fOpenLoadLimit;   //A, 0 = off
+  uint16_t nOpenLoadTime; //ms
 
   Config_PwmOutput stPwm;
 };
@@ -115,6 +118,8 @@ public:
 
     float GetCurrent() { return *const_cast<volatile float*>(&fCurrent); }
     ProfetState GetState() { return eState; }
+    // Warning/OpenLoad are reported on top of On only, protection uses eState
+    ProfetState GetReportedState() { return eState == ProfetState::On ? eOverlay : eState; }
     uint16_t GetOcCount() { return nOcCount; }
     uint8_t GetDutyCycle()
     {
@@ -156,6 +161,8 @@ private:
     volatile ProfetState eState;
     ProfetState eReqState;
     ProfetState eLastState;
+    volatile ProfetState eOverlay = ProfetState::On;
+    uint32_t nOpenLoadStart;
 
     uint16_t nIS;         // Raw analog current value
     uint16_t nLastIS = 0; // Last analog current value
