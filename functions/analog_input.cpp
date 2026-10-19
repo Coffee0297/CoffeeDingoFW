@@ -28,6 +28,30 @@ void Analog_Input::RotaryUpdate()
         return;
     }
 
+    if (pConfig->stRotary.eMode == RotaryMode::Calibrated)
+    {
+        // A position counts only inside its window: the tolerance, capped at half the gap to each
+        // neighbour so windows never overlap. Anywhere else reads ROTARY_NO_POS.
+        const Config_RotarySwitch &r = pConfig->stRotary;
+        auto point = [&r](int k) { return (int)((r.nPointPair[k / 2] >> ((k & 1) * 16)) & 0xFFFF); };
+        int n = (r.nNumPos > ROTARY_MAX_POS) ? ROTARY_MAX_POS : r.nNumPos;
+        int mv = static_cast<int>(fValMillivolts);
+        int pos = ROTARY_NO_POS;
+        for (int k = 0; k < n; k++)
+        {
+            int c = point(k);
+            int lo = (k > 0 && (c - point(k - 1)) / 2 < r.nTolerance) ? (c - point(k - 1)) / 2 : r.nTolerance;
+            int hi = (k < n - 1 && (point(k + 1) - c) / 2 < r.nTolerance) ? (point(k + 1) - c) / 2 : r.nTolerance;
+            if (mv >= c - lo && mv <= c + hi)
+            {
+                pos = r.bInvert ? (n - 1 - k) : k;
+                break;
+            }
+        }
+        fRotaryPos = pos;
+        return;
+    }
+
     if (fValMillivolts < pConfig->stRotary.fOffset)
     {
         fRotaryPos = pConfig->stRotary.bInvert ? pConfig->stRotary.fMaxPos : 0;
