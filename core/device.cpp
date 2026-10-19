@@ -76,6 +76,7 @@ float fTempSensor;
 volatile bool bDeviceOverTemp;
 volatile bool bDeviceCriticalTemp;
 bool bBootloaderRequest;
+uint8_t nResetCause; // RCC->CSR reset flags (bits 24-31)
 
 void InitVarMap();
 void CyclicUpdate();
@@ -130,6 +131,9 @@ static chibios_rt::ThreadReference slowThreadRef;
 
 void InitDevice()
 {
+    nResetCause = RCC->CSR >> 24;
+    RCC->CSR |= RCC_CSR_RMVF;
+
     #if HAS_SE_LEDS
     Error::Initialize(&statusLed, &errorLed);
     #endif

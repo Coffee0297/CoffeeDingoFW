@@ -65,6 +65,8 @@ enum class MsgCmd : uint8_t
     CheckCrcRsp = 35,
     Restart = 36,
 
+    ResetCause = 55,
+
     Invalid = 0xFF
 };
 
