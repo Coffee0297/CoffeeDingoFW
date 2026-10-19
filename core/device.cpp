@@ -16,6 +16,7 @@
 #include "counter.h"
 #include "condition.h"
 #include "timer.h"
+#include "can_msg.h"
 #include "mailbox.h"
 #include "msg.h"
 #include "error.h"
@@ -46,6 +47,9 @@ Counter counter[NUM_COUNTERS];
 Condition condition[NUM_CONDITIONS];
 #if NUM_TIMERS > 0
 Timer timer[NUM_TIMERS];
+#endif
+#if NUM_CAN_MSGS > 0
+CanMsg canMsg[NUM_CAN_MSGS];
 #endif
 #if HAS_WIPERS > 0
 Wiper wiper;
@@ -366,6 +370,26 @@ void CyclicUpdate()
 
     #if NUM_CAN_OUTPUTS > 0
     canOutputs.Update();
+    #endif
+
+    #if NUM_CAN_MSGS > 0 && !defined(STM32G4XX) // FDCAN frames have no SID/EID/IDE; ported with the rest of v8's CAN code
+    for (uint8_t i = 0; i < NUM_CAN_MSGS; i++)
+    {
+        if (!canMsg[i].Due(*pVarMap[stConfig.stDevice.nMuteCanTxInput]))
+            continue;
+
+        const Config_CanMsg &c = stConfig.stCanMsg[i];
+        CANTxFrame tx;
+        tx.IDE = c.nIDE ? CAN_IDE_EXT : CAN_IDE_STD;
+        if (c.nIDE)
+            tx.EID = c.nID;
+        else
+            tx.SID = c.nID;
+        tx.DLC = c.nDLC;
+        for (uint8_t j = 0; j < 8; j++)
+            tx.data8[j] = c.nData[j];
+        PostTxFrame(&tx);
+    }
     #endif
 
     #if HAS_NEOPIXELS

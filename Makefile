@@ -151,6 +151,7 @@ CPPSRC = $(ALLCPPSRC) \
 				 core/status.cpp \
 				 core/device.cpp \
 				 functions/can_input.cpp \
+				 functions/can_msg.cpp \
 				 functions/can_outputs.cpp \
 				 functions/condition.cpp \
 				 functions/counter.cpp \
