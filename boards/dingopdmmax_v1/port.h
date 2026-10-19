@@ -53,7 +53,7 @@
     (NUM_ANALOG_INPUTS * 4) + \
     (NUM_DIG_OUTPUTS * 1) + \
     (NUM_VIRT_INPUTS * 1) + \
-    (NUM_OUTPUTS * 6) + \
+    (NUM_OUTPUTS * 7) + \
     (NUM_FLASHERS * 1) + \
     (NUM_CONDITIONS * 1) + \
     (NUM_COUNTERS * 1) + \

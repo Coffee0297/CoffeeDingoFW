@@ -22,6 +22,9 @@ struct Config_Output{
   float fWarnLimit;       //A, 0 = off
   float fOpenLoadLimit;   //A, 0 = off
   uint16_t nOpenLoadTime; //ms
+  float fUnderLimit;      //A, 0 = off
+  uint16_t nUnderTime;    //ms
+  bool bUnderTrip;        //false = report only, true = trip to Fault
 
   Config_PwmOutput stPwm;
 };
@@ -118,7 +121,7 @@ public:
 
     float GetCurrent() { return *const_cast<volatile float*>(&fCurrent); }
     ProfetState GetState() { return eState; }
-    // Warning/OpenLoad are reported on top of On only, protection uses eState
+    // Warning/OpenLoad/Undercurrent are reported on top of On only, protection uses eState
     ProfetState GetReportedState() { return eState == ProfetState::On ? eOverlay : eState; }
     uint16_t GetOcCount() { return nOcCount; }
     uint8_t GetDutyCycle()
@@ -141,6 +144,7 @@ public:
     float fFault;
     float fWarning;
     float fOpenLoad;
+    float fUndercurrent;
 
 private:
     const uint16_t m_num;
@@ -165,6 +169,7 @@ private:
     ProfetState eLastState;
     volatile ProfetState eOverlay = ProfetState::On;
     uint32_t nOpenLoadStart;
+    uint32_t nUnderStart;
 
     uint16_t nIS;         // Raw analog current value
     uint16_t nLastIS = 0; // Last analog current value

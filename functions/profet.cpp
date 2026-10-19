@@ -16,6 +16,7 @@ void Profet::Update(bool bOutEnabled)
         fOutput = 0;
         fWarning = 0;
         fOpenLoad = 0;
+        fUndercurrent = 0;
         return;
     }
 
@@ -132,27 +133,39 @@ void Profet::Update(bool bOutEnabled)
         // Fault requires power cycle, no way out
         break;
 
-    default: // Warning/OpenLoad are report-only, never in eState
+    default: // Warning/OpenLoad/Undercurrent are overlays, never in eState
         break;
     }
 
     pwm.Update();
 
-    // Report only: Warning above fWarnLimit, OpenLoad below fOpenLoadLimit for nOpenLoadTime, past inrush
+    // Past inrush: Warning above fWarnLimit, OpenLoad below fOpenLoadLimit for nOpenLoadTime,
+    // Undercurrent below fUnderLimit for nUnderTime (report only, or a trip to Fault with bUnderTrip)
     bool bReportOn = (eState == ProfetState::On) && ((SYS_TIME - nInRushOnTime) >= pConfig->nInrushTime);
-    if (bReportOn && (pConfig->fOpenLoadLimit > 0) && (fCurrent < pConfig->fOpenLoadLimit))
-    {
-        if ((SYS_TIME - nOpenLoadStart) >= pConfig->nOpenLoadTime)
-            eOverlay = ProfetState::OpenLoad;
-    }
-    else
-    {
+    bool bOpenLoad = bReportOn && (pConfig->fOpenLoadLimit > 0) && (fCurrent < pConfig->fOpenLoadLimit);
+    bool bUnder = bReportOn && (pConfig->fUnderLimit > 0) && (fCurrent < pConfig->fUnderLimit);
+    if (!bOpenLoad)
         nOpenLoadStart = SYS_TIME;
-        if (bReportOn && (pConfig->fWarnLimit > 0) && (fCurrent > pConfig->fWarnLimit))
-            eOverlay = ProfetState::Warning;
-        else
-            eOverlay = ProfetState::On;
+    if (!bUnder)
+        nUnderStart = SYS_TIME;
+    bOpenLoad = bOpenLoad && ((SYS_TIME - nOpenLoadStart) >= pConfig->nOpenLoadTime);
+    bUnder = bUnder && ((SYS_TIME - nUnderStart) >= pConfig->nUnderTime);
+
+    if (bUnder && pConfig->bUnderTrip)
+    {
+        pwm.Off();
+        palClearLine(m_in);
+        eState = ProfetState::Fault;
     }
+
+    if (bOpenLoad)
+        eOverlay = ProfetState::OpenLoad;
+    else if (bUnder)
+        eOverlay = ProfetState::Undercurrent;
+    else if (bReportOn && (pConfig->fWarnLimit > 0) && (fCurrent > pConfig->fWarnLimit))
+        eOverlay = ProfetState::Warning;
+    else
+        eOverlay = ProfetState::On;
 
     // Set var map values
     fOutput = eState == ProfetState::On ? 1 : 0;
@@ -160,6 +173,7 @@ void Profet::Update(bool bOutEnabled)
     fFault = eState == ProfetState::Fault ? 1 : 0;
     fWarning = GetReportedState() == ProfetState::Warning ? 1 : 0;
     fOpenLoad = GetReportedState() == ProfetState::OpenLoad ? 1 : 0;
+    fUndercurrent = GetReportedState() == ProfetState::Undercurrent ? 1 : 0;
 
     palClearLine(LINE_E2);
 }
