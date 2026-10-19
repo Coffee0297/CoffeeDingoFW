@@ -129,9 +129,28 @@ void Profet::Update(bool bOutEnabled)
         palClearLine(m_in);
         // Fault requires power cycle, no way out
         break;
+
+    default: // Warning/OpenLoad are report-only, never in eState
+        break;
     }
 
     pwm.Update();
+
+    // Report only: Warning above fWarnLimit, OpenLoad below fOpenLoadLimit for nOpenLoadTime, past inrush
+    bool bReportOn = (eState == ProfetState::On) && ((SYS_TIME - nInRushOnTime) >= pConfig->nInrushTime);
+    if (bReportOn && (pConfig->fOpenLoadLimit > 0) && (fCurrent < pConfig->fOpenLoadLimit))
+    {
+        if ((SYS_TIME - nOpenLoadStart) >= pConfig->nOpenLoadTime)
+            eOverlay = ProfetState::OpenLoad;
+    }
+    else
+    {
+        nOpenLoadStart = SYS_TIME;
+        if (bReportOn && (pConfig->fWarnLimit > 0) && (fCurrent > pConfig->fWarnLimit))
+            eOverlay = ProfetState::Warning;
+        else
+            eOverlay = ProfetState::On;
+    }
 
     // Set var map values
     fOutput = eState == ProfetState::On ? 1 : 0;

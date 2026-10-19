@@ -101,7 +101,7 @@ ProfetState GetOutputState(uint8_t nOutput)
     if (nOutput >= NUM_OUTPUTS)
         return ProfetState::Off;
 
-    return pf[nOutput].GetState();
+    return pf[nOutput].GetReportedState();
 }
 
 uint8_t GetOutputOcCount(uint8_t nOutput)

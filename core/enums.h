@@ -92,7 +92,9 @@ enum class MsgSrc : uint8_t
     I2C,
     TempSensor,
     USBConnection,
-    Init
+    Init,
+    OutputWarning,
+    OpenLoad
 };
 
 //=============================================================================
@@ -185,7 +187,9 @@ enum class ProfetState : uint8_t
     Off,
     On,
     Overcurrent,
-    Fault
+    Fault,
+    Warning,
+    OpenLoad
 };
 
 enum class ProfetResetMode : uint8_t
