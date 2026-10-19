@@ -64,6 +64,7 @@ enum class MsgCmd : uint8_t
     CheckCrc = 34,
     CheckCrcRsp = 35,
     Restart = 36,
+    Identify = 49,
 
     Unlock = 56,       // [56, pw0..pw3] -> [56, ok]
     FactoryReset = 57, // [57, 'W', 'I', 'P', 'E'] -> [57, burned ok]

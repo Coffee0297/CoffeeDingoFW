@@ -76,6 +76,8 @@ float fTempSensor;
 volatile bool bDeviceOverTemp;
 volatile bool bDeviceCriticalTemp;
 bool bBootloaderRequest;
+volatile uint32_t nIdentifyStart;
+volatile uint32_t nIdentifyMs;
 
 void InitVarMap();
 void CyclicUpdate();
@@ -231,6 +233,16 @@ void States()
 
         if (!bDeviceOverTemp)
             eState = DeviceState::Run;
+    }
+    #endif
+
+    #if HAS_SE_LEDS
+    // Identify: over whatever the state set, the LEDs alternate at 4 Hz
+    if ((SYS_TIME - nIdentifyStart) < nIdentifyMs)
+    {
+        bool bPhase = (SYS_TIME / 125) & 1;
+        statusLed.Solid(bPhase);
+        errorLed.Solid(!bPhase);
     }
     #endif
 
