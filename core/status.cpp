@@ -366,15 +366,13 @@ uint16_t GetTimerElapsed(uint8_t nTimer)
     return 0;
 }
 
-bool GetAnyTableEnable()
+bool GetTableEnable(uint8_t nTable)
 {
     #if NUM_TABLES > 0
-    for (uint8_t i = 0; i < NUM_TABLES; i++)
-    {
-        if (stConfig.stTable[i].bEnabled)
-            return true;
-    }
+    if (nTable < NUM_TABLES)
+        return stConfig.stTable[nTable].bEnabled;
     #endif
+    (void)nTable;
     return false;
 }
 

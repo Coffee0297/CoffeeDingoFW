@@ -317,6 +317,10 @@ BO_ 254 dingoPdmMaxMsg30: 8 Vector__XXX
  SG_ TableValue_2 : 32|32@1- (1,0) [0|0] "" Vector__XXX
  SG_ TableValue_1 : 0|32@1- (1,0) [0|0] "" Vector__XXX
 
+BO_ 255 dingoPdmMaxMsg31: 8 Vector__XXX
+ SG_ TableValue_4 : 32|32@1- (1,0) [0|0] "" Vector__XXX
+ SG_ TableValue_3 : 0|32@1- (1,0) [0|0] "" Vector__XXX
+
 
 
 
@@ -334,5 +338,7 @@ VAL_ 227 OutputState_2 0 "Off" 1 "On" 2 "Overcurrent" 3 "Fault" ;
 VAL_ 227 OutputState_1 0 "Off" 1 "On" 2 "Overcurrent" 3 "Fault" ;
 SIG_VALTYPE_ 254 TableValue_1 : 1;
 SIG_VALTYPE_ 254 TableValue_2 : 1;
+SIG_VALTYPE_ 255 TableValue_3 : 1;
+SIG_VALTYPE_ 255 TableValue_4 : 1;
 
 
