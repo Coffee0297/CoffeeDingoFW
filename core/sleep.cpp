@@ -8,12 +8,16 @@
 #include "device_config.h"
 
 #if CAN_SLEEP
+#define SLEEP_BOOT_GRACE_MS 1000 // inputs and CAN inputs settle before force sleep or a request can act
+#define SLEEP_REQUEST_DELAY 2000 // a sleep request waits so the other modules settle too
+
 // Static variables that were in pdm.cpp
 static uint8_t nNumOutputsOn;
 static uint8_t nLastNumOutputsOn;
 static uint32_t nAllOutputsOffTime;
 static bool bLastUsbConnected;
 static uint32_t nUsbDisconnectedTime;
+static uint32_t nNoSleepRequestTime;
 
 // External variables from pdm.cpp that we need access to
 extern DeviceConfig stConfig;
@@ -28,18 +32,19 @@ bool CheckEnterSleep()
     nNumOutputsOn = 0;
     for (int i = 0; i < NUM_OUTPUTS; i++)
     {
-        if (GetOutputState(i) != ProfetState::Off)
+        if ((GetOutputState(i) != ProfetState::Off) &&
+            !(stConfig.stDevice.bSleepIgnoreAlwaysOn && (stConfig.stOutput[i].nInput == 1)))
             nNumOutputsOn++;
     }
 
-    // All outputs just turned off, save time - wait SLEEP_TIMEOUT before sleep
+    // All outputs just turned off, save time - wait the sleep timeout before sleep
     if ((nNumOutputsOn == 0) && (nLastNumOutputsOn > 0))
     {
         nAllOutputsOffTime = SYS_TIME;
     }
     nLastNumOutputsOn = nNumOutputsOn;
 
-    //USB disconnected, save time - wait SLEEP_TIMEOUT before sleep
+    //USB disconnected, save time - wait the sleep timeout before sleep
     if (!GetUsbConnected() && bLastUsbConnected)
         nUsbDisconnectedTime = SYS_TIME;
 
@@ -49,6 +54,7 @@ bool CheckEnterSleep()
     // so treat a negative (signed) difference as 0. Wrap-safe.
     int32_t nCanRxDiff = static_cast<int32_t>(SYS_TIME - GetLastCanRxTime());
     uint32_t nCanRxIdleTime = (nCanRxDiff > 0) ? nCanRxDiff : 0;
+    uint32_t nTimeout = stConfig.stDevice.nSleepTimeoutMs;
 
     // No outputs on, no CAN msgs received and no USB connected
     // Go to sleep after timeout
@@ -56,11 +62,23 @@ bool CheckEnterSleep()
                   (nNumOutputsOn == 0) &&
                   (nLastNumOutputsOn == 0) &&
                   !GetUsbConnected() &&
-                  ((SYS_TIME - nUsbDisconnectedTime) > SLEEP_TIMEOUT) &&
-                  ((SYS_TIME - nAllOutputsOffTime) > SLEEP_TIMEOUT) &&
-                  (nCanRxIdleTime > SLEEP_TIMEOUT);
+                  ((SYS_TIME - nUsbDisconnectedTime) > nTimeout) &&
+                  ((SYS_TIME - nAllOutputsOffTime) > nTimeout) &&
+                  (nCanRxIdleTime > nTimeout);
 
-    return bEnterSleep || bSleepRequest || *pVarMap[stConfig.stDevice.nForceSleepInput];
+    // Never with USB connected: the USB wake resets the MCU under the host and the COM port goes stale
+    bool bSleepAllowed = !GetUsbConnected() && (SYS_TIME > SLEEP_BOOT_GRACE_MS);
+
+    // Sleep request: only with sleep enabled and no outputs on, and only if that still holds after the delay
+    if (!(bSleepAllowed && stConfig.stDevice.bSleepEnabled && (nNumOutputsOn == 0)))
+        bSleepRequest = false;
+    if (!bSleepRequest)
+        nNoSleepRequestTime = SYS_TIME;
+    bool bRequestSleep = (SYS_TIME - nNoSleepRequestTime) > SLEEP_REQUEST_DELAY;
+
+    bool bForceSleep = bSleepAllowed && *pVarMap[stConfig.stDevice.nForceSleepInput];
+
+    return bEnterSleep || bRequestSleep || bForceSleep;
 }
 
 void EnableLineEventWithPull(ioline_t line, InputPull pull) 
@@ -106,7 +124,8 @@ void EnterSleep()
     {
         for(uint8_t i = 0; i < NUM_DIG_INPUTS; i++)
         {
-            EnableLineEventWithPull(digIn[i].GetLine(), stConfig.stDigInput[i].ePull);
+            if (stConfig.stDevice.nWakeDigInputMask & (1u << i))
+                EnableLineEventWithPull(digIn[i].GetLine(), stConfig.stDigInput[i].ePull);
         }
     }
 
