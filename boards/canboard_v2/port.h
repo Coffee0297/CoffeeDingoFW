@@ -15,6 +15,7 @@
 
 #define NUM_OUTPUTS 0
 #define NUM_DIG_OUTPUTS 4
+#define DI_PWM_MAX_FREQ 0 // no PWM measuring on the inputs: no RAM left for it
 #define NUM_DIG_INPUTS 8
 #define NUM_ANALOG_INPUTS 5
 #define NUM_VIRT_INPUTS 8

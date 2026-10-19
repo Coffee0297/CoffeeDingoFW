@@ -98,6 +98,10 @@ void EnterSleep()
 
     palSetLine(LINE_CAN_STANDBY); // CAN disabled
 
+    // A PWM input's edge event would wake it, and the wake event below needs the same EXTI line
+    for(uint8_t i = 0; i < NUM_DIG_INPUTS; i++)
+        digIn[i].StopPwm();
+
     // Set wakeup sources
 
     // Digital inputs change detection, with configured pullup or pulldown

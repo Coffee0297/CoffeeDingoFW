@@ -17,6 +17,7 @@
 
 #define NUM_OUTPUTS 4
 #define NUM_DIG_OUTPUTS 0
+#define DI_PWM_MAX_FREQ 1000 // Hz, the input circuit's limit
 #define NUM_DIG_INPUTS 2
 #define NUM_ANALOG_INPUTS 2
 #define NUM_VIRT_INPUTS 16
@@ -50,7 +51,7 @@
 
 #define VAR_MAP_SIZE ( \
     VAR_MAP_SYS_VARS + \
-    (NUM_DIG_INPUTS * 1) + \
+    (NUM_DIG_INPUTS * 3) + \
     (NUM_CAN_INPUTS * 2) + \
     (NUM_ANALOG_INPUTS * 4) + \
     (NUM_DIG_OUTPUTS * 1) + \

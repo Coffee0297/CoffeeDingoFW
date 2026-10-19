@@ -8,6 +8,7 @@
 //   g++ -std=c++20 -DCAN_INPUT_TIMEOUT_ONLY -I tests/host -I functions -I core -I utils tests/host_selftest.cpp functions/can_input.cpp functions/input.cpp utils/dbc.cpp -o build/host_can_input_timeout && build/host_can_input_timeout
 //   g++ -std=c++20 -DWIRE_LOAD_ONLY -I tests/host -I functions -I core -I utils tests/host_selftest.cpp -o build/host_wire_load && build/host_wire_load
 // Each feature adds its own section below, picked with -D<NAME>_ONLY, and its build line here.
+//   g++ -std=c++20 -Wall -DPWM_METER_ONLY -I tests/host -I functions -I core -I utils tests/host_selftest.cpp -o build/host_pwm_meter && build/host_pwm_meter
 #include <cassert>
 #include <cstdio>
 #include "port.h"
@@ -190,6 +191,66 @@ int main()
     assert(FilterI2(0.0f, 5.0f, 60000, 10) == 25.0f);
 
     std::puts("host_selftest wire load OK");
+    return 0;
+}
+#elif defined(PWM_METER_ONLY)
+#include <cmath>
+#include "pwm_meter.h"
+
+static bool near(float a, float b) { return std::fabs(a - b) < 1e-4f; }
+
+int main()
+{
+    const uint32_t clk = 180000000;                       // PDM HCLK: 100 Hz = 1.8 M cycles
+    PwmMeter m{}; uint32_t t = 0xFFF00000u;               // start near the 32-bit wrap
+    auto pulse = [&](uint32_t hi, uint32_t period) { m.Edge(true, t); m.Edge(false, t + hi); t += period; };
+    m.Edge(false, t - 5);                                 // a fall before the first rise is ignored
+    for (int i = 0; i < 5; i++) pulse(450000, 1800000);   // 25 % at 100 Hz
+    m.Edge(true, t);                                      // closes the 5th period
+    PwmMeter::Sample s = m.Take();
+    assert(s.periods == 5);
+    assert(near(PwmMeter::Duty(s), 25.0f));
+    assert(std::fabs(PwmMeter::Freq(s, clk) - 100.0f) < 0.01f);
+    assert(m.Take().periods == 0);                        // Take() empties the sums
+
+    m.Edge(false, t + 1620000); t += 1800000;             // one 90 % period
+    m.Edge(true, t);
+    s = m.Take();
+    assert(s.periods == 1 && near(PwmMeter::Duty(s), 90.0f));
+    assert(s.lastPeriod == 1800000);
+
+    m.Reset(); m.Edge(true, 0); m.Edge(true, 1000);       // rise, rise without a fall: no period
+    assert(m.Take().periods == 0 && PwmMeter::Duty(m.Take()) == 0.0f);
+
+    // glitch filter 20 us = 3600 cycles: spikes in either phase are dropped
+    m = PwmMeter{}; m.nMinCycles = 3600; m.Reset();
+    assert(m.nMinCycles == 3600);                         // Reset keeps the filter
+    t = 1000;
+    for (int i = 0; i < 4; i++)
+    {
+        m.Edge(true, t);
+        m.Edge(false, t + 200000); m.Edge(true, t + 200900);      // 5 us spike low in the high phase
+        m.Edge(false, t + 450000);
+        m.Edge(true, t + 1000000); m.Edge(false, t + 1001800);    // 10 us spike high in the low phase
+        t += 1800000;
+    }
+    m.Edge(true, t); m.Edge(false, t + 450000);           // closes the last period
+    s = m.Take();
+    assert(s.periods == 4);
+    assert(near(PwmMeter::Duty(s), 25.0f));
+    assert(std::fabs(PwmMeter::Freq(s, clk) - 100.0f) < 0.01f);
+
+    // a real pulse narrower than the filter is dropped: no edge passes, the input times out to its level
+    m.Reset(); t = 0;
+    bool bAny = false;
+    for (int i = 0; i < 10; i++) { bAny |= m.Edge(true, t); bAny |= m.Edge(false, t + 1800); t += 180000; }
+    assert(m.Take().periods == 0 && !bAny);
+
+    // filter off: every edge counts
+    PwmMeter n{}; n.Edge(true, 0); n.Edge(false, 100); n.Edge(true, 200); n.Edge(false, 1000); n.Edge(true, 2000);
+    assert(n.Take().periods == 2);
+
+    std::puts("host_pwm_meter OK");
     return 0;
 }
 #else

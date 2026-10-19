@@ -552,6 +552,14 @@ void InitVarMap()
     }
     #endif
 
+    #if DI_PWM_MAX_FREQ > 0
+    for (uint8_t i = 0; i < NUM_DIG_INPUTS; i++)
+    {
+        pVarMap[index++] = &digIn[i].fDuty;
+        pVarMap[index++] = &digIn[i].fFreq;
+    }
+    #endif
+
     #if NUM_OUTPUTS > 0
     for (uint8_t i = 0; i < NUM_OUTPUTS; i++)
     {
