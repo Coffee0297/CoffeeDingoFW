@@ -5,6 +5,8 @@
 Config_CanOutput* CanOutputs::pConfigs[NUM_CAN_OUTPUTS];
 float* CanOutputs::pInput[NUM_CAN_OUTPUTS];
 uint32_t CanOutputs::nCount[NUM_CAN_OUTPUTS];
+float* CanOutputs::pTrigger[NUM_CAN_OUTPUTS];
+bool CanOutputs::bLastTrigger[NUM_CAN_OUTPUTS];
 CanOutput CanOutputs::canOut[CAN_OUT_FRAMES];
 int8_t CanOutputs::nAssignedOut[NUM_CAN_OUTPUTS];
 
@@ -16,6 +18,8 @@ void CanOutputs::ClearFrames()
         canOut[i].stFrame.DLC = 0;
         canOut[i].stFrame.IDE = 0;
         canOut[i].stFrame.EID = 0; //Clears SID as well, union
+        canOut[i].bTriggered = false;
+        canOut[i].bSendNow = false;
     }
 
     for (int i = 0; i < NUM_CAN_OUTPUTS; ++i)
@@ -91,15 +95,35 @@ void CanOutputs::InitAllFrames()
             }
         }
     }
+
+    // A frame with any triggered output is sent only on trigger edges, not on the interval
+    for (int i = 0; i < NUM_CAN_OUTPUTS; ++i)
+    {
+        if (nAssignedOut[i] != -1 && pConfigs[i]->nTriggerInput)
+            canOut[nAssignedOut[i]].bTriggered = true;
+    }
 }
 
 void CanOutputs::Update()
 {
+    for (int j = 0; j < NUM_CAN_OUTPUTS; ++j)
+    {
+        if (nAssignedOut[j] == -1 || !pConfigs[j]->nTriggerInput) continue;
+
+        bool bTrig = *pTrigger[j] > 0.5f;
+        if (bTrig && !bLastTrigger[j])
+            canOut[nAssignedOut[j]].bSendNow = true;
+        bLastTrigger[j] = bTrig;
+    }
+
     for (int i = 0; i < CAN_OUT_FRAMES; ++i)
     {
         if (canOut[i].stFrame.DLC == 0) continue; // Skip unused frames
 
-        if(canOut[i].CheckTxTime())
+        bool bSend = canOut[i].bTriggered ? canOut[i].bSendNow : canOut[i].CheckTxTime();
+        canOut[i].bSendNow = false;
+
+        if (bSend)
         {
             // Update data from all assigned outputs before sending
             for (int j = 0; j < NUM_CAN_OUTPUTS; ++j)
