@@ -208,8 +208,11 @@ static void ProcessParamMsg(CANRxFrame *rx) {
 
         case MsgCmd::Write: {
             const ParamInfo* param = FindParam(msg.nIndex, msg.nSubIndex);
-            if (!param)
+            if (!param) {
+                EncodeParamRsp(&tx, static_cast<uint8_t>(MsgCmd::WriteAllParamNotFound), msg.nIndex, msg.nSubIndex, 0);
+                PostTxFrameWithRetry(&tx);
                 break;
+            }
 
             LockConfig();
             bool bWritten = WriteParam(param, msg.nValue);
@@ -217,11 +220,10 @@ static void ProcessParamMsg(CANRxFrame *rx) {
                 ApplyConfig(msg.nIndex);
             UnlockConfig();
 
-            if (bWritten) {
-                uint32_t value = ReadParam(param);
-                EncodeParamRsp(&tx, static_cast<uint8_t>(MsgCmd::Write), msg.nIndex, msg.nSubIndex, value);
-                PostTxFrameWithRetry(&tx);
-            }
+            // Out of range: reply with the value the module kept, so the tool doesn't think it was written
+            EncodeParamRsp(&tx, static_cast<uint8_t>(bWritten ? MsgCmd::Write : MsgCmd::WriteAllOutOfRange),
+                           msg.nIndex, msg.nSubIndex, ReadParam(param));
+            PostTxFrameWithRetry(&tx);
             break;
         }
 
