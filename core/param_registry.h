@@ -3,7 +3,7 @@
 #include <cstdint>
 #include <bit>
 
-// 0x0000 - 0x0FFF: System
+// 0x0000 - 0x0FFF: System (0x0200: config lock)
 // 0x1000 - 0x10FF: Outputs
 // 0x1100 - 0x11FF: PWM
 // 0x1200 - 0x12FF: Digital Inputs
