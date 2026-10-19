@@ -3,6 +3,8 @@
 #include "hal.h"
 #include "enums.h"
 
+#define BOARD_ID 0 //Version reply byte 1: 0 PDM, 1 PDM-MAX, 2 CANBoard, 3 PT-DPDM4
+
 #define PDM_TYPE 3 //3 = dingoPDM-v8
 
 #define PROCESS_STACK 0x1000
