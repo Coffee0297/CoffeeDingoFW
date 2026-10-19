@@ -64,6 +64,7 @@ enum class MsgCmd : uint8_t
     CheckCrc = 34,
     CheckCrcRsp = 35,
     Restart = 36,
+    Identify = 49,
 
     OutputTest = 48, // [cmd, out, mode 0 off/1 on/2 pwm, duty, freqLo, freqHi, holdSec, 0], reply byte 7 = accepted
     FaultLogRead = 53,
