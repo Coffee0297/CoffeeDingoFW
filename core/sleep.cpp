@@ -2,7 +2,11 @@
 #include "device.h"
 #include "port.h"
 #include "can.h"
+#if HAS_USB
 #include "usb.h"
+#else
+static bool GetUsbConnected() { return false; }
+#endif
 #include "status.h"
 #include "mcu_utils.h"
 #include "device_config.h"
@@ -18,7 +22,9 @@ static uint32_t nUsbDisconnectedTime;
 // External variables from pdm.cpp that we need access to
 extern DeviceConfig stConfig;
 bool bSleepRequest;
+#if NUM_OUTPUTS > 0
 extern Profet pf[NUM_OUTPUTS];
+#endif
 
 bool CheckEnterSleep()
 {
@@ -31,6 +37,13 @@ bool CheckEnterSleep()
         if (GetOutputState(i) != ProfetState::Off)
             nNumOutputsOn++;
     }
+    #if NUM_DIG_OUTPUTS > 0
+    for (uint8_t i = 0; i < NUM_DIG_OUTPUTS; i++)
+    {
+        if (GetDigOutputState(i))
+            nNumOutputsOn++;
+    }
+    #endif
 
     // All outputs just turned off, save time - wait SLEEP_TIMEOUT before sleep
     if ((nNumOutputsOn == 0) && (nLastNumOutputsOn > 0))
@@ -93,10 +106,18 @@ void EnterSleep()
         pf[i].ForceOff();
     #endif
 
+    // The control loop stops in STOP mode, don't leave a digital output latched on
+    #if NUM_DIG_OUTPUTS > 0
+    for (uint8_t i = 0; i < NUM_DIG_OUTPUTS; i++)
+        palClearLine(digOut[i].GetLine());
+    #endif
+
     // Let CanTxThread flush queued frames before the transceiver goes to standby
     chThdSleepMilliseconds(100);
 
+    #ifdef LINE_CAN_STANDBY
     palSetLine(LINE_CAN_STANDBY); // CAN disabled
+    #endif
 
     // Set wakeup sources
 
@@ -118,10 +139,12 @@ void EnterSleep()
     }
 
     // USB detection - always active
+    #if HAS_USB
     palSetLineMode(LINE_USB_DP, PAL_MODE_INPUT);
     palEnableLineEvent(LINE_USB_DP, PAL_EVENT_MODE_BOTH_EDGES | PAL_STM32_PUPDR_FLOATING);
     palSetLineMode(LINE_USB_DM, PAL_MODE_INPUT);
     palEnableLineEvent(LINE_USB_DM, PAL_EVENT_MODE_BOTH_EDGES | PAL_STM32_PUPDR_FLOATING);
+    #endif
 
     EnterStopMode();
 }
