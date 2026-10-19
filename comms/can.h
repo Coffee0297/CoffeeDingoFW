@@ -9,3 +9,5 @@ void StopCan();
 // Rebuild hardware filters from live config (config ID, CAN inputs, keypads), safe while running
 void UpdateCanFilters();
 uint32_t GetLastCanRxTime();
+// True while no CAN peer ACKs our frames (TX backed off), frames then go to USB only
+bool CanNoPeer();
