@@ -47,7 +47,10 @@
     {0x1000 + (i), 17, &stConfig.stOutput[i].nPrimaryOutput,             &stConfigTemp.stOutput[i].nPrimaryOutput,             ParamType::Int8,  I8(-1), I8(-1), NUM_OUTPUTS - 1}, \
     {0x1000 + (i), 18, &stConfig.stOutput[i].fWarnLimit,                 &stConfigTemp.stOutput[i].fWarnLimit,                 ParamType::Float,  F(0.0f), F(0.0f), F(100.0f)}, \
     {0x1000 + (i), 19, &stConfig.stOutput[i].fOpenLoadLimit,             &stConfigTemp.stOutput[i].fOpenLoadLimit,             ParamType::Float,  F(0.0f), F(0.0f), F(100.0f)}, \
-    {0x1000 + (i), 20, &stConfig.stOutput[i].nOpenLoadTime,              &stConfigTemp.stOutput[i].nOpenLoadTime,              ParamType::UInt16, 1000, 0, 60000}
+    {0x1000 + (i), 20, &stConfig.stOutput[i].nOpenLoadTime,              &stConfigTemp.stOutput[i].nOpenLoadTime,              ParamType::UInt16, 1000, 0, 60000}, \
+    {0x1000 + (i), 27, &stConfig.stOutput[i].fUnderLimit,                &stConfigTemp.stOutput[i].fUnderLimit,                ParamType::Float,  F(0.0f), F(0.0f), F(100.0f)}, \
+    {0x1000 + (i), 28, &stConfig.stOutput[i].nUnderTime,                 &stConfigTemp.stOutput[i].nUnderTime,                 ParamType::UInt16, 1000, 0, 60000}, \
+    {0x1000 + (i), 29, &stConfig.stOutput[i].bUnderTrip,                 &stConfigTemp.stOutput[i].bUnderTrip,                 ParamType::Bool,   0, 0, 1}
 #endif
 
 //=============================================================================
