@@ -64,7 +64,8 @@
 // Max program flash size goes to the end of sector 30 (0x0800F000) to leave config space at the end of flash
 // !!! Flash must be smaller thank 63488 bytes !!!
 #define CONFIG_SECTOR       31U
-#define CONFIG_FLASH_OFFSET (CONFIG_SECTOR * 2048U)
+#define CONFIG_SECTOR_SIZE  2048U // STM32F3 flash page, = STM32_FLASH_SECTOR_SIZE in ChibiOS hal_efl_lld.c
+#define CONFIG_FLASH_OFFSET (CONFIG_SECTOR * CONFIG_SECTOR_SIZE)
 #define CONFIG_FLASH        getBaseFlash(&EFLD1)
 
 #define MAILBOX_SIZE 16
