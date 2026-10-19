@@ -11,6 +11,7 @@
 #include "counter.h"
 #include "condition.h"
 #include "timer.h"
+#include "lua_script.h"
 #if NUM_OUTPUTS > 0
 #include "profet.h"
 #endif
@@ -33,7 +34,7 @@
 #include "analog_input.h"
 #endif  
 
-#define CONFIG_VERSION 0x0008 //Increment when config structure changes
+#define CONFIG_VERSION 0x0009 //Increment when config structure changes
 
 struct Config_Device{
   uint16_t nConfigVersion;
@@ -82,6 +83,9 @@ struct DeviceConfig{
   #endif
   #if NUM_ANALOG_INPUTS > 0
   Config_AnalogInput stAnalogInput[NUM_ANALOG_INPUTS];
+  #endif
+  #if HAS_LUA
+  Config_Lua stLua;
   #endif
 };
 
