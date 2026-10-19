@@ -158,6 +158,12 @@ enum class InputPull : uint8_t
     Down
 };
 
+enum class RotaryMode : uint8_t
+{
+    Uniform,   // fOffset + n * fStep
+    Calibrated // a measured centre voltage per position
+};
+
 //=============================================================================
 // Timer
 //=============================================================================
