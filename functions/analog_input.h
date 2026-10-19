@@ -22,6 +22,9 @@ struct Config_AnalogInput{
   bool bEnabled;
   Config_AnalogSwitch stSwitch;
   Config_RotarySwitch stRotary;
+  bool bScale;
+  float fScaleGain; // units per mV
+  float fScaleOffset; // units at 0 mV
 };
 
 class Analog_Input
@@ -44,6 +47,7 @@ public:
     float fValMillivolts;
     float fRotaryPos;
     float fSwitchVal;
+    float fScaledVal;
 
 private:
     const AnalogChannel m_channel;
