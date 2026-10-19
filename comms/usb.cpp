@@ -12,6 +12,46 @@
 /* Virtual serial port over USB.*/
 SerialUSBDriver SDU1;
 
+// Non-standard SLCAN for a host using this module as its CAN bridge: 'X<id>' forwards only that CAN id to
+// USB (a flooded bus can't swamp the link), a bare 'X' forwards everything again; 'I' replies 'I<baseId>'
+static volatile int32_t nUsbFilterId = -1;
+static MUTEX_DECL(mtxUsbWrite); // the TX thread and the 'I' reply both write to SDU1
+
+static int32_t ParseFilterId(const uint8_t *data, size_t dataLen)
+{
+    int32_t nId = -1; // no digits: forward everything
+    for (size_t i = 1; i < dataLen; i++)
+    {
+        uint8_t c = data[i];
+        int32_t nNib;
+        if (c >= '0' && c <= '9')
+            nNib = c - '0';
+        else if (c >= 'a' && c <= 'f')
+            nNib = c - 'a' + 10;
+        else if (c >= 'A' && c <= 'F')
+            nNib = c - 'A' + 10;
+        else
+            break;
+        nId = (((nId < 0) ? 0 : nId) << 4 | nNib) & 0x7FF;
+    }
+    return nId;
+}
+
+static void SendIdentify()
+{
+    uint8_t nData[5] = {'I',
+                        (uint8_t)((stConfig.stDevice.nBaseId >> 8) & 0x7),
+                        (uint8_t)((stConfig.stDevice.nBaseId >> 4) & 0xF),
+                        (uint8_t)(stConfig.stDevice.nBaseId & 0xF),
+                        '\r'};
+    for (uint8_t i = 1; i <= 3; i++)
+        nData[i] += (nData[i] < 0xA) ? 0x30 : 0x37;
+
+    chMtxLock(&mtxUsbWrite);
+    chnWriteTimeout(&SDU1, nData, sizeof(nData), TIME_MS2I(10));
+    chMtxUnlock(&mtxUsbWrite);
+}
+
 /*
  * Endpoints to be used for USBD1.
  */
@@ -341,7 +381,8 @@ void UsbTxThread(void *)
         {
             // Blocks until a frame is queued, no polling while idle
             // Timeout so USB disconnect is still noticed
-            if (FetchTxUsbFrame(&msg, TIME_MS2I(100)) == MSG_OK)
+            if ((FetchTxUsbFrame(&msg, TIME_MS2I(100)) == MSG_OK) &&
+                ((nUsbFilterId < 0) || (msg.SID == (uint32_t)nUsbFilterId)))
             {
                 uint8_t nData[22];
                 nData[0] = 't';
@@ -379,7 +420,9 @@ void UsbTxThread(void *)
                 }
 
                 
+                chMtxLock(&mtxUsbWrite);
                 chnWriteTimeout(&SDU1, (const uint8_t *)nData, sizeof(nData), TIME_MS2I(10));
+                chMtxUnlock(&mtxUsbWrite);
             }
         }
         else
@@ -469,7 +512,11 @@ void UsbRxThread(void *)
                     // Null terminate and process the command
                     rxBuf[rxIndex] = '\0';
 
-                    if (rxIndex > 0 && Parse(rxBuf, rxIndex, &msg))
+                    if (rxBuf[0] == 'X')
+                        nUsbFilterId = ParseFilterId(rxBuf, rxIndex);
+                    else if (rxBuf[0] == 'I')
+                        SendIdentify();
+                    else if (rxIndex > 0 && Parse(rxBuf, rxIndex, &msg))
                     {
                         // Config frames go straight to the param thread
                         if (!RouteParamFrame(&msg))
@@ -502,7 +549,8 @@ void UsbRxThread(void *)
         else
         {
             chThdSleepMilliseconds(200);
-            // Reset buffer when not connected
+            // Reset buffer and bridge filter when not connected
+            nUsbFilterId = -1;
             rxIndex = 0;
             for (size_t i = 0; i < sizeof(rxBuf); i++)
                 rxBuf[i] = 0;
