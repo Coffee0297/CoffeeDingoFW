@@ -20,6 +20,8 @@ public:
         for(uint8_t i = 0; i < NUM_CAN_OUTPUTS; i++) {
             pConfigs[i] = &config[i];
             pInput[i] = pVarMap[config[i].nInput];
+            pTrigger[i] = pVarMap[config[i].nTriggerInput];
+            bLastTrigger[i] = *pTrigger[i] > 0.5f; // A trigger already on is not an edge
         }
     }
 
@@ -30,6 +32,8 @@ private:
     static Config_CanOutput* pConfigs[NUM_CAN_OUTPUTS];
 
     static float *pInput[NUM_CAN_OUTPUTS];
+    static float *pTrigger[NUM_CAN_OUTPUTS];
+    static bool bLastTrigger[NUM_CAN_OUTPUTS];
 
     static CanOutput canOut[CAN_OUT_FRAMES];
     
