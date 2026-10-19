@@ -98,6 +98,13 @@ void Profet::Update(bool bOutEnabled)
             eState = ProfetState::Overcurrent;
         }
 
+        // Hard short - straight to Fault, inrush window or not, no retry
+        if (pConfig->fHardShortLimit > 0 && fCurrent > pConfig->fHardShortLimit)
+        {
+            nOcCount++;
+            eState = ProfetState::Fault;
+        }
+
         break;
 
     case ProfetState::Overcurrent:

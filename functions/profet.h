@@ -27,6 +27,8 @@ struct Config_Output{
   bool bUnderTrip;        //false = report only, true = trip to Fault
 
   Config_PwmOutput stPwm;
+
+  float fHardShortLimit; //A, 0 = off, above it trips to Fault at once
 };
 
 //=============================================================================
