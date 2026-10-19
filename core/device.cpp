@@ -37,6 +37,9 @@
 #if CAN_SLEEP
 #include "sleep.h"
 #endif
+#if NUM_OUTPUTS > 0
+#include "overload_log.h"
+#endif
 
 CanInput canIn[NUM_CAN_INPUTS];
 CanOutputs canOutputs;
@@ -357,6 +360,13 @@ void CyclicUpdate()
                 pf[i].Update(starter.fVal[i]);
         }
     }
+
+    static uint32_t nOvlSampleTime = 0;
+    bool bOvlSample = (SYS_TIME - nOvlSampleTime) >= OVL_SAMPLE_MS;
+    if (bOvlSample)
+        nOvlSampleTime = SYS_TIME;
+    for (uint8_t i = 0; i < NUM_OUTPUTS; i++)
+        OvlLogUpdate(i, pf[i].GetCurrent(), pf[i].GetState(), stConfig.stOutput[i].fCurrentLimit, bOvlSample);
     #endif
 
     #if NUM_DIG_OUTPUTS > 0
