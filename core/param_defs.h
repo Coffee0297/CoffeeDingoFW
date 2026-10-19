@@ -239,6 +239,24 @@
 #endif
 
 //=============================================================================
+// CAN Message Parameters - Base 0x1D00, data bytes at subs 6-13
+//=============================================================================
+#if NUM_CAN_MSGS > 0
+#define CAN_MSG_DATA_PARAM(i, n) \
+    {0x1D00 + (i), 6 + (n), &stConfig.stCanMsg[i].nData[n], &stConfigTemp.stCanMsg[i].nData[n], ParamType::UInt8, 0, 0, 255}
+#define CAN_MSG_PARAMS(i) \
+    {0x1D00 + (i), 0,  &stConfig.stCanMsg[i].bEnabled,  &stConfigTemp.stCanMsg[i].bEnabled,  ParamType::Bool,   0, 0, 1}, \
+    {0x1D00 + (i), 1,  &stConfig.stCanMsg[i].nInput,    &stConfigTemp.stCanMsg[i].nInput,    ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
+    {0x1D00 + (i), 2,  &stConfig.stCanMsg[i].nIDE,      &stConfigTemp.stCanMsg[i].nIDE,      ParamType::UInt8,  0, 0, 1}, \
+    {0x1D00 + (i), 3,  &stConfig.stCanMsg[i].nID,       &stConfigTemp.stCanMsg[i].nID,       ParamType::UInt32, 0, 0, 536870911}, \
+    {0x1D00 + (i), 4,  &stConfig.stCanMsg[i].nDLC,      &stConfigTemp.stCanMsg[i].nDLC,      ParamType::UInt8,  8, 0, 8}, \
+    {0x1D00 + (i), 5,  &stConfig.stCanMsg[i].eMode,     &stConfigTemp.stCanMsg[i].eMode,     ParamType::Enum,   static_cast<uint32_t>(CanMsgMode::Repeat), 0, 1}, \
+    CAN_MSG_DATA_PARAM(i, 0), CAN_MSG_DATA_PARAM(i, 1), CAN_MSG_DATA_PARAM(i, 2), CAN_MSG_DATA_PARAM(i, 3), \
+    CAN_MSG_DATA_PARAM(i, 4), CAN_MSG_DATA_PARAM(i, 5), CAN_MSG_DATA_PARAM(i, 6), CAN_MSG_DATA_PARAM(i, 7), \
+    {0x1D00 + (i), 14, &stConfig.stCanMsg[i].nInterval, &stConfigTemp.stCanMsg[i].nInterval, ParamType::UInt16, 100, 10, 60000}
+#endif
+
+//=============================================================================
 // CAN Output Parameters - Base 0x2000
 //=============================================================================
 #define CAN_OUTPUT_PARAMS(i) \

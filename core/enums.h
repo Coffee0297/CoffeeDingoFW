@@ -198,6 +198,15 @@ enum class MathOp : uint8_t
 };
 
 //=============================================================================
+// CAN message
+//=============================================================================
+enum class CanMsgMode : uint8_t
+{
+    Repeat, // Every interval while the input is on
+    Once    // One frame each time the input turns on
+};
+
+//=============================================================================
 // Output (Profet)
 //=============================================================================
 enum class ProfetModel : uint8_t

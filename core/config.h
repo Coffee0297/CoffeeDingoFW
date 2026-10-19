@@ -12,6 +12,7 @@
 #include "condition.h"
 #include "timer.h"
 #include "math_block.h"
+#include "can_msg.h"
 #if NUM_OUTPUTS > 0
 #include "profet.h"
 #endif
@@ -66,6 +67,10 @@ struct DeviceConfig{
   #endif
   #if NUM_MATH > 0
   Config_Math stMath[NUM_MATH];
+  #endif
+
+  #if NUM_CAN_MSGS > 0
+  Config_CanMsg stCanMsg[NUM_CAN_MSGS];
   #endif
 
   #if NUM_DIG_INPUTS > 0

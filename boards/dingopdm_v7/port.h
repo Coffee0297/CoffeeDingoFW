@@ -29,6 +29,7 @@
 #define NUM_COUNTERS 4
 #define NUM_CONDITIONS 32
 #define NUM_MATH 8
+#define NUM_CAN_MSGS 4
 #define NUM_TIMERS 8
 #define NUM_KEYPADS 2
 #define HAS_WIPERS TRUE

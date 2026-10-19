@@ -8,6 +8,7 @@
 #include "condition.h"
 #include "timer.h"
 #include "math_block.h"
+#include "can_msg.h"
 #include "flasher.h"
 #include "virtual_input.h"
 #if NUM_OUTPUTS > 0
@@ -44,6 +45,9 @@ extern Timer timer[NUM_TIMERS];
 #endif
 #if NUM_MATH > 0
 extern MathBlock mathBlock[NUM_MATH];
+#endif
+#if NUM_CAN_MSGS > 0
+extern CanMsg canMsg[NUM_CAN_MSGS];
 #endif
 #if NUM_OUTPUTS > 0
 extern Profet pf[NUM_OUTPUTS];
@@ -92,6 +96,9 @@ void ApplyAllConfig()
     #endif
     #if NUM_MATH > 0
     ApplyConfig(MathBlock::nBaseIndex);
+    #endif
+    #if NUM_CAN_MSGS > 0
+    ApplyConfig(CanMsg::nBaseIndex);
     #endif
     #if NUM_OUTPUTS > 0
     ApplyConfig(Profet::nBaseIndex);
@@ -179,6 +186,14 @@ void ApplyConfig(uint16_t nIndex)
     {
         for (uint8_t i = 0; i < NUM_MATH; i++)
             mathBlock[i].SetConfig(&stConfig.stMath[i]);
+    }
+    #endif
+
+    #if NUM_CAN_MSGS > 0
+    if (nBaseIndex == CanMsg::nBaseIndex)
+    {
+        for (uint8_t i = 0; i < NUM_CAN_MSGS; i++)
+            canMsg[i].SetConfig(&stConfig.stCanMsg[i]);
     }
     #endif
 
