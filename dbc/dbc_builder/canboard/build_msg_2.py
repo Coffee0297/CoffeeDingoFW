@@ -16,6 +16,9 @@ def build_msg_2(base_id):
 
     flash_sigs = create_duplicate_signals("Flash", 4, 1, 24, 1, 1, 0)
     message.signals.extend(flash_sigs)
+
+    timer_sigs = create_duplicate_signals("Timer", 4, 1, 28, 1, 1, 0)
+    message.signals.extend(timer_sigs)
     
     dig_in_sigs = create_duplicate_signals("DigitalInput", 8, 1, 32, 1, 1, 0)
     message.signals.extend(dig_in_sigs)

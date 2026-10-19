@@ -65,6 +65,10 @@ BO_ 1604 CANBoardMsg2: 8 Vector__XXX
  SG_ DigitalInput_3 : 34|1@1+ (1,0) [0|0] "" Vector__XXX
  SG_ DigitalInput_2 : 33|1@1+ (1,0) [0|0] "" Vector__XXX
  SG_ DigitalInput_1 : 32|1@1+ (1,0) [0|0] "" Vector__XXX
+ SG_ Timer_4 : 31|1@1+ (1,0) [0|0] "" Vector__XXX
+ SG_ Timer_3 : 30|1@1+ (1,0) [0|0] "" Vector__XXX
+ SG_ Timer_2 : 29|1@1+ (1,0) [0|0] "" Vector__XXX
+ SG_ Timer_1 : 28|1@1+ (1,0) [0|0] "" Vector__XXX
  SG_ Flash_4 : 27|1@1+ (1,0) [0|0] "" Vector__XXX
  SG_ Flash_3 : 26|1@1+ (1,0) [0|0] "" Vector__XXX
  SG_ Flash_2 : 25|1@1+ (1,0) [0|0] "" Vector__XXX
