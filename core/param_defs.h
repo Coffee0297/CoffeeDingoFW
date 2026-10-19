@@ -28,6 +28,19 @@
     {0x0000, 13, &stConfig.stDevice.nShedInput,         &stConfigTemp.stDevice.nShedInput,        ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}
 
 //=============================================================================
+// Wake Frame Parameters - Base 0x0100
+//=============================================================================
+#define WAKE_FRAME_PARAMS() \
+    {0x0100, 0, &stConfig.stWakeFrame.bEnabled, &stConfigTemp.stWakeFrame.bEnabled, ParamType::Bool,   0, 0, 1}, \
+    {0x0100, 1, &stConfig.stWakeFrame.nId,      &stConfigTemp.stWakeFrame.nId,      ParamType::UInt32, 0, 0, 536870911}, \
+    {0x0100, 2, &stConfig.stWakeFrame.nIde,     &stConfigTemp.stWakeFrame.nIde,     ParamType::UInt8,  0, 0, 1}, \
+    {0x0100, 3, &stConfig.stWakeFrame.nMinLen,  &stConfigTemp.stWakeFrame.nMinLen,  ParamType::UInt8,  0, 0, 8}, \
+    {0x0100, 4, &stConfig.stWakeFrame.nMaskLo,  &stConfigTemp.stWakeFrame.nMaskLo,  ParamType::UInt32, 0, 0, 0xFFFFFFFF}, \
+    {0x0100, 5, &stConfig.stWakeFrame.nMaskHi,  &stConfigTemp.stWakeFrame.nMaskHi,  ParamType::UInt32, 0, 0, 0xFFFFFFFF}, \
+    {0x0100, 6, &stConfig.stWakeFrame.nValueLo, &stConfigTemp.stWakeFrame.nValueLo, ParamType::UInt32, 0, 0, 0xFFFFFFFF}, \
+    {0x0100, 7, &stConfig.stWakeFrame.nValueHi, &stConfigTemp.stWakeFrame.nValueHi, ParamType::UInt32, 0, 0, 0xFFFFFFFF}
+
+//=============================================================================
 // Output Parameters - Base 0x1000
 //=============================================================================
 #if NUM_OUTPUTS > 0

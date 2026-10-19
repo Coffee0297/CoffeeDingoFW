@@ -21,6 +21,26 @@ static volatile uint16_t nNoAckBackoff;
 
 extern DeviceConfig stConfig;
 
+// Bus activity for the sleep timer. A wake frame narrows it to that frame (data bytes past the length read as 0),
+// dingoConfig's frames always count
+#if CAN_SLEEP
+static bool IsWakeActivity(const CANRxFrame &msg)
+{
+    const Config_WakeFrame &w = stConfig.stWakeFrame;
+    if (!w.bEnabled || ((msg.IDE == CAN_IDE_STD) && (msg.SID == stConfig.stDevice.nBaseId + CONFIG_RX_OFFSET)))
+        return true;
+
+    uint64_t nData = (msg.DLC < 8) ? (msg.data64[0] & ((1ULL << (8 * msg.DLC)) - 1)) : msg.data64[0];
+    uint64_t nMask = (static_cast<uint64_t>(w.nMaskHi) << 32) | w.nMaskLo;
+    uint64_t nValue = (static_cast<uint64_t>(w.nValueHi) << 32) | w.nValueLo;
+
+    return (msg.IDE == w.nIde) &&
+           (((msg.IDE == CAN_IDE_EXT) ? msg.EID : msg.SID) == w.nId) &&
+           (msg.DLC >= w.nMinLen) &&
+           ((nData & nMask) == (nValue & nMask));
+}
+#endif
+
 static THD_WORKING_AREA(waCanCyclicTxThread, CAN_THREAD_STACK);
 void CanCyclicTxThread(void *)
 {
@@ -107,7 +127,10 @@ void CanRxThread(void *)
         msg_t res = canReceiveTimeout(&CAND1, CAN_ANY_MAILBOX, &msg, TIME_MS2I(100));
         if (res == MSG_OK)
         {
-            nLastCanRxTime = SYS_TIME;
+            #if CAN_SLEEP
+            if (IsWakeActivity(msg))
+            #endif
+                nLastCanRxTime = SYS_TIME;
 
             #if CAN_SLEEP
             CheckQuietWake(&msg);
@@ -260,6 +283,11 @@ void UpdateCanFilters()
     {
         // Config/request frames from dingoConfig
         Add(stConfig.stDevice.nBaseId + CONFIG_RX_OFFSET, false);
+
+        #if CAN_SLEEP
+        if (stConfig.stWakeFrame.bEnabled)
+            Add(stConfig.stWakeFrame.nId, stConfig.stWakeFrame.nIde == 1);
+        #endif
 
         for (uint8_t i = 0; i < NUM_CAN_INPUTS; i++)
         {
