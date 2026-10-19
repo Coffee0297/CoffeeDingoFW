@@ -8,6 +8,7 @@
 #include "condition.h"
 #include "timer.h"
 #include "math_block.h"
+#include "curve.h"
 #include "flasher.h"
 #include "virtual_input.h"
 #if NUM_OUTPUTS > 0
@@ -47,6 +48,9 @@ extern Timer timer[NUM_TIMERS];
 #endif
 #if NUM_MATH > 0
 extern MathBlock mathBlock[NUM_MATH];
+#endif
+#if NUM_CURVES > 0
+extern Curve curve[NUM_CURVES];
 #endif
 #if NUM_OUTPUTS > 0
 extern Profet pf[NUM_OUTPUTS];
@@ -98,6 +102,9 @@ void ApplyAllConfig()
     #endif
     #if NUM_MATH > 0
     ApplyConfig(MathBlock::nBaseIndex);
+    #endif
+    #if NUM_CURVES > 0
+    ApplyConfig(Curve::nBaseIndex);
     #endif
     #if NUM_OUTPUTS > 0
     ApplyConfig(Profet::nBaseIndex);
@@ -188,6 +195,13 @@ void ApplyConfig(uint16_t nIndex)
     {
         for (uint8_t i = 0; i < NUM_MATH; i++)
             mathBlock[i].SetConfig(&stConfig.stMath[i]);
+    }
+    #endif
+    #if NUM_CURVES > 0
+    if (nBaseIndex == Curve::nBaseIndex)
+    {
+        for (uint8_t i = 0; i < NUM_CURVES; i++)
+            curve[i].SetConfig(&stConfig.stCurve[i]);
     }
     #endif
 

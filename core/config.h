@@ -15,6 +15,7 @@
 #if HAS_COMFORT_BLINK
 #include "comfort_blink.h"
 #endif
+#include "curve.h"
 #if NUM_OUTPUTS > 0
 #include "profet.h"
 #endif
@@ -67,6 +68,9 @@ struct DeviceConfig{
   #endif
   #if NUM_MATH > 0
   Config_Math stMath[NUM_MATH];
+  #endif
+  #if NUM_CURVES > 0
+  Config_Curve stCurve[NUM_CURVES];
   #endif
 
   #if NUM_DIG_INPUTS > 0

@@ -17,6 +17,7 @@
 #include "condition.h"
 #include "timer.h"
 #include "math_block.h"
+#include "curve.h"
 #include "mailbox.h"
 #include "msg.h"
 #include "error.h"
@@ -53,6 +54,9 @@ Timer timer[NUM_TIMERS];
 #endif
 #if NUM_MATH > 0
 MathBlock mathBlock[NUM_MATH];
+#endif
+#if NUM_CURVES > 0
+Curve curve[NUM_CURVES];
 #endif
 #if HAS_WIPERS > 0
 Wiper wiper;
@@ -333,6 +337,11 @@ void CyclicUpdate()
     for (uint8_t i = 0; i < NUM_MATH; i++)
         mathBlock[i].Update();
     #endif
+    // Before the conditions, so a condition can compare a curve result
+    #if NUM_CURVES > 0
+    for (uint8_t i = 0; i < NUM_CURVES; i++)
+        curve[i].Update();
+    #endif
 
     #if NUM_CONDITIONS > 0    
     for (uint8_t i = 0; i < NUM_CONDITIONS; i++)
@@ -530,6 +539,10 @@ void InitVarMap()
     #if HAS_COMFORT_BLINK
     pVarMap[index++] = &comfortBlink.fLeft;
     pVarMap[index++] = &comfortBlink.fRight;
+    #endif
+    #if NUM_CURVES > 0
+    for (uint8_t i = 0; i < NUM_CURVES; i++)
+        pVarMap[index++] = &curve[i].fVal;
     #endif
 
     //VarMap size must match the expected size

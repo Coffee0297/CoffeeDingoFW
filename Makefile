@@ -155,6 +155,7 @@ CPPSRC = $(ALLCPPSRC) \
 				 functions/comfort_blink.cpp \
 				 functions/condition.cpp \
 				 functions/counter.cpp \
+				 functions/curve.cpp \
 				 functions/flasher.cpp \
 				 functions/input.cpp \
 				 functions/math_block.cpp \
