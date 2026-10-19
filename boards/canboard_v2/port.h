@@ -22,6 +22,7 @@
 #define NUM_DIG_OUTPUTS 4
 #define NUM_DIG_INPUTS 8
 #define NUM_ANALOG_INPUTS 5
+#define ROTARY_MAX_POS 8 // ponytail: RAM only holds 8 calibrated positions, 10 once there's room
 #define NUM_VIRT_INPUTS 8
 #define NUM_CAN_INPUTS 8
 #define NUM_CAN_OUTPUTS 8
