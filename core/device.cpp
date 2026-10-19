@@ -16,6 +16,7 @@
 #include "counter.h"
 #include "condition.h"
 #include "timer.h"
+#include "latch_gate.h"
 #include "mailbox.h"
 #include "msg.h"
 #include "error.h"
@@ -46,6 +47,9 @@ Counter counter[NUM_COUNTERS];
 Condition condition[NUM_CONDITIONS];
 #if NUM_TIMERS > 0
 Timer timer[NUM_TIMERS];
+#endif
+#if NUM_LATCH_GATES > 0
+LatchGate latchGate[NUM_LATCH_GATES];
 #endif
 #if HAS_WIPERS > 0
 Wiper wiper;
@@ -326,6 +330,12 @@ void CyclicUpdate()
         timer[i].Update();
     #endif
 
+    // After the conditions and timers, so either can drive a latch or gate
+    #if NUM_LATCH_GATES > 0
+    for (uint8_t i = 0; i < NUM_LATCH_GATES; i++)
+        latchGate[i].Update();
+    #endif
+
     #if NUM_KEYPADS > 0
     for (uint8_t i = 0; i < NUM_KEYPADS; i++)
         keypad[i].Update();
@@ -496,6 +506,14 @@ void InitVarMap()
     for (uint8_t i = 0; i < NUM_TIMERS; i++)
     {
         pVarMap[index++] = &timer[i].fVal;
+    }
+    #endif
+
+    // Appended after the timers for the same reason
+    #if NUM_LATCH_GATES > 0
+    for (uint8_t i = 0; i < NUM_LATCH_GATES; i++)
+    {
+        pVarMap[index++] = &latchGate[i].fVal;
     }
     #endif
 
