@@ -64,27 +64,25 @@ enum class MsgCmd : uint8_t
     CheckCrc = 34,
     CheckCrcRsp = 35,
     Restart = 36,
-    OutputTest = 48, // [cmd, out, mode 0 off/1 on/2 pwm, duty, freqLo, freqHi, holdSec, 0], reply byte 7 = accepted
-    Identify = 49,
-    SleepInfo = 50, // [50] -> [50, wakeReason, wakeSource, wakesLo, wakesHi, countdown s (0xFF none), blockers, 0]
-    FaultLogRead = 53,
-    FaultLogClear = 54,
-    ResetCause = 55,
-
-    Unlock = 56,       // [56, pw0..pw3] -> [56, ok]
-    FactoryReset = 57, // [57, 'W', 'I', 'P', 'E'] -> [57, burned ok]
-    Locked = 58,       // Reply to a command refused while locked: [58, idxLo, idxHi, sub, refused cmd]
-
-    OvlCount = 44,  // [cmd] -> [cmd, count, uptime ms LE x4, 0, 0]
-    OvlHeader = 45, // [cmd, idx] -> [cmd, idx, out (0xFF none), state, peak 0.1 A LE x2, limit 0.1 A LE x2]
-    OvlData = 46,   // [cmd, idx, offHi, offLo] -> [cmd, idx, offHi, offLo, 4 samples at 0.5 A]
-    OvlClear = 47,  // [cmd] -> [cmd] (DLC 1)
-    OvlTime = 51,   // [cmd, idx] -> [cmd, idx, trip uptime ms LE x4, 0, 0]
 
     LuaWrite = 40,         // [cmd, offHi, offLo, 5 script bytes] -> [cmd, offHi, offLo] (DLC 3)
     LuaWriteComplete = 41, // [cmd, lenHi, lenLo] -> store, reload -> [cmd, lenHi, lenLo, stored 0/1] (DLC 4)
     LuaRead = 42,          // [cmd, offHi, offLo] -> [cmd, offHi, offLo, 5 script bytes]
     LuaErr = 43,           // [cmd, offHi, offLo] -> [cmd, offHi, offLo, 5 bytes of the last error, 0 past the end]
+    OvlCount = 44,  // [cmd] -> [cmd, count, uptime ms LE x4, 0, 0]
+    OvlHeader = 45, // [cmd, idx] -> [cmd, idx, out (0xFF none), state, peak 0.1 A LE x2, limit 0.1 A LE x2]
+    OvlData = 46,   // [cmd, idx, offHi, offLo] -> [cmd, idx, offHi, offLo, 4 samples at 0.5 A]
+    OvlClear = 47,  // [cmd] -> [cmd] (DLC 1)
+    OutputTest = 48, // [cmd, out, mode 0 off/1 on/2 pwm, duty, freqLo, freqHi, holdSec, 0], reply byte 7 = accepted
+    Identify = 49,
+    SleepInfo = 50, // [50] -> [50, wakeReason, wakeSource, wakesLo, wakesHi, countdown s (0xFF none), blockers, 0]
+    OvlTime = 51,   // [cmd, idx] -> [cmd, idx, trip uptime ms LE x4, 0, 0]
+    FaultLogRead = 53,
+    FaultLogClear = 54,
+    ResetCause = 55,
+    Unlock = 56,       // [56, pw0..pw3] -> [56, ok]
+    FactoryReset = 57, // [57, 'W', 'I', 'P', 'E'] -> [57, burned ok]
+    Locked = 58,       // Reply to a command refused while locked: [58, idxLo, idxHi, sub, refused cmd]
 
     Invalid = 0xFF
 };
