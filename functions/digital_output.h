@@ -26,6 +26,9 @@ public:
 
     void Update();
 
+    // Bench test: solid on for nHoldSec (no PWM on these outputs)
+    bool SetTest(uint8_t nMode, uint8_t nHoldSec);
+
     float fVal;
 
 private:
@@ -34,4 +37,7 @@ private:
     Config_DigOutput *pConfig;
 
     float *pInput;
+
+    bool bTest;
+    uint32_t nTestEnd;
 };
