@@ -122,7 +122,7 @@ void ApplyConfig(uint16_t nIndex)
 
     // Device config (0x0000) - filter enable and base ID (config frame ID) live here
     // CAN bitrate is not applied live - burn then send MsgCmd::Restart
-    if (nBaseIndex == 0x0000)
+    if ((nBaseIndex == 0x0000) || (nBaseIndex == 0x0100))
     {
         UpdateCanFilters();
     }

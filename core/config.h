@@ -54,8 +54,23 @@ struct Config_Device{
   uint8_t nWakeDigInputMask;  // bit i = digital input i+1 wakes (unless bDisableDigInWake)
 };
 
+// While enabled, only this frame (and dingoConfig's) keeps the device awake
+struct Config_WakeFrame{
+  bool bEnabled;
+  uint32_t nId;
+  uint8_t nIde; //0=STD, 1=EXT
+  uint8_t nMinLen;
+  uint32_t nMaskLo; //data bytes 0-3, byte 0 in the low byte
+  uint32_t nMaskHi; //data bytes 4-7
+  uint32_t nValueLo;
+  uint32_t nValueHi;
+};
+
 struct DeviceConfig{
   Config_Device stDevice;
+  #if CAN_SLEEP
+  Config_WakeFrame stWakeFrame;
+  #endif
   Config_VirtualInput stVirtualInput[NUM_VIRT_INPUTS];
   Config_Flasher stFlasher[NUM_FLASHERS];
   Config_CanInput stCanInput[NUM_CAN_INPUTS];
