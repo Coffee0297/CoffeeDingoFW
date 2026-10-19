@@ -76,6 +76,7 @@ extern float *pVarMap[VAR_MAP_SIZE];
 extern volatile DeviceState eState;
 extern volatile bool bDeviceOverTemp;
 extern volatile bool bDeviceCriticalTemp;
+extern uint8_t nResetCause;
 
 #if HAS_EXT_TEMP_SENSOR
 extern float fTempSensor;
