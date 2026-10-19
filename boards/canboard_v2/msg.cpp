@@ -170,3 +170,22 @@ CANTxMsg TxMsg8()
     return stMsg;
 }
 
+CANTxMsg TxMsg9()
+{
+    CANTxMsg stMsg;
+    //=======================================================
+    // Build Msg 9 (Digital output duty cycle)
+    //=======================================================
+    stMsg.frame.SID = stConfig.stDevice.nBaseId + CYCLIC_TX_OFFSET + 9;
+    stMsg.frame.DLC = 8; // Bytes to send
+    stMsg.frame.data8[0] = GetDigOutputDC(0);
+    stMsg.frame.data8[1] = GetDigOutputDC(1);
+    stMsg.frame.data8[2] = GetDigOutputDC(2);
+    stMsg.frame.data8[3] = GetDigOutputDC(3);
+    stMsg.frame.data32[1] = 0;
+
+    stMsg.bSend = GetAnyDigOutputPwmEnable();
+
+    return stMsg;
+}
+
