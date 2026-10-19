@@ -7,6 +7,7 @@
 #include "device_config.h"
 #include "mailbox.h"
 #include "enums.h"
+#include "fault_log.h"
 
 // External variables from pdm.cpp that we need access to
 extern DeviceConfig stConfig;
@@ -138,4 +139,55 @@ void CheckRequestMsgs(CANRxFrame *frame)
 
         PostTxFrame(&txMsg);
     }
+
+    #if HAS_EXT_MEMORY && (NUM_OUTPUTS > 0)
+    // Fault log entry n (0 = newest), two frames:
+    // [53, n, count, output | kind << 4, boot count (u16), current x10 (u16)]
+    // [53, n | 0x80, uptime ms (u32), battery V x100 (u16)]
+    if ((frame->DLC == 8) &&
+        (frame->data8[0] == static_cast<uint8_t>(MsgCmd::FaultLogRead)))
+    {
+        FaultLogEntry stEntry;
+        uint8_t n = frame->data8[1] & 0x7F;
+        uint8_t nCount = ReadFaultLog(n, &stEntry);
+
+        CANTxFrame txMsg = {};
+        txMsg.SID = stConfig.stDevice.nBaseId + CONFIG_TX_OFFSET;
+        txMsg.IDE = CAN_IDE_STD;
+        txMsg.DLC = 8;
+        txMsg.data8[0] = static_cast<uint8_t>(MsgCmd::FaultLogRead);
+        txMsg.data8[1] = n;
+        txMsg.data8[2] = nCount;
+        txMsg.data8[3] = stEntry.nOutput | (static_cast<uint8_t>(stEntry.eKind) << 4);
+        txMsg.data8[4] = stEntry.nBootCount & 0xFF;
+        txMsg.data8[5] = stEntry.nBootCount >> 8;
+        txMsg.data8[6] = stEntry.nCurrent & 0xFF;
+        txMsg.data8[7] = stEntry.nCurrent >> 8;
+        PostTxFrame(&txMsg);
+
+        txMsg.data8[1] = n | 0x80;
+        txMsg.data8[2] = stEntry.nUptimeMs & 0xFF;
+        txMsg.data8[3] = (stEntry.nUptimeMs >> 8) & 0xFF;
+        txMsg.data8[4] = (stEntry.nUptimeMs >> 16) & 0xFF;
+        txMsg.data8[5] = stEntry.nUptimeMs >> 24;
+        txMsg.data8[6] = stEntry.nBattVolt & 0xFF;
+        txMsg.data8[7] = stEntry.nBattVolt >> 8;
+        PostTxFrame(&txMsg);
+    }
+
+    // Clear the fault log, reply [54, 1]
+    if ((frame->DLC == 8) &&
+        (frame->data8[0] == static_cast<uint8_t>(MsgCmd::FaultLogClear)))
+    {
+        ClearFaultLog();
+
+        CANTxFrame txMsg = {};
+        txMsg.SID = stConfig.stDevice.nBaseId + CONFIG_TX_OFFSET;
+        txMsg.IDE = CAN_IDE_STD;
+        txMsg.DLC = 8;
+        txMsg.data8[0] = static_cast<uint8_t>(MsgCmd::FaultLogClear);
+        txMsg.data8[1] = 1;
+        PostTxFrame(&txMsg);
+    }
+    #endif
 }
