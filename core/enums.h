@@ -65,6 +65,11 @@ enum class MsgCmd : uint8_t
     CheckCrcRsp = 35,
     Restart = 36,
 
+    OvlCount = 44,  // [cmd] -> [cmd, count, uptime ms LE x4, 0, 0]
+    OvlHeader = 45, // [cmd, idx] -> [cmd, idx, out (0xFF none), state, peak 0.1 A LE x2, limit 0.1 A LE x2]
+    OvlData = 46,   // [cmd, idx, offHi, offLo] -> [cmd, idx, offHi, offLo, 4 samples at 0.5 A]
+    OvlClear = 47,  // [cmd] -> [cmd] (DLC 1)
+    OvlTime = 51,   // [cmd, idx] -> [cmd, idx, trip uptime ms LE x4, 0, 0]
     FaultLogRead = 53,
     FaultLogClear = 54,
     ResetCause = 55,
