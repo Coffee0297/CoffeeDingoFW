@@ -168,7 +168,7 @@ bool WriteParam(const ParamInfo* param, uint32_t value, bool temp)
             memcpy(&fVal, &value,           sizeof(float));
             memcpy(&fMin, &param->nMinVal,  sizeof(float));
             memcpy(&fMax, &param->nMaxVal,  sizeof(float));
-            if (fVal < fMin || fVal > fMax) return false;
+            if (!(fVal >= fMin && fVal <= fMax)) return false; // also refuses NaN
             break;
         }
         case ParamType::Int8:
