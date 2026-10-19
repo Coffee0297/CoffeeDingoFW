@@ -27,6 +27,8 @@ struct Config_Output{
   bool bUnderTrip;        //false = report only, true = trip to Fault
 
   Config_PwmOutput stPwm;
+
+  bool bClearOnReassert; //latched fault clears when the input goes off
 };
 
 //=============================================================================
@@ -121,6 +123,8 @@ public:
         eState = ProfetState::Off;
         fOutput = 0;
     }
+
+    void ClearFault();
 
     float GetCurrent() { return *const_cast<volatile float*>(&fCurrent); }
     ProfetState GetState() { return eState; }
