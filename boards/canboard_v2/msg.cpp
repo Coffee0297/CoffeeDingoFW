@@ -55,7 +55,7 @@ CANTxMsg TxMsg2()
     stMsg.frame.data8[0] = (GetRotarySwitchPos(1) << 4) + GetRotarySwitchPos(0);
     stMsg.frame.data8[1] = (GetRotarySwitchPos(3) << 4) + GetRotarySwitchPos(2);
     stMsg.frame.data8[2] = GetRotarySwitchPos(4);
-    stMsg.frame.data8[3] = (GetFlasherVal(3) << 3) + (GetFlasherVal(2) << 2) +
+    stMsg.frame.data8[3] = (GetTimerOutputs() << 4) + (GetFlasherVal(3) << 3) + (GetFlasherVal(2) << 2) +
                            (GetFlasherVal(1) << 1) + GetFlasherVal(0);
     stMsg.frame.data8[4] = (GetDigInputVal(7) << 7) + (GetDigInputVal(6) << 6) + (GetDigInputVal(5) << 5) + (GetDigInputVal(4) << 4) + 
                            (GetDigInputVal(3) << 3) + (GetDigInputVal(2) << 2) + (GetDigInputVal(1) << 1) + GetDigInputVal(0);
