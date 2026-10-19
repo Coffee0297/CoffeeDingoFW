@@ -89,3 +89,4 @@ void CheckBootloaderRequest();
 #endif
 
 void InitDevice();
+bool SetOutputTest(uint8_t nOutput, uint8_t nMode, uint8_t nDuty, uint16_t nFreq, uint8_t nHoldSec);

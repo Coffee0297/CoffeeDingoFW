@@ -388,6 +388,29 @@ void CyclicUpdate()
     #endif
 }
 
+bool SetOutputTest(uint8_t nOutput, uint8_t nMode, uint8_t nDuty, uint16_t nFreq, uint8_t nHoldSec)
+{
+    (void)nDuty;
+    (void)nFreq;
+    bool bOk = false;
+
+    // Outside Run (overtemp) a test can only be released
+    if (nMode != 0 && eState != DeviceState::Run)
+        return false;
+
+    LockConfig();
+    #if NUM_OUTPUTS > 0
+    if (nOutput < NUM_OUTPUTS)
+        bOk = pf[nOutput].SetTest(nMode, nDuty, nFreq, nHoldSec);
+    #elif NUM_DIG_OUTPUTS > 0
+    if (nOutput < NUM_DIG_OUTPUTS)
+        bOk = digOut[nOutput].SetTest(nMode, nHoldSec);
+    #endif
+    UnlockConfig();
+
+    return bOk;
+}
+
 void InitVarMap()
 {
     uint16_t index = 0;
