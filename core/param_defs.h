@@ -216,7 +216,8 @@
     {0x2300 + (i), 16, &stConfig.stPid[i].fPvMin,         &stConfigTemp.stPid[i].fPvMin,         ParamType::Float,  F(0.0f), F(-1e6f), F(1e6f)}, \
     {0x2300 + (i), 17, &stConfig.stPid[i].fPvMax,         &stConfigTemp.stPid[i].fPvMax,         ParamType::Float,  F(0.0f), F(-1e6f), F(1e6f)}, \
     {0x2300 + (i), 18, &stConfig.stPid[i].fFallback,      &stConfigTemp.stPid[i].fFallback,      ParamType::Float,  F(0.0f), F(-1e6f), F(1e6f)}, \
-    {0x2300 + (i), 19, &stConfig.stPid[i].nPeriodMs,      &stConfigTemp.stPid[i].nPeriodMs,      ParamType::UInt16, 20, 2, 1000}
+    {0x2300 + (i), 19, &stConfig.stPid[i].nPeriodMs,      &stConfigTemp.stPid[i].nPeriodMs,      ParamType::UInt16, 20, 2, 1000}, \
+    {0x2300 + (i), 20, &stConfig.stPid[i].fSetpoint,      &stConfigTemp.stPid[i].fSetpoint,      ParamType::Float,  F(0.0f), F(-1e6f), F(1e6f)}
 #endif
 
 //=============================================================================
