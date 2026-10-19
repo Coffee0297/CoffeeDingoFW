@@ -48,6 +48,9 @@
     {0x1000 + (i), 18, &stConfig.stOutput[i].fWarnLimit,                 &stConfigTemp.stOutput[i].fWarnLimit,                 ParamType::Float,  F(0.0f), F(0.0f), F(100.0f)}, \
     {0x1000 + (i), 19, &stConfig.stOutput[i].fOpenLoadLimit,             &stConfigTemp.stOutput[i].fOpenLoadLimit,             ParamType::Float,  F(0.0f), F(0.0f), F(100.0f)}, \
     {0x1000 + (i), 20, &stConfig.stOutput[i].nOpenLoadTime,              &stConfigTemp.stOutput[i].nOpenLoadTime,              ParamType::UInt16, 1000, 0, 60000}, \
+    {0x1000 + (i), 21, &stConfig.stOutput[i].stPwm.bVariableFreq,        &stConfigTemp.stOutput[i].stPwm.bVariableFreq,        ParamType::Bool,   0, 0, 1}, \
+    {0x1000 + (i), 22, &stConfig.stOutput[i].stPwm.nFreqInput,           &stConfigTemp.stOutput[i].stPwm.nFreqInput,           ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
+    {0x1000 + (i), 23, &stConfig.stOutput[i].stPwm.nFreqInputDenom,      &stConfigTemp.stOutput[i].stPwm.nFreqInputDenom,      ParamType::UInt16, 1, 1, 5000}, \
     {0x1000 + (i), 27, &stConfig.stOutput[i].fUnderLimit,                &stConfigTemp.stOutput[i].fUnderLimit,                ParamType::Float,  F(0.0f), F(0.0f), F(100.0f)}, \
     {0x1000 + (i), 28, &stConfig.stOutput[i].nUnderTime,                 &stConfigTemp.stOutput[i].nUnderTime,                 ParamType::UInt16, 1000, 0, 60000}, \
     {0x1000 + (i), 29, &stConfig.stOutput[i].bUnderTrip,                 &stConfigTemp.stOutput[i].bUnderTrip,                 ParamType::Bool,   0, 0, 1}

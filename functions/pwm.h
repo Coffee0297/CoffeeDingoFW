@@ -22,6 +22,9 @@ struct Config_PwmOutput{
   uint16_t nSoftStartRampTime; //ms
   uint16_t nDutyCycleInputDenom;
   uint16_t nMinDutyCycle;
+  bool bVariableFreq;
+  uint16_t nFreqInput;
+  uint16_t nFreqInputDenom;
 };
 
 class Pwm
@@ -38,6 +41,7 @@ public:
     {
         pConfig = config;
         pInput = pVarMap[config->nDutyCycleInput];
+        pFreqInput = pVarMap[config->nFreqInput];
 
         if ((pConfig->bEnabled) && (m_pwm->state != PWM_READY))
             Init();
@@ -46,6 +50,7 @@ public:
     void Update();
 
     bool IsEnabled(){return pConfig->bEnabled;};
+    uint16_t GetFrequency(){return nLastFreq;};
 
     uint8_t GetDutyCycle()
     {
@@ -78,11 +83,13 @@ private:
     PwmChannel m_pwmCh;
 
     float *pInput;
+    float *pFreqInput;
 
     Config_PwmOutput *pConfig;
 
     msg_t Init();
     uint8_t GetTargetDutyCycle();
+    uint16_t GetTargetFreq();
     void InitSoftStart();
     void UpdateSoftStart();
     void UpdateFrequency();
