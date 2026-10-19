@@ -338,14 +338,36 @@ BO_ 254 dingoPdmMsg30: 8 Vector__XXX
  SG_ OutputLoad_2 : 8|8@1+ (1,0) [0|255] "%" Vector__XXX
  SG_ OutputLoad_1 : 0|8@1+ (1,0) [0|255] "%" Vector__XXX
 
+BO_ 255 dingoPdmMsg31: 8 Vector__XXX
+ SG_ TableValue_2 : 32|32@1- (1,0) [0|0] "" Vector__XXX
+ SG_ TableValue_1 : 0|32@1- (1,0) [0|0] "" Vector__XXX
 
+BO_ 256 dingoPdmMsg32: 8 Vector__XXX
+ SG_ TableValue_4 : 32|32@1- (1,0) [0|0] "" Vector__XXX
+ SG_ TableValue_3 : 0|32@1- (1,0) [0|0] "" Vector__XXX
 
+BO_ 257 dingoPdmMsg33: 8 Vector__XXX
+ SG_ PidOutput_4 : 48|16@1- (0.1,0) [0|0] "" Vector__XXX
+ SG_ PidOutput_3 : 32|16@1- (0.1,0) [0|0] "" Vector__XXX
+ SG_ PidOutput_2 : 16|16@1- (0.1,0) [0|0] "" Vector__XXX
+ SG_ PidOutput_1 : 0|16@1- (0.1,0) [0|0] "" Vector__XXX
 
+BO_ 258 dingoPdmMsg34: 8 Vector__XXX
+ SG_ IgnDash : 20|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ IgnReady : 19|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ IgnRunning : 18|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ IgnCranking : 17|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ IgnIgnition : 16|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ IgnState : 8|8@1+ (1,0) [0|3] "" Vector__XXX
+ SG_ IgnMarker : 0|8@1+ (1,0) [0|255] "" Vector__XXX
 
 
 
 
 CM_ SG_ 224 SleepCountdown "Seconds until auto sleep, 63 = not counting down";
+
+
+
 VAL_ 224 PDMType 0 "dingoPDM" 1 "dingoPDM-Max" ;
 VAL_ 224 DeviceState 0 "Run" 1 "Sleep" 2 "Overtemp" 3 "Error" ;
 VAL_ 227 WiperState 0 "Park" 1 "Parking" 2 "Slow" 3 "Fast" 4 "Intermit Pause" 5 "Intermit On" 6 "Wash" 7 "Swipe" ;
@@ -358,6 +380,10 @@ VAL_ 227 OutputState_4 0 "Off" 1 "On" 2 "Overcurrent" 3 "Fault" 4 "Warning" 5 "O
 VAL_ 227 OutputState_3 0 "Off" 1 "On" 2 "Overcurrent" 3 "Fault" 4 "Warning" 5 "OpenLoad" 6 "Undercurrent" ;
 VAL_ 227 OutputState_2 0 "Off" 1 "On" 2 "Overcurrent" 3 "Fault" 4 "Warning" 5 "OpenLoad" 6 "Undercurrent" ;
 VAL_ 227 OutputState_1 0 "Off" 1 "On" 2 "Overcurrent" 3 "Fault" 4 "Warning" 5 "OpenLoad" 6 "Undercurrent" ;
-
+VAL_ 258 IgnState 0 "Off" 1 "On" 2 "Cranking" 3 "Running" ;
+SIG_VALTYPE_ 255 TableValue_1 : 1;
+SIG_VALTYPE_ 255 TableValue_2 : 1;
+SIG_VALTYPE_ 256 TableValue_3 : 1;
+SIG_VALTYPE_ 256 TableValue_4 : 1;
 
 
