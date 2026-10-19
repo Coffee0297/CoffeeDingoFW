@@ -165,7 +165,7 @@ void InitDevice()
 
     InitInfoMsgs();
 
-    #if CAN_SLEEP
+    #if CAN_SLEEP && defined(LINE_CAN_STANDBY)
     palClearLine(LINE_CAN_STANDBY);
     #endif
 
@@ -233,8 +233,10 @@ void States()
     #if CAN_SLEEP
     if (CheckEnterSleep())
     {
+        #if HAS_SE_LEDS
         statusLed.Solid(false);
         errorLed.Solid(false);
+        #endif
         eState = DeviceState::Sleep;
     }
 
