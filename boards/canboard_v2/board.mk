@@ -1,10 +1,9 @@
+# The STM32F303 is a Cortex-M4F: hardware FPU (Makefile default) instead of soft-float.
 MCU = cortex-m4
 MCUDIR = boards/stm32f303
-USE_FPU = no
-USE_FPU_OPT =
 
-# Function alignment padding costs ~3.8KB, more than the 62KB flash can spare at -O0
-USE_OPT := $(filter-out -falign-functions=16,$(USE_OPT))
+# -Os: the 62KB flash can't hold -O0 code plus any new feature; no function alignment padding either
+USE_OPT := $(subst -O0,-Os,$(filter-out -falign-functions=16,$(USE_OPT)))
 
 # List of all the board related files.
 BOARDSRC = ./boards/canboard_v2/board.c
