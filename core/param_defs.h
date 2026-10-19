@@ -21,6 +21,9 @@
     {0x0000, 6, &stConfig.stDevice.bConnectUsbToCan,    &stConfigTemp.stDevice.bConnectUsbToCan,  ParamType::Bool,   1, 0, 1}, \
     {0x0000, 7, &stConfig.stDevice.nMuteCanTxInput,     &stConfigTemp.stDevice.nMuteCanTxInput,   ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
     {0x0000, 8, &stConfig.stDevice.nForceSleepInput,    &stConfigTemp.stDevice.nForceSleepInput,  ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
+    {0x0000, 9, &stConfig.stDevice.nSleepTimeoutMs,     &stConfigTemp.stDevice.nSleepTimeoutMs,   ParamType::UInt16, 30000, 1000, 60000}, \
+    {0x0000, 10, &stConfig.stDevice.bSleepIgnoreAlwaysOn, &stConfigTemp.stDevice.bSleepIgnoreAlwaysOn, ParamType::Bool, 0, 0, 1}, \
+    {0x0000, 11, &stConfig.stDevice.nWakeDigInputMask,  &stConfigTemp.stDevice.nWakeDigInputMask, ParamType::UInt8,  (1u << NUM_DIG_INPUTS) - 1, 0, (1u << NUM_DIG_INPUTS) - 1}, \
     {0x0000, 12, &stConfig.stDevice.nRetryAllInput,     &stConfigTemp.stDevice.nRetryAllInput,    ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
     {0x0000, 13, &stConfig.stDevice.nShedInput,         &stConfigTemp.stDevice.nShedInput,        ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}
 
