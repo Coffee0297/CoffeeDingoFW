@@ -21,7 +21,7 @@
     {0x0000, 6, &stConfig.stDevice.bConnectUsbToCan,    &stConfigTemp.stDevice.bConnectUsbToCan,  ParamType::Bool,   1, 0, 1}, \
     {0x0000, 7, &stConfig.stDevice.nMuteCanTxInput,     &stConfigTemp.stDevice.nMuteCanTxInput,   ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
     {0x0000, 8, &stConfig.stDevice.nForceSleepInput,    &stConfigTemp.stDevice.nForceSleepInput,  ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
-    {0x0000, 12, &stConfig.stDevice.nRetryAllInput,     &stConfigTemp.stDevice.nRetryAllInput,    ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}
+    {0x0000, 12, &stConfig.stDevice.nRetryAllInput,     &stConfigTemp.stDevice.nRetryAllInput,    ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
     {0x0000, 13, &stConfig.stDevice.nShedInput,         &stConfigTemp.stDevice.nShedInput,        ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}
 
 //=============================================================================
