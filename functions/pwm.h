@@ -25,6 +25,7 @@ struct Config_PwmOutput{
   bool bVariableFreq;
   uint16_t nFreqInput;
   uint16_t nFreqInputDenom;
+  bool bRampDutyChanges;
 };
 
 class Pwm
@@ -92,6 +93,7 @@ private:
     uint16_t GetTargetFreq();
     void InitSoftStart();
     void UpdateSoftStart();
+    void UpdateDutyRamp();
     void UpdateFrequency();
 
     volatile uint16_t nDutyCycle;
@@ -101,6 +103,7 @@ private:
     bool bLastChannelEnabled;
     bool bSoftStartComplete;
     float fSoftStartStep;
+    float fDutyRamp;
     
     uint32_t nSoftStartTime;
     uint32_t nSoftStartEndTime;

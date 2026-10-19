@@ -28,7 +28,10 @@ void Pwm::Update()
         }
         // After soft start completes, continue updating duty cycle if variable
         else if (pConfig->bVariableDutyCycle) {
-            nDutyCycle = GetTargetDutyCycle();
+            if (pConfig->bRampDutyChanges)
+                UpdateDutyRamp();
+            else
+                nDutyCycle = GetTargetDutyCycle();
         }
     }
 
@@ -72,10 +75,31 @@ void Pwm::UpdateSoftStart() {
     if (fDuty >= targetDuty) {
         nDutyCycle = targetDuty;
         bSoftStartComplete = true;
+        fDutyRamp = targetDuty;
+        nSoftStartTime = SYS_TIME;
     }
     else {
         nDutyCycle = (uint8_t)fDuty;
     }
+}
+
+void Pwm::UpdateDutyRamp() {
+    // Slew at the soft-start rate: a full 0-100% change takes nSoftStartRampTime
+    // nSoftStartTime = last ramp update once the soft start is complete
+    uint8_t targetDuty = GetTargetDutyCycle();
+    float fStep = 100.0f;
+    if (pConfig->nSoftStartRampTime > 0)
+        fStep = 100.0f * (SYS_TIME - nSoftStartTime) / pConfig->nSoftStartRampTime;
+    nSoftStartTime = SYS_TIME;
+
+    if (fDutyRamp + fStep < targetDuty)
+        fDutyRamp += fStep;
+    else if (fDutyRamp - fStep > targetDuty)
+        fDutyRamp -= fStep;
+    else
+        fDutyRamp = targetDuty;
+
+    nDutyCycle = (uint8_t)fDutyRamp;
 }
 
 uint16_t Pwm::GetTargetFreq()
