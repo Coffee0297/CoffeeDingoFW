@@ -6,6 +6,8 @@ void Condition::Update()
     if (!pConfig->bEnabled)
     {
         fVal = 0;
+        bOut = false;
+        nLastSame = SYS_TIME;
         return;
     }
 
@@ -47,4 +49,15 @@ void Condition::Update()
             fVal = 0;
             break;
     }
+
+    // The result follows the compare only once it has differed for the delay
+    const bool bCompare = fVal != 0;
+    if ((bCompare == bOut) || ((SYS_TIME - nLastSame) >= (bCompare ? pConfig->nDelayOn : pConfig->nDelayOff)))
+    {
+        bOut = bCompare;
+        nLastSame = SYS_TIME;
+    }
+
+    if (pConfig->nDelayOn || pConfig->nDelayOff)
+        fVal = bOut;
 }
