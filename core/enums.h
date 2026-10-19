@@ -64,14 +64,22 @@ enum class MsgCmd : uint8_t
     CheckCrc = 34,
     CheckCrcRsp = 35,
     Restart = 36,
-    Identify = 49,
-
     OutputTest = 48, // [cmd, out, mode 0 off/1 on/2 pwm, duty, freqLo, freqHi, holdSec, 0], reply byte 7 = accepted
+    Identify = 49,
+    SleepInfo = 50, // [50] -> [50, wakeReason, wakeSource, wakesLo, wakesHi, countdown s (0xFF none), blockers, 0]
     FaultLogRead = 53,
     FaultLogClear = 54,
     ResetCause = 55,
 
     Invalid = 0xFF
+};
+
+enum class WakeReason : uint8_t
+{
+    PowerOn = 0, // not a wake: power applied, a reset, or the reason was lost
+    Can = 1,
+    DigitalInput = 2, // wakeSource = input number (1..)
+    Usb = 3
 };
 
 enum class MsgType : uint8_t

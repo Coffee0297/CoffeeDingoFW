@@ -176,6 +176,10 @@ void InitDevice()
     Error::Initialize(&statusLed, &errorLed);
     #endif
 
+    #if CAN_SLEEP
+    InitSleep(); // why it woke, before anything is sent
+    #endif
+
     InitVarMap(); // Set val pointers
 
     #if HAS_I2C
@@ -202,6 +206,10 @@ void InitDevice()
         
     if (InitCan(&stConfig.stDevice) != HAL_RET_SUCCESS) // Starts CAN threads
         Error::SetFatalError(FatalErrorType::ErrCAN, MsgSrc::Init);
+
+    #if CAN_SLEEP
+    SendSleepInfo(); // tell the bus why it is awake
+    #endif
 
     #if HAS_USB
     if (InitUsb() != HAL_RET_SUCCESS) // Starts USB threads

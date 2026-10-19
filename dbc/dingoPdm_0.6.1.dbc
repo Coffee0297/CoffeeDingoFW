@@ -42,6 +42,7 @@ BO_ 224 dingoPdmMsg0: 8 Vector__XXX
  SG_ TotalCurrent : 16|16@1+ (1,0) [0|65535] "A" Vector__XXX
  SG_ PDMType : 12|4@1+ (1,0) [0|15] "" Vector__XXX
  SG_ DeviceState : 8|4@1+ (1,0) [0|3] "" Vector__XXX
+ SG_ SleepCountdown : 2|6@1+ (1,0) [0|63] "s" Vector__XXX
  SG_ DigitalInput_2 : 1|1@1+ (1,0) [0|0] "" Vector__XXX
  SG_ DigitalInput_1 : 0|1@1+ (1,0) [0|0] "" Vector__XXX
 
@@ -344,6 +345,7 @@ BO_ 254 dingoPdmMsg30: 8 Vector__XXX
 
 
 
+CM_ SG_ 224 SleepCountdown "Seconds until auto sleep, 63 = not counting down";
 VAL_ 224 PDMType 0 "dingoPDM" 1 "dingoPDM-Max" ;
 VAL_ 224 DeviceState 0 "Run" 1 "Sleep" 2 "Overtemp" 3 "Error" ;
 VAL_ 227 WiperState 0 "Park" 1 "Parking" 2 "Slow" 3 "Fast" 4 "Intermit Pause" 5 "Intermit On" 6 "Wash" 7 "Swipe" ;
