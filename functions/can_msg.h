@@ -15,6 +15,9 @@ struct Config_CanMsg{
   CanMsgMode eMode;
   uint8_t nData[8];
   uint16_t nInterval; //ms, Repeat mode
+  CanOutputKind eChecksum; //Signal = none, ChecksumXor..Crc8Autosar
+  uint8_t nChecksumByte;
+  uint8_t nCounterByte; //low nibble counts 0-15 per frame, 0xFF = none
 };
 
 class CanMsg
@@ -34,6 +37,9 @@ public:
     // True when the configured frame is due now. Repeat frames are held back while bMuted.
     bool Due(bool bMuted);
 
+    // The frame's data: the configured bytes, then the counter, then the checksum
+    void Fill(uint8_t *pData);
+
 private:
     Config_CanMsg* pConfig;
 
@@ -41,4 +47,5 @@ private:
 
     bool bLast;
     uint32_t nLastSent;
+    uint8_t nCount;
 };
