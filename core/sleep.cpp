@@ -28,7 +28,9 @@ bool CheckEnterSleep()
     nNumOutputsOn = 0;
     for (int i = 0; i < NUM_OUTPUTS; i++)
     {
-        if (GetOutputState(i) != ProfetState::Off)
+        // A stay-alive output that is on doesn't keep the device awake, one in overcurrent/fault does
+        if ((GetOutputState(i) != ProfetState::Off) &&
+            !(stConfig.stOutput[i].bStayAlive && (GetOutputState(i) == ProfetState::On)))
             nNumOutputsOn++;
     }
 
@@ -87,10 +89,16 @@ void EnterSleep()
     // Clear CAN sleep request so we don't immediately re-enter sleep after waking up
     bSleepRequest = false;
 
-    // Forced sleep can arrive with outputs on - shut them off, no current protection while stopped
+    // Forced sleep can arrive with outputs on - shut them off, no current protection while stopped.
+    // Stay-alive outputs that are on stay on, the user opted out of that protection
     #if NUM_OUTPUTS > 0
     for (uint8_t i = 0; i < NUM_OUTPUTS; i++)
-        pf[i].ForceOff();
+    {
+        if (stConfig.stOutput[i].bStayAlive && (pf[i].GetState() == ProfetState::On))
+            pf[i].StayOn();
+        else
+            pf[i].ForceOff();
+    }
     #endif
 
     // Let CanTxThread flush queued frames before the transceiver goes to standby

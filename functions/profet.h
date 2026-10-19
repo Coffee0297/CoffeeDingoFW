@@ -19,6 +19,7 @@ struct Config_Output{
   uint16_t nResetTime; //ms
   uint8_t nResetLimit;
   int8_t nPrimaryOutput;  //index of primary to follow, -1 = unpaired
+  bool bStayAlive;        //left on while asleep
 
   Config_PwmOutput stPwm;
 };
@@ -111,6 +112,14 @@ public:
         palClearLine(m_in);
         eState = ProfetState::Off;
         fOutput = 0;
+    }
+
+    // Asleep with the output on: solid on, the PWM timers stop in STOP.
+    // No firmware current protection until the wake reset, only the Profet's own
+    void StayOn()
+    {
+        pwm.Off();
+        palSetLine(m_in);
     }
 
     float GetCurrent() { return *const_cast<volatile float*>(&fCurrent); }
