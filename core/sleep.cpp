@@ -2,7 +2,11 @@
 #include "device.h"
 #include "port.h"
 #include "can.h"
+#if HAS_USB
 #include "usb.h"
+#else
+static bool GetUsbConnected() { return false; }
+#endif
 #include "status.h"
 #include "mcu_utils.h"
 #include "device_config.h"
@@ -44,7 +48,9 @@ static volatile bool bQuietWake;
 // External variables from pdm.cpp that we need access to
 extern DeviceConfig stConfig;
 bool bSleepRequest;
+#if NUM_OUTPUTS > 0
 extern Profet pf[NUM_OUTPUTS];
+#endif
 
 bool CheckEnterSleep()
 {
@@ -52,6 +58,7 @@ bool CheckEnterSleep()
 
     // Count number of outputs on
     nNumOutputsOn = 0;
+    #if NUM_OUTPUTS > 0
     for (int i = 0; i < NUM_OUTPUTS; i++)
     {
         // A stay-alive output that is on doesn't keep the device awake, one in overcurrent/fault does
@@ -60,6 +67,15 @@ bool CheckEnterSleep()
             !(stConfig.stOutput[i].bStayAlive && (GetOutputState(i) == ProfetState::On)))
             nNumOutputsOn++;
     }
+    #endif
+    #if NUM_DIG_OUTPUTS > 0
+    for (uint8_t i = 0; i < NUM_DIG_OUTPUTS; i++)
+    {
+        if (GetDigOutputState(i) &&
+            !(stConfig.stDevice.bSleepIgnoreAlwaysOn && (stConfig.stDigOutput[i].nInput == 1)))
+            nNumOutputsOn++;
+    }
+    #endif
 
     // All outputs just turned off, save time - wait the sleep timeout before sleep
     if ((nNumOutputsOn == 0) && (nLastNumOutputsOn > 0))
@@ -283,6 +299,12 @@ void EnterSleep()
         PostTxFrame(&txMsg);
     }
 
+    // The control loop stops in STOP mode, don't leave a digital output latched on
+    #if NUM_DIG_OUTPUTS > 0
+    for (uint8_t i = 0; i < NUM_DIG_OUTPUTS; i++)
+        palClearLine(digOut[i].GetLine());
+    #endif
+
     // Stop transmitting before the transceiver goes to standby. A frame still
     // going out while another device on the bus falls asleep wakes it up again.
     // Frames already in the CAN mailboxes finish during the wait below.
@@ -297,7 +319,9 @@ void EnterSleep()
     // Standby first and the output latch high before the pin turns output: the other order drives TX dominant
     // for a few cycles with the transceiver still awake, and that edge wakes every sleeping module on the bus.
     StopCan();
+    #ifdef LINE_CAN_STANDBY
     palSetLine(LINE_CAN_STANDBY); // CAN disabled
+    #endif
     palSetLine(LINE_CAN_TX); // Recessive
     palSetLineMode(LINE_CAN_TX, PAL_MODE_OUTPUT_PUSHPULL);
 
@@ -334,10 +358,12 @@ void EnterSleep()
     }
 
     // USB detection - always active
+    #if HAS_USB
     palSetLineMode(LINE_USB_DP, PAL_MODE_INPUT);
     palEnableLineEvent(LINE_USB_DP, PAL_EVENT_MODE_BOTH_EDGES | PAL_STM32_PUPDR_FLOATING);
     palSetLineMode(LINE_USB_DM, PAL_MODE_INPUT);
     palEnableLineEvent(LINE_USB_DM, PAL_EVENT_MODE_BOTH_EDGES | PAL_STM32_PUPDR_FLOATING);
+    #endif
 
     // Arming a line can latch an edge from the pin changing mode. Clear those so
     // only a real wake source ends the stop. One arriving from here on is still

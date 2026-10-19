@@ -26,6 +26,8 @@ public:
 
     void Update();
 
+    ioline_t GetLine() { return m_line; }
+
     float fVal;
 
 private:
