@@ -101,7 +101,9 @@
     {0x1500 + (i), 1, &stConfig.stCondition[i].nInput,    &stConfigTemp.stCondition[i].nInput,    ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
     {0x1500 + (i), 2, &stConfig.stCondition[i].eOperator, &stConfigTemp.stCondition[i].eOperator, ParamType::Enum,   static_cast<uint32_t>(Operator::Equal), 0, 7}, \
     {0x1500 + (i), 3, &stConfig.stCondition[i].fArg,      &stConfigTemp.stCondition[i].fArg,      ParamType::Float,  F(0.0f), F(-1e9f), F(1e9f)}, \
-    {0x1500 + (i), 4, &stConfig.stCondition[i].fHyst,     &stConfigTemp.stCondition[i].fHyst,     ParamType::Float,  F(0.0f), F(0.0f), F(1e9f)}
+    {0x1500 + (i), 4, &stConfig.stCondition[i].fHyst,     &stConfigTemp.stCondition[i].fHyst,     ParamType::Float,  F(0.0f), F(0.0f), F(1e9f)}, \
+    {0x1500 + (i), 5, &stConfig.stCondition[i].nDelayOn,  &stConfigTemp.stCondition[i].nDelayOn,  ParamType::UInt16, 0, 0, 60000}, \
+    {0x1500 + (i), 6, &stConfig.stCondition[i].nDelayOff, &stConfigTemp.stCondition[i].nDelayOff, ParamType::UInt16, 0, 0, 60000}
 
 //=============================================================================
 // Counter Parameters - Base 0x1600
