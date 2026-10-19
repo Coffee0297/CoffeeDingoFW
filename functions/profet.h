@@ -105,10 +105,13 @@ public:
     void SelectDsel();
 
     // Immediately de-energize the output, used before entering a fatal error
-    void ForceOff()
+    // bDiagOff: also drop DEN (sleep only), an off Profet with DEN high still draws diagnostic current
+    void ForceOff(bool bDiagOff = false)
     {
         pwm.Off();
         palClearLine(m_in);
+        if (bDiagOff)
+            palClearLine(m_den);
         eState = ProfetState::Off;
         fOutput = 0;
     }
