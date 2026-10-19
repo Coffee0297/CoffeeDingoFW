@@ -3,6 +3,7 @@
 //   g++ -std=c++20 -I tests/host -I functions -I core -I utils tests/host_selftest.cpp functions/timer.cpp -o build/host_selftest && build/host_selftest
 //   g++ -std=c++20 -DCONDITION_ONLY -I tests/host -I functions -I core -I utils tests/host_selftest.cpp functions/condition.cpp -o build/host_condition && build/host_condition
 //   g++ -std=c++20 -DANALOG_ONLY -I tests/host -I functions -I core -I utils tests/host_selftest.cpp functions/input.cpp -o build/host_analog && build/host_analog
+//   g++ -std=c++20 -DCONDITION_HYST_ONLY -I tests/host -I functions -I core -I utils tests/host_selftest.cpp functions/condition.cpp -o build/host_condition_hyst && build/host_condition_hyst
 // Each feature adds its own section below, picked with -D<NAME>_ONLY, and its build line here.
 #include <cassert>
 #include <cstdio>
@@ -49,6 +50,47 @@ int main()
     k.bEnabled = false; fHostMv = 500; a.Update();
     assert(a.fValMillivolts < 501 && a.fSwitchVal == 0);                            // was frozen at 2500 / 1
     std::puts("host_analog OK");
+    return 0;
+}
+#elif defined(CONDITION_HYST_ONLY)
+#include "condition.h"
+
+int main()
+{
+    float in = 0;
+    pVarMap[0] = &in;
+    Config_Condition c{};
+    c.bEnabled = true; c.nInput = 0; c.fArg = 100;
+    Condition k; k.SetConfig(&c);
+    auto at = [&](float v) { in = v; k.Update(); return k.fVal; };
+
+    c.eOperator = Operator::GreaterThan;            // fHyst 0: exactly the plain compare
+    assert(at(101) == 1); assert(at(100) == 0); assert(at(101) == 1); assert(at(99) == 0);
+    c.eOperator = Operator::GreaterThanOrEqual;
+    assert(at(100) == 1); assert(at(99.9f) == 0);
+
+    c.fHyst = 5;
+    c.eOperator = Operator::GreaterThan;            // on above 100, off at 95
+    assert(at(100) == 0); assert(at(96) == 0);      // off: the band doesn't turn it on
+    assert(at(101) == 1); assert(at(96) == 1); assert(at(95) == 0); assert(at(99) == 0);
+    c.eOperator = Operator::GreaterThanOrEqual;     // on at 100, off below 95
+    assert(at(100) == 1); assert(at(95) == 1); assert(at(94.9f) == 0);
+    c.eOperator = Operator::LessThan;               // on below 100, off at 105
+    assert(at(104) == 0); assert(at(99) == 1); assert(at(104) == 1); assert(at(105) == 0);
+    c.eOperator = Operator::LessThanOrEqual;        // on at 100, off above 105
+    assert(at(100) == 1); assert(at(105) == 1); assert(at(105.1f) == 0);
+    c.eOperator = Operator::Equal;                  // ignored by ==
+    assert(at(100) == 1); assert(at(101) == 0);
+
+    c.eOperator = Operator::GreaterThan;
+    c.fHyst = __builtin_nanf("");                   // NaN band: plain compare, no flipping every update
+    assert(at(101) == 1); assert(at(101) == 1); assert(at(100) == 0);
+    c.fHyst = 5;
+
+    c.bEnabled = false; assert(at(200) == 0);      // disabled: off, and the band doesn't hold it
+    c.bEnabled = true; c.eOperator = Operator::GreaterThan; assert(at(96) == 0);
+
+    std::puts("host_selftest CONDITION_HYST OK");
     return 0;
 }
 #else
