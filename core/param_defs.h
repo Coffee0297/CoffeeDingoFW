@@ -193,6 +193,18 @@
 #endif
 
 //=============================================================================
+// Latch / Gate Parameters - Base 0x2600
+//=============================================================================
+#if NUM_LATCH_GATES > 0
+#define LATCH_GATE_PARAMS(i) \
+    {0x2600 + (i), 0, &stConfig.stLatchGate[i].bEnabled,      &stConfigTemp.stLatchGate[i].bEnabled,      ParamType::Bool,   0, 0, 1}, \
+    {0x2600 + (i), 1, &stConfig.stLatchGate[i].eType,         &stConfigTemp.stLatchGate[i].eType,         ParamType::Enum,   static_cast<uint32_t>(LatchGateType::Latch), 0, 1}, \
+    {0x2600 + (i), 2, &stConfig.stLatchGate[i].nInput,        &stConfigTemp.stLatchGate[i].nInput,        ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
+    {0x2600 + (i), 3, &stConfig.stLatchGate[i].nControlInput, &stConfigTemp.stLatchGate[i].nControlInput, ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
+    {0x2600 + (i), 4, &stConfig.stLatchGate[i].nTime,         &stConfigTemp.stLatchGate[i].nTime,         ParamType::UInt32, 0, 0, 600000}
+#endif
+
+//=============================================================================
 // CAN Output Parameters - Base 0x2000
 //=============================================================================
 #define CAN_OUTPUT_PARAMS(i) \
