@@ -179,6 +179,12 @@ BO_ 1610 CANBoardMsg8: 8 Vector__XXX
  SG_ CANInputValue_8 : 32|32@1+ (1,0) [0|0] "" Vector__XXX
  SG_ CANInputValue_7 : 0|32@1+ (1,0) [0|0] "" Vector__XXX
 
+BO_ 1611 CANBoardMsg9: 8 Vector__XXX
+ SG_ DigitalOutputDC_4 : 24|8@1+ (1,0) [0|0] "%" Vector__XXX
+ SG_ DigitalOutputDC_3 : 16|8@1+ (1,0) [0|0] "%" Vector__XXX
+ SG_ DigitalOutputDC_2 : 8|8@1+ (1,0) [0|0] "%" Vector__XXX
+ SG_ DigitalOutputDC_1 : 0|8@1+ (1,0) [0|0] "%" Vector__XXX
+
 
 
 

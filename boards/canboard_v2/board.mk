@@ -22,4 +22,5 @@ include $(CHIBIOS)/os/common/ports/ARMv7-M/compilers/GCC/mk/port.mk
 
 CPPSRC_BOARD += functions/analog_input.cpp \
 				functions/digital_input.cpp \
-				functions/digital_output.cpp
+				functions/digital_output.cpp \
+				functions/pwm.cpp
