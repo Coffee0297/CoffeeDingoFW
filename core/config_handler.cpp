@@ -11,6 +11,7 @@
 #include "can_msg.h"
 #include "curve.h"
 #include "latch_gate.h"
+#include "pid.h"
 #include "flasher.h"
 #include "virtual_input.h"
 #if NUM_OUTPUTS > 0
@@ -59,6 +60,9 @@ extern Curve curve[NUM_CURVES];
 #endif
 #if NUM_LATCH_GATES > 0
 extern LatchGate latchGate[NUM_LATCH_GATES];
+#endif
+#if NUM_PIDS > 0
+extern Pid pid[NUM_PIDS];
 #endif
 #if NUM_OUTPUTS > 0
 extern Profet pf[NUM_OUTPUTS];
@@ -119,6 +123,9 @@ void ApplyAllConfig()
     #endif
     #if NUM_LATCH_GATES > 0
     ApplyConfig(LatchGate::nBaseIndex);
+    #endif
+    #if NUM_PIDS > 0
+    ApplyConfig(Pid::nBaseIndex);
     #endif
     #if NUM_OUTPUTS > 0
     ApplyConfig(Profet::nBaseIndex);
@@ -238,6 +245,14 @@ void ApplyConfig(uint16_t nIndex)
     {
         for (uint8_t i = 0; i < NUM_LATCH_GATES; i++)
             latchGate[i].SetConfig(&stConfig.stLatchGate[i]);
+    }
+    #endif
+
+    #if NUM_PIDS > 0
+    if (nBaseIndex == Pid::nBaseIndex)
+    {
+        for (uint8_t i = 0; i < NUM_PIDS; i++)
+            pid[i].SetConfig(&stConfig.stPid[i]);
     }
     #endif
 

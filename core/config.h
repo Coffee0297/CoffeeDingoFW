@@ -16,6 +16,7 @@
 #include "table.h"
 #include "curve.h"
 #include "latch_gate.h"
+#include "pid.h"
 #if NUM_OUTPUTS > 0
 #include "profet.h"
 #endif
@@ -86,6 +87,10 @@ struct DeviceConfig{
 
   #if NUM_LATCH_GATES > 0
   Config_LatchGate stLatchGate[NUM_LATCH_GATES];
+  #endif
+
+  #if NUM_PIDS > 0
+  Config_Pid stPid[NUM_PIDS];
   #endif
 
   #if NUM_DIG_INPUTS > 0

@@ -17,6 +17,9 @@ class Timer;
 #if NUM_TABLES > 0
 class Table;
 #endif
+#if NUM_PIDS > 0
+class Pid;
+#endif
 #if NUM_DIG_INPUTS > 0
 class Digital_Input;
 #endif
@@ -51,6 +54,10 @@ extern Timer timer[NUM_TIMERS];
 #endif
 #if NUM_TABLES > 0
 extern Table table[NUM_TABLES];
+#endif
+
+#if NUM_PIDS > 0
+extern Pid pid[NUM_PIDS];
 #endif
 
 #if NUM_DIG_INPUTS > 0

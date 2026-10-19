@@ -33,6 +33,7 @@
 #define NUM_TIMERS 0
 #define NUM_TABLES 0
 #define NUM_LATCH_GATES 0
+#define NUM_PIDS 0
 #define NUM_KEYPADS 0
 #define HAS_WIPERS FALSE
 #define HAS_STARTER_DISABLE FALSE
@@ -68,6 +69,7 @@
     (NUM_TABLES * 1) + \
     (NUM_CURVES * 1) + \
     (NUM_LATCH_GATES * 1) + \
+    (NUM_PIDS * 4) + \
     VAR_MAP_WIPER_VARS + \
     (NUM_KEYPADS * (KEYPAD_MAX_BUTTONS + KEYPAD_MAX_DIALS + KEYPAD_MAX_ANALOG_INPUTS)) \
 )
