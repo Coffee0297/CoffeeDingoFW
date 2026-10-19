@@ -76,7 +76,9 @@
     {0x1300 + (i), 10, &stConfig.stCanInput[i].bSigned,         &stConfigTemp.stCanInput[i].bSigned,         ParamType::Bool,   0, 0, 1}, \
     {0x1300 + (i), 11, &stConfig.stCanInput[i].eOperator,       &stConfigTemp.stCanInput[i].eOperator,       ParamType::Enum,   static_cast<uint32_t>(Operator::Equal), 0, 7}, \
     {0x1300 + (i), 12, &stConfig.stCanInput[i].fOperand,        &stConfigTemp.stCanInput[i].fOperand,        ParamType::Float,  F(0.0f), F(-1e9f), F(1e9f)}, \
-    {0x1300 + (i), 13, &stConfig.stCanInput[i].eMode,           &stConfigTemp.stCanInput[i].eMode,           ParamType::Enum,   static_cast<uint32_t>(InputMode::Momentary), 0, 1}
+    {0x1300 + (i), 13, &stConfig.stCanInput[i].eMode,           &stConfigTemp.stCanInput[i].eMode,           ParamType::Enum,   static_cast<uint32_t>(InputMode::Momentary), 0, 1}, \
+    {0x1300 + (i), 14, &stConfig.stCanInput[i].fTimeoutValue,   &stConfigTemp.stCanInput[i].fTimeoutValue,   ParamType::Float,  F(0.0f), F(-1e9f), F(1e9f)}, \
+    {0x1300 + (i), 15, &stConfig.stCanInput[i].bTimeoutUseValue, &stConfigTemp.stCanInput[i].bTimeoutUseValue, ParamType::Bool,   0, 0, 1}
     
 //=============================================================================
 // Virtual Input Parameters - Base 0x1400
