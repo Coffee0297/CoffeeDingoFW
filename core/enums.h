@@ -75,6 +75,12 @@ enum class MsgCmd : uint8_t
     FactoryReset = 57, // [57, 'W', 'I', 'P', 'E'] -> [57, burned ok]
     Locked = 58,       // Reply to a command refused while locked: [58, idxLo, idxHi, sub, refused cmd]
 
+    OvlCount = 44,  // [cmd] -> [cmd, count, uptime ms LE x4, 0, 0]
+    OvlHeader = 45, // [cmd, idx] -> [cmd, idx, out (0xFF none), state, peak 0.1 A LE x2, limit 0.1 A LE x2]
+    OvlData = 46,   // [cmd, idx, offHi, offLo] -> [cmd, idx, offHi, offLo, 4 samples at 0.5 A]
+    OvlClear = 47,  // [cmd] -> [cmd] (DLC 1)
+    OvlTime = 51,   // [cmd, idx] -> [cmd, idx, trip uptime ms LE x4, 0, 0]
+
     Invalid = 0xFF
 };
 

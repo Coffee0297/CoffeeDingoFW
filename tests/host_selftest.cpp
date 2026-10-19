@@ -13,6 +13,7 @@
 //   g++ -std=c++20 -Wall -DLATCH_GATE_ONLY -I tests/host -I functions -I core -I utils tests/host_selftest.cpp functions/latch_gate.cpp -o build/host_latch_gate && build/host_latch_gate
 //   g++ -std=c++20 -DPID_ONLY -I tests/host -I functions -I core -I utils tests/host_selftest.cpp functions/pid.cpp -o build/host_pid && build/host_pid
 //   g++ -std=c++20 -Wall -DRETAIN_ONLY -I tests/host -I functions -I core -I utils tests/host_selftest.cpp functions/input.cpp -o build/host_retain && build/host_retain
+//   g++ -std=c++20 -DOVL_ONLY -DNUM_OUTPUTS=2 -I tests/host -I functions -I core -I utils tests/host_selftest.cpp functions/overload_log.cpp -o build/host_ovl && build/host_ovl
 // Each feature adds its own section below, picked with -D<NAME>_ONLY, and its build line here.
 //   g++ -std=c++20 -Wall -DPWM_METER_ONLY -I tests/host -I functions -I core -I utils tests/host_selftest.cpp -o build/host_pwm_meter && build/host_pwm_meter
 //   g++ -std=c++20 -Wall -DANALOG_SCALE_ONLY -I tests/host -I functions -I core -I utils tests/host_selftest.cpp functions/input.cpp -o build/host_analog_scale && build/host_analog_scale
@@ -864,6 +865,57 @@ int main()
 
     c.bEnabled = false; step(); assert(g.fIgnition == 0 && !g.StateFrame(frame));
     std::puts("host_ignition OK");
+    return 0;
+}
+#elif defined(OVL_ONLY)
+#include "overload_log.h"
+
+int main()
+{
+    // 1 cycle = 2 ms, one sample per 20 cycles (40 ms). Output 1 runs at 4 A, spikes to 30 A once, then trips.
+    auto cycle = [](uint8_t n, float a, ProfetState e, bool s) { OvlLogUpdate(n, a, e, 20.0f, s); };
+    for (int k = 0; k < 300 * 20; k++)
+    {
+        nHostTimeMs += 2;
+        float a = (k == 300 * 20 - 15) ? 30.0f : 4.0f; // spike between two samples still shows (peak hold)
+        cycle(1, a, ProfetState::On, k % 20 == 19);
+        cycle(0, 0, ProfetState::On, k % 20 == 19);
+    }
+    assert(OvlLogCount() == 0);
+    cycle(1, 25.0f, ProfetState::Overcurrent, false); // trip
+    uint32_t nTrip = nHostTimeMs;
+    for (int k = 0; k < 10 * 20; k++)                // Overcurrent -> Fault is the same trip
+        cycle(1, 0, k < 20 ? ProfetState::Overcurrent : ProfetState::Fault, k % 20 == 19);
+    assert(OvlLogCount() == 1 && OvlLogTime(0) == nTrip);
+
+    uint8_t nOut, nState; float fPeak, fLimit;
+    assert(OvlLogGetHeader(0, nOut, nState, fPeak, fLimit));
+    assert(nOut == 1 && nState == (uint8_t)ProfetState::Overcurrent && fPeak == 30.0f && fLimit == 20.0f);
+    uint8_t b[OVL_TOTAL_SAMPLES];
+    for (uint16_t off = 0; off < OVL_TOTAL_SAMPLES; off += 4)
+        OvlLogGetData(0, off, &b[off], 4);
+    assert(b[0] == 8 && b[OVL_PRE_SAMPLES - 1] == 60);  // 4 A, then the 30 A spike as the last pre sample
+    assert(b[OVL_PRE_SAMPLES] == 50);                   // first post sample holds the 25 A trip current
+    assert(b[OVL_PRE_SAMPLES + 1] == 0 && b[OVL_TOTAL_SAMPLES - 1] == 0);
+    assert(OvlLogGetData(0, OVL_TOTAL_SAMPLES, b, 4) == 0 && !OvlLogGetHeader(1, nOut, nState, fPeak, fLimit));
+
+    for (int t = 0; t < 4; t++)                         // 4 trips on output 0: 3 kept, newest first
+    {
+        nHostTimeMs += 1000;
+        cycle(0, 0, ProfetState::On, false);
+        cycle(0, 10.0f + t, ProfetState::Overcurrent, false);
+        for (int k = 0; k < OVL_POST_SAMPLES; k++)
+            cycle(0, 0, ProfetState::Overcurrent, true);
+    }
+    assert(OvlLogCount() == 3 && OvlLogGetHeader(0, nOut, nState, fPeak, fLimit) && nOut == 0 && fPeak == 13.0f);
+    assert(OvlLogGetHeader(2, nOut, nState, fPeak, fLimit) && fPeak == 11.0f);
+
+    OvlLogClear();
+    assert(OvlLogCount() == 0 && OvlLogTime(0) == 0);
+    cycle(0, 0, ProfetState::Overcurrent, true);        // still tripped after a clear: not logged again
+    assert(OvlLogCount() == 0);
+
+    std::puts("host_ovl OK");
     return 0;
 }
 #else
