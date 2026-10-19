@@ -4,6 +4,7 @@
 #include "port.h"
 #include "enums.h"
 #include "pwm.h"
+#include "wire_load.h"
 
 #if NUM_OUTPUTS > 0
 
@@ -33,6 +34,7 @@ struct Config_Output{
   uint16_t nSoftStartTimeout; //ms, 0 = off, soft start held above the inrush limit, trips if not done in time
   uint16_t nSoftStopTime; //ms, 0 = off, PWM duty ramps down to 0 on turn off
   bool bShed; //held off while the device shed input is true
+  uint16_t nThermalTau; //s, 0 = off, wire load time constant
 };
 
 //=============================================================================
@@ -156,6 +158,7 @@ public:
     float fWarning;
     float fOpenLoad;
     float fUndercurrent;
+    float fLoad;  // wire load %, 100 = steady current at the limit
 
 private:
     const uint16_t m_num;
@@ -192,6 +195,8 @@ private:
     bool bSoftStopping;
     uint32_t nSoftStopStart;
     uint8_t nSoftStopDuty;  // duty when the soft stop began
+    float fI2;            // filtered current squared
+    uint32_t nLoadTime;
 
     volatile uint16_t nOcCount;       // Number of overcurrents
     uint32_t nOcTriggerTime; // Time of overcurrent

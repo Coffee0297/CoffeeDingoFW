@@ -523,6 +523,12 @@ void InitVarMap()
     {
         pVarMap[index++] = &pf[i].fUndercurrent;
     }
+
+    // Output wire load %
+    for (uint8_t i = 0; i < NUM_OUTPUTS; i++)
+    {
+        pVarMap[index++] = &pf[i].fLoad;
+    }
     #endif
 
     //VarMap size must match the expected size

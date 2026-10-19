@@ -17,6 +17,7 @@ void Profet::Update(bool bOutEnabled)
         fWarning = 0;
         fOpenLoad = 0;
         fUndercurrent = 0;
+        fI2 = fLoad = 0;
         return;
     }
 
@@ -355,6 +356,16 @@ void Profet::MeasureCurrent()
     }
 
     CalculateCurrent();
+
+    // Wire load from this output's own current, before a follower's is added
+    if (pConfig->nThermalTau > 0 && pConfig->fCurrentLimit > 0)
+    {
+        fI2 = FilterI2(fI2, fCurrent, SYS_TIME - nLoadTime, pConfig->nThermalTau);
+        fLoad = 100.0f * fI2 / (pConfig->fCurrentLimit * pConfig->fCurrentLimit);
+    }
+    else
+        fI2 = fLoad = 0;
+    nLoadTime = SYS_TIME;
 }
 
 void Profet::CalculateCurrent()

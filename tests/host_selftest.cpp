@@ -6,6 +6,7 @@
 //   g++ -std=c++20 -DCONDITION_HYST_ONLY -I tests/host -I functions -I core -I utils tests/host_selftest.cpp functions/condition.cpp -o build/host_condition_hyst && build/host_condition_hyst
 //   g++ -std=c++20 -Wall -DCONDITION_DELAY_ONLY -I tests/host -I functions -I core -I utils tests/host_selftest.cpp functions/condition.cpp -o build/host_condition_delay && build/host_condition_delay
 //   g++ -std=c++20 -DCAN_INPUT_TIMEOUT_ONLY -I tests/host -I functions -I core -I utils tests/host_selftest.cpp functions/can_input.cpp functions/input.cpp utils/dbc.cpp -o build/host_can_input_timeout && build/host_can_input_timeout
+//   g++ -std=c++20 -DWIRE_LOAD_ONLY -I tests/host -I functions -I core -I utils tests/host_selftest.cpp -o build/host_wire_load && build/host_wire_load
 // Each feature adds its own section below, picked with -D<NAME>_ONLY, and its build line here.
 #include <cassert>
 #include <cstdio>
@@ -163,6 +164,32 @@ int main()
     c.bTimeoutEnabled = true; c.bEnabled = false; idle(9000); assert(k.fVal == 0 && k.fOutput == 0);   // disabled input never uses the value
 
     std::puts("host_selftest CAN_INPUT_TIMEOUT OK");
+    return 0;
+}
+#elif defined(WIRE_LOAD_ONLY)
+#include "wire_load.h"
+
+int main()
+{
+    // 10 A step, tau 10 s, 2 ms steps: 63.2 % of I^2 at one tau, > 99 % at five
+    float fI2 = 0;
+    for (uint32_t t = 0; t < 10000; t += 2)
+        fI2 = FilterI2(fI2, 10.0f, 2, 10);
+    std::printf("after 1 tau: %.1f %% of I^2\n", fI2);
+    assert(fI2 > 62.5f && fI2 < 64.0f);
+    for (uint32_t t = 0; t < 40000; t += 2)
+        fI2 = FilterI2(fI2, 10.0f, 2, 10);
+    assert(fI2 > 99.0f && fI2 <= 100.0f);
+
+    // Current off: decays the same way
+    for (uint32_t t = 0; t < 10000; t += 2)
+        fI2 = FilterI2(fI2, 0.0f, 2, 10);
+    assert(fI2 > 36.0f && fI2 < 37.5f);
+
+    // A step longer than tau (first call after boot) can't overshoot
+    assert(FilterI2(0.0f, 5.0f, 60000, 10) == 25.0f);
+
+    std::puts("host_selftest wire load OK");
     return 0;
 }
 #else

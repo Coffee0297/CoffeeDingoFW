@@ -129,6 +129,26 @@ bool GetAnyPwmEnable()
     }
     return false;
 }
+
+// Wire load %, saturated to 255
+uint8_t GetOutputLoad(uint8_t nOutput)
+{
+    if (nOutput >= NUM_OUTPUTS)
+        return 0;
+
+    const float fLoad = VolatileRead(pf[nOutput].fLoad);
+    return fLoad >= 255.0f ? 255 : (uint8_t)fLoad;
+}
+
+bool GetAnyWireLoadEnable()
+{
+    for (uint8_t i = 0; i < NUM_OUTPUTS; i++)
+    {
+        if (stConfig.stOutput[i].nThermalTau > 0)
+            return true;
+    }
+    return false;
+}
 #endif
 
 #if NUM_DIG_INPUTS > 0
