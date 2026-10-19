@@ -78,19 +78,39 @@ void Pwm::UpdateSoftStart() {
     }
 }
 
+uint16_t Pwm::GetTargetFreq()
+{
+    if (!pConfig->bVariableFreq || pConfig->nFreqInputDenom == 0)
+        return pConfig->nFreq;
+
+    // 16 Hz = slowest period that fits the 16 bit timers at 1 MHz
+    float fFreq = (*pFreqInput) / pConfig->nFreqInputDenom;
+    if (fFreq > 400.0f)
+        fFreq = 400.0f;
+    if (!(fFreq >= 16.0f))
+        fFreq = 16.0f;
+    return (uint16_t)fFreq;
+}
+
 void Pwm::UpdateFrequency()
 {
+    uint16_t nFreq = GetTargetFreq();
+
     // Frequency within range and
     // (Frequency setting has changed or
     // PWM driver frequency != Frequency setting)
-    if (((pConfig->nFreq <= 400) && (pConfig->nFreq > 0)) &&
-        ((pConfig->nFreq != nLastFreq) ||
-        (m_pwm->period != (m_pwmCfg->frequency / pConfig->nFreq))))
+    if (((nFreq <= 400) && (nFreq > 0)) &&
+        ((nFreq != nLastFreq) ||
+        (m_pwm->period != (m_pwmCfg->frequency / nFreq))))
     {
-        pwmChangePeriod(m_pwm, m_pwmCfg->frequency / pConfig->nFreq);
+        pwmChangePeriod(m_pwm, m_pwmCfg->frequency / nFreq);
+
+        // Width was set for the old period, rescale it so the duty holds
+        if (bChannelEnabled)
+            On();
     }
 
-    nLastFreq = pConfig->nFreq;
+    nLastFreq = nFreq;
 }
 
 msg_t Pwm::Init()
