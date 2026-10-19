@@ -24,7 +24,7 @@
 #define DI_PWM_MAX_FREQ 0 // no PWM measuring on the inputs: no RAM left for it
 #define NUM_DIG_INPUTS 8
 #define NUM_ANALOG_INPUTS 5
-#define ROTARY_MAX_POS 8 // ponytail: RAM only holds 8 calibrated positions, 10 once there's room
+#define ROTARY_MAX_POS 10
 #define NUM_VIRT_INPUTS 8
 #define NUM_CAN_INPUTS 8
 #define NUM_CAN_OUTPUTS 8
@@ -33,8 +33,8 @@
 #define NUM_WIPER_SPEED_MAP 0
 #define NUM_COUNTERS 4
 #define NUM_CONDITIONS 8
-#define NUM_MATH 0
-#define NUM_CAN_MSGS 0
+#define NUM_MATH 4
+#define NUM_CAN_MSGS 2
 #define NUM_CURVES 0
 #define NUM_TIMERS 4
 #define NUM_TABLES 0
