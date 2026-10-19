@@ -64,8 +64,11 @@ Keypad keypad[NUM_KEYPADS];
 volatile DeviceState eState = DeviceState::Run;
 float fState; //For var map
 FatalErrorType eError = FatalErrorType::NoError;
-DeviceConfig stConfig;
-DeviceConfig stConfigTemp; // Used for staging new config before applying
+#ifndef CCM_BSS
+#define CCM_BSS
+#endif
+DeviceConfig stConfig CCM_BSS;
+DeviceConfig stConfigTemp CCM_BSS; // Used for staging new config before applying
 float *pVarMap[VAR_MAP_SIZE];
 
 float fBattVolt;
