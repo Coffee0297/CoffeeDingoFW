@@ -499,6 +499,14 @@ void InitVarMap()
     }
     #endif
 
+    #if NUM_OUTPUTS > 0
+    for (uint8_t i = 0; i < NUM_OUTPUTS; i++)
+    {
+        pVarMap[index++] = &pf[i].fWarning;
+        pVarMap[index++] = &pf[i].fOpenLoad;
+    }
+    #endif
+
     //VarMap size must match the expected size
     if (index != VAR_MAP_SIZE)
         Error::SetFatalError(FatalErrorType::ErrVarMap, MsgSrc::Init);

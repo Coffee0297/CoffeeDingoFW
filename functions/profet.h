@@ -139,6 +139,8 @@ public:
     float fCurrent;
     float fOvercurrent;
     float fFault;
+    float fWarning;
+    float fOpenLoad;
 
 private:
     const uint16_t m_num;
