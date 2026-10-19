@@ -149,6 +149,36 @@ static void ApplyLiveConfig() {
 
 static bool bLastWriteWasModified = false;
 
+// Set by a correct Unlock, or by any config command allowed while no password was set
+// (so whoever sets the password keeps access until the next reset)
+static bool bUnlocked = false;
+static uint32_t nLastUnlockFail = 0;
+static bool bUnlockFailed = false;
+#define UNLOCK_RETRY_MS 1000 // after a wrong password, slows guessing to one try per second
+
+bool IsConfigLocked() {
+    return stConfig.stLock.nPassword != 0 && !bUnlocked;
+}
+
+static bool IsLockedCmd(const ParamMsg& msg) {
+    switch (msg.eCmd) {
+        case MsgCmd::Read:
+            // The contact text stays readable so a locked module says who to call
+            return !(msg.nIndex == 0x0200 && msg.nSubIndex != 0);
+        case MsgCmd::Write:
+        case MsgCmd::ReadAll:
+        case MsgCmd::ReadAllModified:
+        case MsgCmd::WriteAll:
+        case MsgCmd::WriteAllModified:
+        case MsgCmd::WriteAllVal:
+        case MsgCmd::WriteAllComplete:
+        case MsgCmd::Bootloader:
+            return true;
+        default:
+            return false;
+    }
+}
+
 #define MAX_WRITE_ALL_MISSING_REPORTED 16
 
 static void SendWriteAllMissingList(bool bForceOverflow) {
@@ -192,7 +222,51 @@ static void ProcessParamMsg(CANRxFrame *rx) {
 
     DecodeParamCmd(rx, &msg);
 
+    if (IsLockedCmd(msg)) {
+        if (IsConfigLocked()) {
+            EncodeParamRsp(&tx, static_cast<uint8_t>(MsgCmd::Locked), msg.nIndex, msg.nSubIndex, static_cast<uint8_t>(msg.eCmd));
+            PostTxFrameWithRetry(&tx);
+            return;
+        }
+        bUnlocked = true;
+    }
+
     switch(msg.eCmd) {
+        case MsgCmd::Unlock: {
+            uint32_t nPw = rx->data8[1] | (rx->data8[2] << 8) | (rx->data8[3] << 16) | ((uint32_t)rx->data8[4] << 24);
+            bool bOk = false;
+            if (!bUnlockFailed || (SYS_TIME - nLastUnlockFail >= UNLOCK_RETRY_MS)) {
+                bOk = (nPw == stConfig.stLock.nPassword);
+                bUnlockFailed = !bOk;
+                nLastUnlockFail = SYS_TIME;
+            }
+            if (bOk)
+                bUnlocked = true;
+            EncodeParamRsp(&tx, static_cast<uint8_t>(MsgCmd::Unlock), bOk, 0, 0);
+            PostTxFrameWithRetry(&tx);
+            break;
+        }
+
+        case MsgCmd::FactoryReset: {
+            // Always allowed: whoever holds the module can wipe it, password included
+            if (rx->data8[1] != 'W' || rx->data8[2] != 'I' || rx->data8[3] != 'P' || rx->data8[4] != 'E')
+                break;
+
+            // Keep the CAN id and bitrate: the module stays reachable and can't collide with another at the default id
+            uint16_t nBaseId = stConfig.stDevice.nBaseId;
+            CanBitrate eCanSpeed = stConfig.stDevice.eCanSpeed;
+            LockConfig();
+            SetAllDefaultParams();
+            stConfig.stDevice.nBaseId = nBaseId;
+            stConfig.stDevice.eCanSpeed = eCanSpeed;
+            ApplyAllConfig();
+            UnlockConfig();
+
+            EncodeParamRsp(&tx, static_cast<uint8_t>(MsgCmd::FactoryReset), WriteConfig() ? 1 : 0, 0, 0);
+            PostTxFrameWithRetry(&tx);
+            break;
+        }
+
         case MsgCmd::Read: {
             const ParamInfo* param = FindParam(msg.nIndex, msg.nSubIndex);
             if (param) {

@@ -7,6 +7,7 @@
 #include "device_config.h"
 #include "mailbox.h"
 #include "enums.h"
+#include "param_protocol.h"
 
 // External variables from pdm.cpp that we need access to
 extern DeviceConfig stConfig;
@@ -67,8 +68,8 @@ void CheckRequestMsgs(CANRxFrame *frame)
     }
 
     #if HAS_USB
-    // Check for bootloader request
-    if ((frame->DLC == 8) &&
+    // Check for bootloader request, refused while the config is locked
+    if ((frame->DLC == 8) && !IsConfigLocked() &&
         (frame->data8[0] == static_cast<uint8_t>(MsgCmd::Bootloader)) && 
         (frame->data8[1] == 'B') && (frame->data8[2] == 'O') && 
         (frame->data8[3] == 'O') && (frame->data8[4] == 'T') && (frame->data8[5] == 'L'))
