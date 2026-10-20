@@ -5,8 +5,6 @@
 
 #define BOARD_ID 2 //Version reply byte 1: 0 PDM, 1 PDM-MAX, 2 CANBoard, 3 PT-DPDM4
 
-#define PROCESS_STACK 0x0400
-
 // Cannot be used for DMA, but can be used for CPU access.
 // If future version has FRAM, this must be removed. 
 // 4KB CCM (ram4), CPU only (no DMA), zeroed at startup like .bss

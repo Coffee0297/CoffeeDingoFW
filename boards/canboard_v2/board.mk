@@ -6,6 +6,10 @@ MCUDIR = boards/stm32f303
 # -fno-strict-aliasing: ChibiOS casts drivers to their base class (getBaseFlash etc.), only safe without it
 USE_OPT := $(subst -O0,-Os,$(filter-out -falign-functions=16,$(USE_OPT))) -fno-strict-aliasing
 
+# Stacks measured in the Sim (CH_DBG_FILL_THREADS): main thread 212 B, interrupts 96 B of 1 KB each
+PROCESS_STACK = 0x200
+USE_EXCEPTIONS_STACKSIZE = 0x200
+
 # List of all the board related files.
 BOARDSRC = ./boards/canboard_v2/board.c
 
