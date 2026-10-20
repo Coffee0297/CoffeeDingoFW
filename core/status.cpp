@@ -212,14 +212,6 @@ float GetCanInOffset(uint8_t nInput)
     return stConfig.stCanInput[nInput].fOffset;
 }
 
-ByteOrder GetCanInByteOrder(uint8_t nInput)
-{
-    if (nInput >= NUM_CAN_INPUTS)
-        return ByteOrder::LittleEndian;
-
-    return stConfig.stCanInput[nInput].eByteOrder;
-}
-
 uint32_t GetCanInOutputs()
 {
     uint32_t result = 0;
