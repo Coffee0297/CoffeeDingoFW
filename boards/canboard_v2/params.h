@@ -60,3 +60,7 @@
 // CAN Messages (2)
 #define ALL_CAN_MSG_PARAMS \
     CAN_MSG_PARAMS(0), CAN_MSG_PARAMS(1)
+
+// PIDs (2)
+#define ALL_PID_PARAMS \
+    PID_PARAMS(0), PID_PARAMS(1)

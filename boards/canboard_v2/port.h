@@ -37,7 +37,7 @@
 #define NUM_TIMERS 4
 #define NUM_TABLES 0
 #define NUM_LATCH_GATES 0
-#define NUM_PIDS 0
+#define NUM_PIDS 2
 #define NUM_KEYPADS 0
 #define HAS_WIPERS FALSE
 #define HAS_COMFORT_BLINK TRUE
@@ -96,7 +96,7 @@
 #define DEVICE_THREAD_STACK 512
 #define CAN_THREAD_STACK 256
 
-#define NUM_TX_MSGS 11
+#define NUM_TX_MSGS 12
 #define DEFAULT_BASE_ID 0x640
 
 #define ADC1_NUM_CHANNELS 5
