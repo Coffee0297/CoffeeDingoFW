@@ -43,6 +43,11 @@ int main()
     c.nIDE = 1; assert(due(7010));                           // as an extended id it's fine
     c.bEnabled = false; assert(!due(8000));
 
+    // the first pass only samples: an input already on at power-up sends no Once frame
+    static CanMsg k2; c.bEnabled = true; c.eMode = CanMsgMode::Once; in = 1; k2.SetConfig(&c);
+    nHostTimeMs = 9000; assert(!k2.Due(false));
+    in = 0; nHostTimeMs = 9010; k2.Due(false); in = 1; nHostTimeMs = 9020; assert(k2.Due(false));
+
     std::puts("host_selftest CAN_MSG OK");
     return 0;
 }
