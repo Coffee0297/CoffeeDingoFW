@@ -43,10 +43,36 @@ static uint16_t nWakes;
 
 // Woken by CAN and not yet heard a real frame: nothing periodic goes out (see CheckQuietWake)
 static volatile bool bQuietWake;
+// Going to sleep: nothing periodic goes out either, a frame now would wake a module that is already asleep
+static volatile bool bSleeping;
 
 // External variables from pdm.cpp that we need access to
 extern DeviceConfig stConfig;
 bool bSleepRequest;
+#if HAS_IGNITION
+extern Ignition ignition;
+#endif
+
+// [Sleep, 'Z', 'Z', 'Z', why (1 auto, 2 forced, 3 request, 4 ignition)], so the tool can tell asleep from unplugged.
+// Not from a quiet wake: it would wake the others again.
+static void SendGoodbye(uint8_t nGoodbyeWhy)
+{
+    if (bQuietWake)
+        return;
+    CANTxFrame txMsg;
+    txMsg.SID = stConfig.stDevice.nBaseId + CONFIG_TX_OFFSET;
+    txMsg.IDE = CAN_IDE_STD;
+    txMsg.DLC = 8;
+    txMsg.data8[0] = static_cast<uint8_t>(MsgCmd::Sleep);
+    txMsg.data8[1] = 'Z';
+    txMsg.data8[2] = 'Z';
+    txMsg.data8[3] = 'Z';
+    txMsg.data8[4] = nGoodbyeWhy;
+    txMsg.data8[5] = 0;
+    txMsg.data8[6] = 0;
+    txMsg.data8[7] = 0;
+    PostTxFrame(&txMsg);
+}
 #if NUM_OUTPUTS > 0
 extern Profet pf[NUM_OUTPUTS];
 #endif
@@ -128,6 +154,20 @@ bool CheckEnterSleep()
         nCountdown = (nIdle >= nTimeout) ? 0 : (nTimeout - nIdle + 999) / 1000;
     nWhy = bForceSleep ? 2 : (bRequestSleep ? 3 : 1);
 
+    #if HAS_IGNITION
+    // The ignition's goodbye goes out when its quiet starts, while the fleet is still awake: at sleep it would
+    // wake the modules that are already asleep
+    static bool bIgnQuiet;
+    if (ignition.TxQuiet() && !bIgnQuiet)
+        SendGoodbye(4);
+    bIgnQuiet = ignition.TxQuiet();
+    if (bSleepAllowed && ignition.SleepRequest())
+    {
+        nWhy = 4;
+        return true;
+    }
+    #endif
+
     return bEnterSleep || bRequestSleep || bForceSleep;
 }
 
@@ -176,9 +216,16 @@ void InitSleep()
     }
 }
 
+// Ignition status byte 7 (dingoFW #74's bits): 0x80 this boot followed a sleep, 1 CAN, 2 digital input, 4 USB, 8 other
+uint8_t WakeSourceBits()
+{
+    static const uint8_t nBits[] = {0, 0x81, 0x82, 0x84, 0x88};
+    return nBits[static_cast<uint8_t>(eWakeReason)];
+}
+
 bool QuietWake()
 {
-    return bQuietWake;
+    return bQuietWake || bSleeping;
 }
 
 // CAN RX thread. A goodbye wakes every sleeping module; if each then started talking (they forget "sleep now"
@@ -218,6 +265,10 @@ static void CaptureWake()
             }
         }
     }
+    // Nothing known pending but another line: say so rather than guess CAN
+    if (eReason != WakeReason::DigitalInput && eReason != WakeReason::Usb &&
+        !(nPr & (1U << PAL_PAD(LINE_CAN_RX))) && (nPr & 0xFFFF))
+        eReason = WakeReason::Other;
     uint32_t nCount = (nWakeKeep[0] == WAKE_MAGIC) ? ((nWakeKeep[1] >> 16) & 0x7FFF) : 0;
     nWakeKeep[1] = WAKE_NEW | (((nCount + 1) & 0x7FFF) << 16) | (nSource << 8) | static_cast<uint32_t>(eReason);
     nWakeKeep[0] = WAKE_MAGIC;
@@ -264,24 +315,9 @@ void EnterSleep()
     WriteRetained();
     #endif
 
-    // Goodbye, so the tool can tell asleep from unplugged: [Sleep, 'Z', 'Z', 'Z', why (1 auto, 2 forced, 3 request)].
-    // Not from a quiet wake: it would wake the others again.
-    if (!bQuietWake)
-    {
-        CANTxFrame txMsg;
-        txMsg.SID = stConfig.stDevice.nBaseId + CONFIG_TX_OFFSET;
-        txMsg.IDE = CAN_IDE_STD;
-        txMsg.DLC = 8;
-        txMsg.data8[0] = static_cast<uint8_t>(MsgCmd::Sleep);
-        txMsg.data8[1] = 'Z';
-        txMsg.data8[2] = 'Z';
-        txMsg.data8[3] = 'Z';
-        txMsg.data8[4] = nWhy;
-        txMsg.data8[5] = 0;
-        txMsg.data8[6] = 0;
-        txMsg.data8[7] = 0;
-        PostTxFrame(&txMsg);
-    }
+    if (nWhy != 4) // the ignition's went out when its quiet started
+        SendGoodbye(nWhy);
+    bSleeping = true;
 
     // The control loop stops in STOP mode, don't leave a digital output latched on
     #if NUM_DIG_OUTPUTS > 0
@@ -292,9 +328,18 @@ void EnterSleep()
     // Let CanTxThread flush queued frames before the transceiver goes to standby
     chThdSleepMilliseconds(100);
 
+    // Stop the CAN controller before its pins change: left running it answers the lost RX pin with an error
+    // frame, and the error flags the other nodes send back wake this module straight up again. Park TX recessive.
+    StopCan();
+    palSetLineMode(LINE_CAN_TX, PAL_MODE_OUTPUT_PUSHPULL);
+    palSetLine(LINE_CAN_TX);
+
     #ifdef LINE_CAN_STANDBY
     palSetLine(LINE_CAN_STANDBY); // CAN disabled
     #endif
+
+    // Let the transceiver settle in standby before a wake source is armed
+    chThdSleepMilliseconds(20);
 
     // A PWM input's edge event would wake it, and the wake event below needs the same EXTI line
     #if DI_PWM_MAX_FREQ > 0
@@ -329,6 +374,9 @@ void EnterSleep()
     palSetLineMode(LINE_USB_DM, PAL_MODE_INPUT);
     palEnableLineEvent(LINE_USB_DM, PAL_EVENT_MODE_BOTH_EDGES | PAL_STM32_PUPDR_FLOATING);
     #endif
+
+    // Arming a line can latch an edge from the pin changing mode; only a real wake may end the stop
+    EXTI->PR = 0x0000FFFF;
 
     EnterStopMode();
     CaptureWake();

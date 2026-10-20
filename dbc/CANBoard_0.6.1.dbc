@@ -134,13 +134,24 @@ BO_ 1611 CANBoardMsg9: 8 Vector__XXX
  SG_ DigitalOutputDC_1 : 0|8@1+ (1,0) [0|0] "%" Vector__XXX
 
 BO_ 1612 CANBoardMsg10: 8 Vector__XXX
- SG_ IgnDash : 20|1@1+ (1,0) [0|1] "" Vector__XXX
- SG_ IgnReady : 19|1@1+ (1,0) [0|1] "" Vector__XXX
- SG_ IgnRunning : 18|1@1+ (1,0) [0|1] "" Vector__XXX
- SG_ IgnCranking : 17|1@1+ (1,0) [0|1] "" Vector__XXX
- SG_ IgnIgnition : 16|1@1+ (1,0) [0|1] "" Vector__XXX
- SG_ IgnState : 8|8@1+ (1,0) [0|3] "" Vector__XXX
- SG_ IgnMarker : 0|8@1+ (1,0) [0|255] "" Vector__XXX
+ SG_ WakeFromSleep : 63|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ WakeOther : 59|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ WakeUsb : 58|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ WakeDigIn : 57|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ WakeCan : 56|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ IgnDashShutdown : 54|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ IgnReady : 53|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ IgnRunning : 52|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ IgnStarter : 51|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ IgnDash : 50|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ IgnAccessory : 49|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ IgnIgnition : 48|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ IgnSleepCountdown : 32|16@1+ (1,0) [0|3600] "" Vector__XXX
+ SG_ IgnLink : 24|8@1+ (1,0) [0|3] "" Vector__XXX
+ SG_ IgnSleepStatus : 16|8@1+ (1,0) [0|7] "" Vector__XXX
+ SG_ IgnDashState : 8|8@1+ (1,0) [0|4] "" Vector__XXX
+ SG_ IgnRole : 4|4@1+ (1,0) [0|2] "" Vector__XXX
+ SG_ IgnState : 0|4@1+ (1,0) [0|3] "" Vector__XXX
 
 BO_ 1613 CANBoardMsg11: 8 Vector__XXX
  SG_ PidOutput_2 : 16|16@1- (0.1,0) [0|0] "" Vector__XXX
@@ -153,6 +164,10 @@ BO_ 1613 CANBoardMsg11: 8 Vector__XXX
 
 
 
+VAL_ 1612 IgnLink 0 "NotFollower" 1 "Ok" 2 "Lost" 3 "SyncIdInvalid" ;
+VAL_ 1612 IgnSleepStatus 0 "Disabled" 1 "Awake" 2 "Counting" 3 "Following" 4 "WaitingDash" 5 "Held" 6 "Quiet" 7 "Sleep" ;
+VAL_ 1612 IgnDashState 0 "Off" 1 "On" 2 "Grace" 3 "Halting" 4 "Restart" ;
+VAL_ 1612 IgnRole 0 "Main" 1 "Follower" 2 "Standalone" ;
 VAL_ 1612 IgnState 0 "Off" 1 "On" 2 "Cranking" 3 "Running" ;
 
 

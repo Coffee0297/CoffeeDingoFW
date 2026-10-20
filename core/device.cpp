@@ -375,8 +375,7 @@ void CyclicUpdate()
         #endif
 
         #if HAS_IGNITION
-        if (rxMsg.IDE == CAN_IDE_STD)
-            ignition.CheckMsg(rxMsg.SID, rxMsg.data8, rxMsg.DLC, SYS_TIME);
+        ignition.CheckMsg(rxMsg, SYS_TIME);
         #endif
 
         #if HAS_LUA
@@ -464,7 +463,22 @@ void CyclicUpdate()
     #endif
 
     #if HAS_IGNITION
-    ignition.Update(SYS_TIME);
+    #if HAS_USB
+    ignition.Update(SYS_TIME, stConfig.stDevice.nBaseId, GetUsbConnected() || IsParamOpInProgress());
+    #else
+    ignition.Update(SYS_TIME, stConfig.stDevice.nBaseId, IsParamOpInProgress());
+    #endif
+    {
+        // Not held back during config reads/writes: a follower would drop its starter
+        CANTxFrame tx;
+        if (ignition.SyncFrame(tx.data8, SYS_TIME) && !CanTxMuted())
+        {
+            tx.IDE = CAN_IDE_STD;
+            tx.SID = ignition.nSyncSid;
+            tx.DLC = 2;
+            PostTxFrame(&tx);
+        }
+    }
     #endif
 
     #if NUM_KEYPADS > 0
@@ -800,6 +814,11 @@ void InitVarMap()
     #if HAS_LUA
     for (uint8_t i = 0; i < NUM_LUA_OUTPUTS; i++)
         pVarMap[index++] = &fLuaOut[i];
+    #endif
+
+    // Appended last, so every index above keeps its meaning
+    #if HAS_IGNITION
+    pVarMap[index++] = &ignition.fDashShutdown;
     #endif
 
     //VarMap size must match the expected size

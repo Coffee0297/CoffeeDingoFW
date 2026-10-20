@@ -168,6 +168,18 @@ void ApplyAllConfig()
     #endif
 }
 
+#if HAS_IGNITION && (NUM_OUTPUTS > 0)
+// An output with an ignition role follows the ignition instead of its input; redone when either config changes
+static void BindIgnitionOutputs()
+{
+    for (uint8_t i = 0; i < NUM_OUTPUTS; i++)
+    {
+        float *pRole = stConfig.stIgnition.bEnabled ? ignition.RoleVar(stConfig.stIgnition.eOutputRole[i]) : nullptr;
+        pf[i].SetInput(pRole ? pRole : pVarMap[stConfig.stOutput[i].nInput]);
+    }
+}
+#endif
+
 void ApplyConfig(uint16_t nIndex)
 {
     uint16_t nBaseIndex = nIndex & 0xFF00;
@@ -301,6 +313,10 @@ void ApplyConfig(uint16_t nIndex)
             pf[i].pPrimary      = &pf[pri];
             pf[pri].pFollower   = &pf[i];
         }
+
+        #if HAS_IGNITION
+        BindIgnitionOutputs();
+        #endif
     }
     #endif
 
@@ -329,6 +345,9 @@ void ApplyConfig(uint16_t nIndex)
     if (nBaseIndex == Ignition::nBaseIndex)
     {
         ignition.SetConfig(&stConfig.stIgnition);
+        #if NUM_OUTPUTS > 0
+        BindIgnitionOutputs();
+        #endif
 
         UpdateCanFilters(); // Follower Rx ID
     }

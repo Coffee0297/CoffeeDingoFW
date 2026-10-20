@@ -401,6 +401,11 @@ int main()
     c.nIDE = 1; assert(due(7010));                           // as an extended id it's fine
     c.bEnabled = false; assert(!due(8000));
 
+    // the first pass only samples: an input already on at power-up sends no Once frame
+    static CanMsg k2; c.bEnabled = true; c.eMode = CanMsgMode::Once; in = 1; k2.SetConfig(&c);
+    nHostTimeMs = 9000; assert(!k2.Due(false));
+    in = 0; nHostTimeMs = 9010; k2.Due(false); in = 1; nHostTimeMs = 9020; assert(k2.Due(false));
+
     std::puts("host_selftest CAN_MSG OK");
     return 0;
 }
@@ -788,7 +793,7 @@ int main()
 #include "ignition.h"
 
 static float v[VAR_MAP_SIZE];
-static Ignition g, fol;   // static: zeroed like the firmware's globals
+static Ignition g, fol, fol2;   // static: zeroed like the firmware's globals
 
 int main()
 {
@@ -799,7 +804,7 @@ int main()
     c.nMaxCrankMs = 2000; c.bCrankWhileHeld = true; c.nDashHoldMs = 1000;
     g.SetConfig(&c);
     uint32_t t = 0xFFFFF000;                                          // crosses the 32-bit ms wrap below
-    auto step = [&](uint32_t dt = 10) { t += dt; g.Update(t); };
+    auto step = [&](uint32_t dt = 10) { t += dt; g.Update(t, 0x680, false); };
 
     // switch + button: ignition with the switch; cranks only with the clutch, while held
     step(); assert(g.eState == IgnState::Off && g.fDash == 0);
@@ -845,27 +850,131 @@ int main()
     v[5] = 0; step(); assert(g.eState == IgnState::On);
     v[4] = 0; step(); assert(g.eState == IgnState::Off);
 
-    // the main module's frame, and a follower that copies it
-    v[4] = 1; c.eMode = IgnMode::SwitchButton; step(200);
-    uint8_t frame[8];
-    assert(g.StateFrame(frame) && frame[0] == 'I' && frame[1] == (uint8_t)IgnState::On && (frame[2] & 0x01));
+    // sync frame on 0x6F1: [state, flags], at once on a change, then every 100 ms
+    v[4] = 1; c.eMode = IgnMode::SwitchButton; c.nSyncId = 0x6F1; step(200);
+    uint8_t frame[8] = {};
+    assert(g.nSyncSid == 0x6F1 && g.SyncFrame(frame, t) && frame[0] == (uint8_t)IgnState::On && frame[1] == 0);
+    assert(!g.SyncFrame(frame, t + 50) && g.SyncFrame(frame, t + 100));
+    v[4] = 0; step(); assert(g.SyncFrame(frame, t) && frame[0] == (uint8_t)IgnState::Off);   // change: at once
+    v[4] = 1; step();
+    // offset mode: base 0x680 + 0x30; inside its own frames (base .. base+2+NUM_TX_MSGS-1) or past 0x7FF: no sync
+    c.eSyncMode = IgnSyncMode::BaseOffset; c.nSyncId = 0x30;
+    assert(Ignition::SyncId(c, 0x680) == 0x6B0);
+    c.nSyncId = 36; assert(Ignition::SyncId(c, 0x680) == IGN_NO_SYNC);   // base+36 = its own Msg 34
+    c.nSyncId = 37; assert(Ignition::SyncId(c, 0x680) == 0x6A5);
+    c.nSyncId = 0x200; assert(Ignition::SyncId(c, 0x680) == IGN_NO_SYNC);   // 0x880 > 0x7FF
+    c.nSyncId = 0x30; g.Update(t, 0x680, false); assert(g.nSyncSid == 0x6B0);
+    c.eSyncMode = IgnSyncMode::Absolute; c.nSyncId = 0x681;              // absolute, on its own Msg -1: refused
+    g.Update(t, 0x680, false); assert(g.nSyncSid == IGN_NO_SYNC && !g.SyncFrame(frame, t + 1000));
+    g.StatusFrame(frame); assert(frame[3] == 3);                          // status: sync id invalid
+    c.nSyncId = 0x6F1; g.Update(t, 0x680, false);
+    g.StatusFrame(frame); assert((frame[0] & 0x0F) == 1 && (frame[0] >> 4) == 0 && frame[3] == 0 && (frame[6] & 0x21) == 0x21);
+    c.eRole = IgnRole::Standalone; g.Update(t, 0x680, false); assert(!g.SyncFrame(frame, t + 5000) && g.eState == IgnState::On);
+    c.eRole = IgnRole::Main;
 
-    const uint16_t id = 0x680 + 32;                                   // a PDM's ignition state msg
-    Config_Ignition f{}; f.bEnabled = true; f.eRole = IgnRole::Follower; f.nMainStateId = id;
+    // follower: std id, DLC >= 2, state byte; offset mode resolves against the main module's base (nSyncBase)
+    Config_Ignition f{}; f.bEnabled = true; f.eRole = IgnRole::Follower; f.nSyncId = 0x30;
+    f.eSyncMode = IgnSyncMode::BaseOffset; f.nSyncBase = 0x680;
     fol.SetConfig(&f);
-    assert(!fol.StateFrame(frame));                                   // followers don't send
-    fol.Update(t); assert(fol.fLinkOk == 0 && fol.fIgnition == 0);   // nothing heard yet: no link
-    fol.CheckMsg(0x681, frame, 8, t); fol.Update(t); assert(fol.fLinkOk == 0);   // not the main module's id
-    frame[0] = 'X'; fol.CheckMsg(id, frame, 8, t); fol.Update(t); assert(fol.fLinkOk == 0);   // no marker
-    frame[0] = 'I'; fol.CheckMsg(id, frame, 8, t);
-    fol.Update(t); assert(fol.fIgnition == 1 && fol.fLinkOk == 1 && fol.eState == IgnState::On);
-    fol.Update(t + 1000); assert(fol.fIgnition == 1 && fol.fLinkOk == 0);   // link lost: holds the last state
+    auto rx = [&](uint32_t sid, uint8_t st, uint8_t dlc = 2, uint8_t ide = CAN_IDE_STD) {
+        CANRxFrame r{}; r.SID = sid; r.EID = sid; r.IDE = ide; r.DLC = dlc; r.data8[0] = st; fol.CheckMsg(r, t); };
+    fol.Update(t, 0x6C0, false); assert(fol.nSyncSid == 0x6B0 && !fol.SyncFrame(frame, t));   // followers don't send
+    assert(fol.fLinkOk == 0 && fol.fIgnition == 0);                    // nothing heard yet: no link
+    fol.StatusFrame(frame); assert(frame[3] == 2 && (frame[0] >> 4) == 1);
+    rx(0x6B1, 1); fol.Update(t, 0x6C0, false); assert(fol.fLinkOk == 0);       // not the sync id
+    rx(0x6B0, 1, 1); fol.Update(t, 0x6C0, false); assert(fol.fLinkOk == 0);    // too short
+    rx(0x6B0, 1, 2, CAN_IDE_EXT); fol.Update(t, 0x6C0, false); assert(fol.fLinkOk == 0);   // extended
+    rx(0x6B0, 1); fol.Update(t, 0x6C0, false);
+    assert(fol.fIgnition == 1 && fol.fLinkOk == 1 && fol.eState == IgnState::On && fol.fReady == 1 && fol.fAccessory == 1);
+    fol.StatusFrame(frame); assert(frame[3] == 1);
+    fol.Update(t + 1000, 0x6C0, false); assert(fol.fIgnition == 1 && fol.fLinkOk == 0);   // link lost: holds the last state
     // ... but not cranking: the starter drops when the main module goes quiet
-    frame[2] = 0x03; fol.CheckMsg(id, frame, 8, t + 2000);
-    fol.Update(t + 2000); assert(fol.fCranking == 1 && fol.fAccessory == 0);
-    fol.Update(t + 2600); assert(fol.fLinkOk == 0 && fol.fCranking == 0 && fol.fIgnition == 1 && fol.fAccessory == 1);
+    t += 2000; rx(0x6B0, 2); fol.Update(t, 0x6C0, false); assert(fol.fCranking == 1 && fol.fAccessory == 0);
+    fol.Update(t + 600, 0x6C0, false); assert(fol.fLinkOk == 0 && fol.fCranking == 0 && fol.fIgnition == 1 && fol.fAccessory == 1);
+    rx(0x6B0, 9); fol.Update(t, 0x6C0, false); assert(fol.eState == IgnState::Off);   // unknown state reads Off
+    f.eSyncMode = IgnSyncMode::Absolute; f.nSyncId = 0x6F1; fol.Update(t, 0x6C0, false); assert(fol.nSyncSid == 0x6F1);
+    rx(0x6F1, 3); fol.Update(t, 0x6C0, false); assert(fol.eState == IgnState::Running && fol.fRunning == 1);
+    t -= 2000;
 
-    c.bEnabled = false; step(); assert(g.fIgnition == 0 && !g.StateFrame(frame));
+    // power-up interlock: a start held when the block starts must be released first
+    c.bEnabled = false; step(); v[5] = 1; c.bEnabled = true; step(); step();
+    assert(g.eState == IgnState::On);                                 // switch on, start held, clutch: no crank
+    v[5] = 0; step(); v[5] = 1; step(); assert(g.eState == IgnState::Cranking);
+    v[5] = 0; step();
+    // stop input (var 2): off while it is on, back with the switch after
+    c.nStopInput = 2; g.SetConfig(&c); v[2] = 1; step(); assert(g.eState == IgnState::Off);
+    v[2] = 0; step(); assert(g.eState == IgnState::On);
+
+    // start button from a CAN frame: ext 0x18FF0001, byte 2, mask 0x04, 500 ms timeout
+    c.bCrankWhileHeld = true; c.nButtonMask = 0x04; c.nButtonIde = 1; c.nButtonId = 0x18FF0001; c.nButtonByte = 2; c.nButtonTimeoutMs = 500;
+    auto btn = [&](uint8_t ide, uint8_t b2, uint8_t dlc = 8) {
+        CANRxFrame r{}; r.IDE = ide; r.EID = 0x18FF0001; r.SID = 0x001; r.DLC = dlc; r.data8[2] = b2; g.CheckMsg(r, t); };
+    v[5] = 1; step(); assert(g.eState == IgnState::On);              // the start var doesn't count any more
+    v[5] = 0;
+    btn(CAN_IDE_STD, 0x04); step(); assert(g.eState == IgnState::On);       // standard frame: not it
+    btn(CAN_IDE_EXT, 0x04, 2); step(); assert(g.eState == IgnState::On);    // too short for byte 2
+    btn(CAN_IDE_EXT, 0x04); step(); assert(g.eState == IgnState::Cranking);
+    step(400); assert(g.eState == IgnState::Cranking);                // within the timeout
+    step(200); assert(g.eState == IgnState::On);                      // sender quiet 610 ms: released
+    btn(CAN_IDE_EXT, 0x00); step(); btn(CAN_IDE_EXT, 0x04); step(); assert(g.eState == IgnState::Cranking);
+    btn(CAN_IDE_EXT, 0x00); step(); assert(g.eState == IgnState::On);
+    c.nButtonMask = 0;
+
+    // output roles
+    assert(g.RoleVar(IgnOutputRole::Ignition) == &g.fIgnition && g.RoleVar(IgnOutputRole::Starter) == &g.fCranking &&
+           g.RoleVar(IgnOutputRole::Accessory) == &g.fAccessory && g.RoleVar(IgnOutputRole::Dash) == &g.fDash &&
+           !g.RoleVar(IgnOutputRole::None));
+
+    // dash power down: grace 1000 ms (cancelled by the ignition), halting 1500 ms (not), then 2 s unpowered
+    c.nDashOffDelayMs = 1500;
+    v[4] = 0; step(); assert(g.eDash == IgnDash::Grace && g.fDash == 1 && g.fDashShutdown == 0);
+    v[4] = 1; step(); assert(g.eDash == IgnDash::On);
+    v[4] = 0; step(); step(1000); assert(g.eDash == IgnDash::Halting && g.fDash == 1 && g.fDashShutdown == 1);
+    g.StatusFrame(frame); assert(frame[1] == (uint8_t)IgnDash::Halting && (frame[6] & 0x44) == 0x44);
+    v[4] = 1; step(); assert(g.eDash == IgnDash::Halting);           // halting can't be called off
+    step(1500); assert(g.eDash == IgnDash::Restart && g.fDash == 0 && g.fDashShutdown == 0);
+    step(1990); assert(g.eDash == IgnDash::Restart);
+    step(20); step(); assert(g.eDash == IgnDash::On && g.fDash == 1);   // then on again with the ignition
+
+    // door (var 3): dash on for 3 s from the edge with the ignition off, even if the door stays open
+    v[4] = 0; c.nDashOffDelayMs = 0; c.nDoorInput = 3; c.nDoorOnMs = 3000; g.SetConfig(&c);
+    step(); step(1100); assert(g.eDash == IgnDash::Off);
+    v[3] = 1; step(); assert(g.fDash == 1 && g.fIgnition == 0);
+    step(2000); assert(g.fDash == 1);
+    step(1000); assert(g.eDash == IgnDash::Grace);
+    step(1000); assert(g.fDash == 0);
+    v[3] = 0; step(); c.nDoorInput = 0; g.SetConfig(&c);
+
+    // ignition sleep, main: 5 s after off = 3 s counting, sleep flag 300 ms, 2 s quiet; USB/config session holds it
+    c.nSleepDelayMs = 5000; c.nDashHoldMs = 0; v[4] = 1; step(); v[4] = 0; step();
+    g.StatusFrame(frame); assert(frame[2] == (uint8_t)IgnSleep::Counting && frame[4] == 5 && frame[5] == 0);
+    step(2980); assert(g.eSleep == IgnSleep::Counting && !g.TxQuiet());
+    t += 20; g.Update(t, 0x680, true); assert(g.eSleep == IgnSleep::Held);
+    step(); assert(!g.TxQuiet() && g.SyncFrame(frame, t) && frame[0] == 0 && frame[1] == 0x01);   // sleep flag first
+    step(300); assert(g.TxQuiet() && !g.SleepRequest());
+    step(1990); assert(!g.SleepRequest());
+    step(20); assert(g.SleepRequest() && g.eSleep == IgnSleep::Sleep);
+    v[4] = 1; step(); assert(!g.TxQuiet() && g.eSleep == IgnSleep::Awake);   // ignition back: awake
+    v[4] = 0; c.nSleepDelayMs = 0; step(); assert(g.eSleep == IgnSleep::Disabled);
+
+    // ignition sleep, follower: quiet with the main module's flag (kept after its frames stop); alone, its own delay
+    Config_Ignition c2{}; c2.bEnabled = true; c2.eRole = IgnRole::Follower; c2.nSyncId = 0x6F1; c2.nSleepDelayMs = 4000;
+    fol2.SetConfig(&c2);
+    uint32_t u = 1000;
+    auto sy = [&](uint8_t st, uint8_t fl) {
+        CANRxFrame r{}; r.SID = 0x6F1; r.IDE = CAN_IDE_STD; r.DLC = 2; r.data8[0] = st; r.data8[1] = fl; fol2.CheckMsg(r, u); };
+    fol2.Update(u, 0x6C0, false); sy(0, 0); fol2.Update(u += 10, 0x6C0, false);
+    assert(fol2.eSleep == IgnSleep::Following);
+    u += 10000; sy(0, 0); fol2.Update(u, 0x6C0, false); assert(fol2.eSleep == IgnSleep::Following && !fol2.TxQuiet());
+    sy(0, 1); fol2.Update(u += 10, 0x6C0, false); assert(fol2.TxQuiet());   // no announce of its own
+    fol2.Update(u += 600, 0x6C0, false); assert(fol2.fLinkOk == 0 && fol2.TxQuiet());
+    fol2.Update(u += 1400, 0x6C0, false); assert(fol2.SleepRequest());
+    c2.bEnabled = false; fol2.Update(u, 0x6C0, false); c2.bEnabled = true;
+    fol2.Update(u += 10, 0x6C0, false); sy(1, 0); fol2.Update(u += 10, 0x6C0, false); sy(0, 0); fol2.Update(u += 10, 0x6C0, false);
+    fol2.Update(u += 600, 0x6C0, false); assert(fol2.fLinkOk == 0 && fol2.eSleep == IgnSleep::Counting);
+    fol2.Update(u += 1500, 0x6C0, false); assert(fol2.TxQuiet());
+
+    c.bEnabled = false; step(); assert(g.fIgnition == 0 && !g.SyncFrame(frame, t + 9999));
     std::puts("host_ignition OK");
     return 0;
 }

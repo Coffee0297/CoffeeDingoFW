@@ -20,6 +20,9 @@ static volatile uint32_t nLastCanRxTime;
 static volatile uint16_t nNoAckBackoff;
 
 extern DeviceConfig stConfig;
+#if HAS_IGNITION
+extern Ignition ignition;
+#endif
 
 // Bus activity for the sleep timer. A wake frame narrows it to that frame (data bytes past the length read as 0),
 // dingoConfig's frames always count
@@ -315,8 +318,12 @@ void UpdateCanFilters()
         #endif
 
         #if HAS_IGNITION
-        if (stConfig.stIgnition.bEnabled && stConfig.stIgnition.eRole == IgnRole::Follower)
-            Add(stConfig.stIgnition.nMainStateId, false);
+        const Config_Ignition &ign = stConfig.stIgnition;
+        const uint16_t nSync = Ignition::SyncId(ign, stConfig.stDevice.nBaseId);
+        if (ign.bEnabled && ign.eRole == IgnRole::Follower && nSync != IGN_NO_SYNC)
+            Add(nSync, false);
+        if (ign.bEnabled && ign.eRole != IgnRole::Follower && ign.nButtonMask && (ign.nButtonIde || ign.nButtonId <= 0x7FF))
+            Add(ign.nButtonId, ign.nButtonIde == 1);
         #endif
     }
 
@@ -336,6 +343,10 @@ bool CanTxMuted()
 {
     #if CAN_SLEEP
     if (QuietWake())
+        return true;
+    #endif
+    #if HAS_IGNITION
+    if (ignition.TxQuiet())
         return true;
     #endif
     return *pVarMap[stConfig.stDevice.nMuteCanTxInput];
