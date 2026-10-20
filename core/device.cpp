@@ -364,12 +364,22 @@ void CyclicUpdate()
     #endif
 
     #if HAS_IGNITION
-    ignition.Update(SYS_TIME, stConfig.stDevice.nBaseId);
+    #if HAS_USB
+    ignition.Update(SYS_TIME, stConfig.stDevice.nBaseId, GetUsbConnected() || IsParamOpInProgress());
+    #else
+    ignition.Update(SYS_TIME, stConfig.stDevice.nBaseId, IsParamOpInProgress());
+    #endif
     #if !defined(STM32G4XX) // FDCAN frames have no SID/IDE; ported with the rest of v8's CAN code
     {
         // Not held back during config reads/writes: a follower would drop its starter
         CANTxFrame tx;
-        if (ignition.SyncFrame(tx.data8, SYS_TIME) && !*pVarMap[stConfig.stDevice.nMuteCanTxInput])
+        // Held back by the mute input and a quiet wake (it would wake the sleeping fleet); the ignition's own
+        // quiet before sleep stops it in CanTxThread
+        bool bHold = *pVarMap[stConfig.stDevice.nMuteCanTxInput];
+        #if CAN_SLEEP
+        bHold = bHold || QuietWake();
+        #endif
+        if (ignition.SyncFrame(tx.data8, SYS_TIME) && !bHold)
         {
             tx.IDE = CAN_IDE_STD;
             tx.SID = ignition.nSyncSid;

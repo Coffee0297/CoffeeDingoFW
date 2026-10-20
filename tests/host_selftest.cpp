@@ -60,7 +60,7 @@ int main()
     c.nMaxCrankMs = 2000; c.bCrankWhileHeld = true; c.nDashHoldMs = 1000;
     g.SetConfig(&c);
     uint32_t t = 0xFFFFF000;                                          // crosses the 32-bit ms wrap below
-    auto step = [&](uint32_t dt = 10) { t += dt; g.Update(t, 0x680); };
+    auto step = [&](uint32_t dt = 10) { t += dt; g.Update(t, 0x680, false); };
 
     // switch + button: ignition with the switch; cranks only with the clutch, while held
     step(); assert(g.eState == IgnState::Off && g.fDash == 0);
@@ -119,13 +119,13 @@ int main()
     c.nSyncId = 32; assert(Ignition::SyncId(c, 0x680) == IGN_NO_SYNC);   // base+32 = its own Msg 30
     c.nSyncId = 33; assert(Ignition::SyncId(c, 0x680) == 0x6A1);
     c.nSyncId = 0x200; assert(Ignition::SyncId(c, 0x680) == IGN_NO_SYNC);   // 0x880 > 0x7FF
-    c.nSyncId = 0x30; g.Update(t, 0x680); assert(g.nSyncSid == 0x6B0);
+    c.nSyncId = 0x30; g.Update(t, 0x680, false); assert(g.nSyncSid == 0x6B0);
     c.eSyncMode = IgnSyncMode::Absolute; c.nSyncId = 0x681;              // absolute, on its own Msg -1: refused
-    g.Update(t, 0x680); assert(g.nSyncSid == IGN_NO_SYNC && !g.SyncFrame(frame, t + 1000));
+    g.Update(t, 0x680, false); assert(g.nSyncSid == IGN_NO_SYNC && !g.SyncFrame(frame, t + 1000));
     g.StatusFrame(frame); assert(frame[3] == 3);                          // status: sync id invalid
-    c.nSyncId = 0x6F1; g.Update(t, 0x680);
+    c.nSyncId = 0x6F1; g.Update(t, 0x680, false);
     g.StatusFrame(frame); assert((frame[0] & 0x0F) == 1 && (frame[0] >> 4) == 0 && frame[3] == 0 && (frame[6] & 0x21) == 0x21);
-    c.eRole = IgnRole::Standalone; g.Update(t, 0x680); assert(!g.SyncFrame(frame, t + 5000) && g.eState == IgnState::On);
+    c.eRole = IgnRole::Standalone; g.Update(t, 0x680, false); assert(!g.SyncFrame(frame, t + 5000) && g.eState == IgnState::On);
     c.eRole = IgnRole::Main;
 
     // follower: std id, DLC >= 2, state byte; offset mode resolves against the main module's base (nSyncBase)
@@ -134,22 +134,22 @@ int main()
     fol.SetConfig(&f);
     auto rx = [&](uint32_t sid, uint8_t st, uint8_t dlc = 2, uint8_t ide = CAN_IDE_STD) {
         CANRxFrame r{}; r.SID = sid; r.EID = sid; r.IDE = ide; r.DLC = dlc; r.data8[0] = st; fol.CheckMsg(r, t); };
-    fol.Update(t, 0x6C0); assert(fol.nSyncSid == 0x6B0 && !fol.SyncFrame(frame, t));   // followers don't send
+    fol.Update(t, 0x6C0, false); assert(fol.nSyncSid == 0x6B0 && !fol.SyncFrame(frame, t));   // followers don't send
     assert(fol.fLinkOk == 0 && fol.fIgnition == 0);                    // nothing heard yet: no link
     fol.StatusFrame(frame); assert(frame[3] == 2 && (frame[0] >> 4) == 1);
-    rx(0x6B1, 1); fol.Update(t, 0x6C0); assert(fol.fLinkOk == 0);       // not the sync id
-    rx(0x6B0, 1, 1); fol.Update(t, 0x6C0); assert(fol.fLinkOk == 0);    // too short
-    rx(0x6B0, 1, 2, CAN_IDE_EXT); fol.Update(t, 0x6C0); assert(fol.fLinkOk == 0);   // extended
-    rx(0x6B0, 1); fol.Update(t, 0x6C0);
+    rx(0x6B1, 1); fol.Update(t, 0x6C0, false); assert(fol.fLinkOk == 0);       // not the sync id
+    rx(0x6B0, 1, 1); fol.Update(t, 0x6C0, false); assert(fol.fLinkOk == 0);    // too short
+    rx(0x6B0, 1, 2, CAN_IDE_EXT); fol.Update(t, 0x6C0, false); assert(fol.fLinkOk == 0);   // extended
+    rx(0x6B0, 1); fol.Update(t, 0x6C0, false);
     assert(fol.fIgnition == 1 && fol.fLinkOk == 1 && fol.eState == IgnState::On && fol.fReady == 1 && fol.fAccessory == 1);
     fol.StatusFrame(frame); assert(frame[3] == 1);
-    fol.Update(t + 1000, 0x6C0); assert(fol.fIgnition == 1 && fol.fLinkOk == 0);   // link lost: holds the last state
+    fol.Update(t + 1000, 0x6C0, false); assert(fol.fIgnition == 1 && fol.fLinkOk == 0);   // link lost: holds the last state
     // ... but not cranking: the starter drops when the main module goes quiet
-    t += 2000; rx(0x6B0, 2); fol.Update(t, 0x6C0); assert(fol.fCranking == 1 && fol.fAccessory == 0);
-    fol.Update(t + 600, 0x6C0); assert(fol.fLinkOk == 0 && fol.fCranking == 0 && fol.fIgnition == 1 && fol.fAccessory == 1);
-    rx(0x6B0, 9); fol.Update(t, 0x6C0); assert(fol.eState == IgnState::Off);   // unknown state reads Off
-    f.eSyncMode = IgnSyncMode::Absolute; f.nSyncId = 0x6F1; fol.Update(t, 0x6C0); assert(fol.nSyncSid == 0x6F1);
-    rx(0x6F1, 3); fol.Update(t, 0x6C0); assert(fol.eState == IgnState::Running && fol.fRunning == 1);
+    t += 2000; rx(0x6B0, 2); fol.Update(t, 0x6C0, false); assert(fol.fCranking == 1 && fol.fAccessory == 0);
+    fol.Update(t + 600, 0x6C0, false); assert(fol.fLinkOk == 0 && fol.fCranking == 0 && fol.fIgnition == 1 && fol.fAccessory == 1);
+    rx(0x6B0, 9); fol.Update(t, 0x6C0, false); assert(fol.eState == IgnState::Off);   // unknown state reads Off
+    f.eSyncMode = IgnSyncMode::Absolute; f.nSyncId = 0x6F1; fol.Update(t, 0x6C0, false); assert(fol.nSyncSid == 0x6F1);
+    rx(0x6F1, 3); fol.Update(t, 0x6C0, false); assert(fol.eState == IgnState::Running && fol.fRunning == 1);
     t -= 2000;
 
     // power-up interlock: a start held when the block starts must be released first

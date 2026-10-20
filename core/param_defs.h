@@ -250,6 +250,7 @@
     {0x1E00, 19, &stConfig.stIgnition.nDashOffDelayMs,  &stConfigTemp.stIgnition.nDashOffDelayMs,  ParamType::UInt16, 0, 0, 60000}, \
     {0x1E00, 20, &stConfig.stIgnition.nDoorInput,       &stConfigTemp.stIgnition.nDoorInput,       ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
     {0x1E00, 21, &stConfig.stIgnition.nDoorOnMs,        &stConfigTemp.stIgnition.nDoorOnMs,        ParamType::UInt32, 60000, 1000, 3600000}, \
+    {0x1E00, 22, &stConfig.stIgnition.nSleepDelayMs,    &stConfigTemp.stIgnition.nSleepDelayMs,    ParamType::UInt32, 0, 0, 3600000}, \
     {0x1E00, 23, &stConfig.stIgnition.nStatusId,        &stConfigTemp.stIgnition.nStatusId,        ParamType::UInt16, 0, 0, 0x7FF}
 
 // One role per output, sub 0x30 + output

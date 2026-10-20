@@ -3,7 +3,7 @@
 
 static inline bool On(const float *p) { return p && *p != 0.0f; }
 
-void Ignition::Update(uint32_t nTimeNow, uint16_t nOwnBase)
+void Ignition::Update(uint32_t nTimeNow, uint16_t nOwnBase, bool bHoldAwake)
 {
     if (!pConfig || !pConfig->bEnabled)
     {
@@ -13,10 +13,20 @@ void Ignition::Update(uint32_t nTimeNow, uint16_t nOwnBase)
         bRxSeen = false;
         bLastDoor = bDoorOn = false;
         bInit = false;
+        bMainSleep = false;
+        ePhase = Phase::Awake;
+        eSleep = IgnSleep::Disabled;
         return;
     }
 
     nSyncSid = SyncId(*pConfig, nOwnBase);
+    bHold = bHoldAwake;
+    nNow = nTimeNow;
+    // First pass after enable: the sleep delay starts now, and the start input is only sampled (below)
+    const bool bFirst = !bInit;
+    bInit = true;
+    if (bFirst)
+        nIdleSince = nTimeNow;
 
     if (pConfig->eRole == IgnRole::Follower)
     {
@@ -35,9 +45,8 @@ void Ignition::Update(uint32_t nTimeNow, uint16_t nOwnBase)
     fLinkOk = 1;
     const bool bStart = StartIn(nTimeNow);
     // A button or key in START held at power-up (or when enabled) must be released before it can crank
-    if (!bInit)
+    if (bFirst)
     {
-        bInit = true;
         bLastStart = bStart;
         bNeedRelease = bStart;
     }
@@ -145,6 +154,68 @@ void Ignition::Publish(uint32_t nTimeNow)
         eDash = IgnDash::Off;
     fDash = (eDash == IgnDash::On || eDash == IgnDash::Grace || eDash == IgnDash::Halting) ? 1 : 0;
     fDashShutdown = eDash == IgnDash::Halting ? 1 : 0;
+
+    UpdateSleep(nTimeNow);
+}
+
+void Ignition::UpdateSleep(uint32_t nTimeNow)
+{
+    const bool bFollower = pConfig->eRole == IgnRole::Follower;
+    if (fIgnition || bDoorOn)
+    {
+        ePhase = Phase::Awake;
+        eSleep = IgnSleep::Awake;
+        nIdleSince = nTimeNow;
+        return;
+    }
+
+    bool bTimeUp;
+    if (bFollower && (fLinkOk || bMainSleep))
+        bTimeUp = bMainSleep; // The main module decides while it is there
+    else if (!pConfig->nSleepDelayMs)
+    {
+        ePhase = Phase::Awake;
+        eSleep = IgnSleep::Disabled;
+        return;
+    }
+    else // The quiet time is part of the delay: asleep nSleepDelayMs after the ignition went off
+        bTimeUp = (nTimeNow - nIdleSince) >= (pConfig->nSleepDelayMs > IGN_QUIET_MS ? pConfig->nSleepDelayMs - IGN_QUIET_MS : 0);
+
+    switch (ePhase)
+    {
+    case Phase::Awake:
+        if (!bTimeUp)
+            eSleep = (bFollower && fLinkOk) ? IgnSleep::Following : IgnSleep::Counting;
+        else if (fDash)
+            eSleep = IgnSleep::WaitingDash;
+        else if (bHold)
+            eSleep = IgnSleep::Held;
+        else
+        {
+            ePhase = (pConfig->eRole == IgnRole::Main) ? Phase::Announce : Phase::Quiet;
+            nPhaseTime = nTimeNow;
+        }
+        break;
+    case Phase::Announce:
+        if ((nTimeNow - nPhaseTime) >= IGN_ANNOUNCE_MS)
+        {
+            ePhase = Phase::Quiet;
+            nPhaseTime = nTimeNow;
+        }
+        break;
+    case Phase::Quiet:
+        if (bHold || !bTimeUp) // USB, a config session, or the main module called it off
+            ePhase = Phase::Awake;
+        else if ((nTimeNow - nPhaseTime) >= IGN_QUIET_MS)
+            ePhase = Phase::Sleep;
+        break;
+    case Phase::Sleep:
+        break;
+    }
+    if (ePhase == Phase::Announce || ePhase == Phase::Quiet)
+        eSleep = IgnSleep::Quiet;
+    else if (ePhase == Phase::Sleep)
+        eSleep = IgnSleep::Sleep;
 }
 
 bool Ignition::StartIn(uint32_t nTimeNow) const
@@ -174,6 +245,7 @@ void Ignition::CheckMsg(const CANRxFrame &rx, uint32_t nTimeNow)
     if (rx.IDE != CAN_IDE_STD || rx.SID != nSyncSid || rx.DLC < 2)
         return;
     eMainState = (rx.data8[0] <= static_cast<uint8_t>(IgnState::Running)) ? static_cast<IgnState>(rx.data8[0]) : IgnState::Off;
+    bMainSleep = rx.data8[1] & 0x01;
     nLastRx = nTimeNow;
     bRxSeen = true;
 }
@@ -207,12 +279,14 @@ bool Ignition::SyncFrame(uint8_t *data, uint32_t nTimeNow)
     if (!pConfig || !pConfig->bEnabled || pConfig->eRole != IgnRole::Main || nSyncSid == IGN_NO_SYNC)
         return false;
     // Changes go out at once, the repeat is what followers time the link on
-    if (eState == eSyncState && (nTimeNow - nSyncTime) < IGN_SYNC_INTERVAL_MS)
+    const bool bSleep = ePhase != Phase::Awake;
+    if (eState == eSyncState && bSleep == bSyncSleep && (nTimeNow - nSyncTime) < IGN_SYNC_INTERVAL_MS)
         return false;
     nSyncTime = nTimeNow;
     eSyncState = eState;
+    bSyncSleep = bSleep;
     data[0] = static_cast<uint8_t>(eState);
-    data[1] = 0; // flags
+    data[1] = bSleep ? 0x01 : 0; // flags: bit 0 sleep (the followers go quiet with the main module)
     return true;
 }
 
@@ -233,11 +307,14 @@ void Ignition::StatusFrame(uint8_t *data)
     const bool bFollower = pConfig->eRole == IgnRole::Follower;
     data[0] = static_cast<uint8_t>(eState) | (static_cast<uint8_t>(pConfig->eRole) << 4);
     data[1] = static_cast<uint8_t>(eDash);
-    data[2] = 0;
+    data[2] = static_cast<uint8_t>(eSleep);
     // Link: 0 not a follower, 1 ok, 2 lost, 3 sync id invalid (a Main can't send, a follower can't listen)
     data[3] = (nSyncSid == IGN_NO_SYNC && pConfig->eRole != IgnRole::Standalone) ? 3 : bFollower ? (fLinkOk ? 1 : 2) : 0;
-    data[4] = 0;
-    data[5] = 0;
+    // Seconds to sleep while counting, rounded up
+    const uint32_t nIdle = nNow - nIdleSince;
+    const uint32_t nLeft = (eSleep == IgnSleep::Counting && nIdle < pConfig->nSleepDelayMs) ? (pConfig->nSleepDelayMs - nIdle + 999) / 1000 : 0;
+    data[4] = nLeft & 0xFF;
+    data[5] = (nLeft >> 8) & 0xFF;
     data[6] = (fIgnition ? 0x01 : 0) | (fAccessory ? 0x02 : 0) | (fDash ? 0x04 : 0) | (fCranking ? 0x08 : 0) |
               (fRunning ? 0x10 : 0) | (fReady ? 0x20 : 0) | (fDashShutdown ? 0x40 : 0);
 }

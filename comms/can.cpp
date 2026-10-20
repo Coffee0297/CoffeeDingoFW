@@ -16,6 +16,19 @@ static volatile uint32_t nLastCanRxTime;
 static volatile bool bTxQuiet;
 
 extern DeviceConfig stConfig;
+#if HAS_IGNITION
+extern Ignition ignition;
+#endif
+
+// The ignition's 2 s before its sleep is the same quiet as #65's before any sleep: only replies to dingoConfig
+static bool TxQuiet()
+{
+    #if HAS_IGNITION
+    if (ignition.TxQuiet())
+        return true;
+    #endif
+    return bTxQuiet;
+}
 
 // Bus activity for the sleep timer. A wake frame narrows it to that frame (data bytes past the length read as 0),
 // dingoConfig's frames always count
@@ -51,7 +64,7 @@ void CanCyclicTxThread(void *)
         bMuted = bMuted || QuietWake();
         #endif
 
-        if (!IsParamOpInProgress() && !bTxQuiet && !bMuted)
+        if (!IsParamOpInProgress() && !TxQuiet() && !bMuted)
         {
             for (uint8_t i = 0; i < NUM_TX_MSGS; i++)
             {
@@ -90,7 +103,7 @@ void CanTxThread(void *)
             const bool bConfigReply = (msg.IDE == CAN_IDE_STD) &&
                                       (msg.SID == stConfig.stDevice.nBaseId + CONFIG_TX_OFFSET);
 
-            if (!bTxQuiet || bConfigReply)
+            if (!TxQuiet() || bConfigReply)
                 canTransmitTimeout(&CAND1, CAN_ANY_MAILBOX, &msg, TIME_MS2I(10));
 
             // Pacing between frames, set CAN_TX_MSG_SPLIT to 0 to send at bus rate
