@@ -210,7 +210,12 @@
     {0x1E00, 10, &stConfig.stIgnition.nSyncId,          &stConfigTemp.stIgnition.nSyncId,          ParamType::UInt16, 0x6F1, 0, 0x7FF}, \
     {0x1E00, 11, &stConfig.stIgnition.eSyncMode,        &stConfigTemp.stIgnition.eSyncMode,        ParamType::Enum,   static_cast<uint32_t>(IgnSyncMode::Absolute), 0, 1}, \
     {0x1E00, 12, &stConfig.stIgnition.nSyncBase,        &stConfigTemp.stIgnition.nSyncBase,        ParamType::UInt16, 0, 0, 0x7FF}, \
-    {0x1E00, 13, &stConfig.stIgnition.nStopInput,       &stConfigTemp.stIgnition.nStopInput,       ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}
+    {0x1E00, 13, &stConfig.stIgnition.nStopInput,       &stConfigTemp.stIgnition.nStopInput,       ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
+    {0x1E00, 14, &stConfig.stIgnition.nButtonIde,       &stConfigTemp.stIgnition.nButtonIde,       ParamType::UInt8,  0, 0, 1}, \
+    {0x1E00, 15, &stConfig.stIgnition.nButtonId,        &stConfigTemp.stIgnition.nButtonId,        ParamType::UInt32, 0, 0, 0x1FFFFFFF}, \
+    {0x1E00, 16, &stConfig.stIgnition.nButtonByte,      &stConfigTemp.stIgnition.nButtonByte,      ParamType::UInt8,  0, 0, 7}, \
+    {0x1E00, 17, &stConfig.stIgnition.nButtonMask,      &stConfigTemp.stIgnition.nButtonMask,      ParamType::UInt8,  0, 0, 255}, \
+    {0x1E00, 18, &stConfig.stIgnition.nButtonTimeoutMs, &stConfigTemp.stIgnition.nButtonTimeoutMs, ParamType::UInt16, 1000, 0, 60000}
 #endif
 
 //=============================================================================
