@@ -133,6 +133,14 @@ BO_ 1611 CANBoardMsg9: 8 Vector__XXX
  SG_ DigitalOutputDC_2 : 8|8@1+ (1,0) [0|0] "%" Vector__XXX
  SG_ DigitalOutputDC_1 : 0|8@1+ (1,0) [0|0] "%" Vector__XXX
 
+BO_ 1612 CANBoardMsg10: 8 Vector__XXX
+ SG_ IgnDash : 20|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ IgnReady : 19|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ IgnRunning : 18|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ IgnCranking : 17|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ IgnIgnition : 16|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ IgnState : 8|8@1+ (1,0) [0|3] "" Vector__XXX
+ SG_ IgnMarker : 0|8@1+ (1,0) [0|255] "" Vector__XXX
 
 
 
@@ -141,6 +149,7 @@ BO_ 1611 CANBoardMsg9: 8 Vector__XXX
 
 
 
+VAL_ 1612 IgnState 0 "Off" 1 "On" 2 "Cranking" 3 "Running" ;
 
 
 
