@@ -8,8 +8,10 @@ void Ignition::Update(uint32_t nTimeNow, uint16_t nOwnBase)
     if (!pConfig || !pConfig->bEnabled)
     {
         eState = IgnState::Off;
-        fIgnition = fAccessory = fCranking = fRunning = fReady = fDash = fLinkOk = 0;
+        eDash = IgnDash::Off;
+        fIgnition = fAccessory = fCranking = fRunning = fReady = fDash = fLinkOk = fDashShutdown = 0;
         bRxSeen = false;
+        bLastDoor = bDoorOn = false;
         bInit = false;
         return;
     }
@@ -100,14 +102,47 @@ void Ignition::Publish(uint32_t nTimeNow)
     fAccessory = (fIgnition && !fCranking) ? 1 : 0;
     fReady = eState == IgnState::On ? 1 : 0; // Start button light: on, not cranking, not running
 
-    if (fIgnition)
+
+    // Door: timed from the rising edge, so a door left open doesn't keep the dash on. Open at power-up counts
+    // (opening it is often what woke the module).
+    const bool bDoor = On(pDoor);
+    if (bDoor && !bLastDoor)
     {
-        bDashHold = true;
-        nIgnOnTime = nTimeNow;
+        bDoorOn = true;
+        nDoorTime = nTimeNow;
     }
-    else if (bDashHold && (nTimeNow - nIgnOnTime) >= pConfig->nDashHoldMs)
-        bDashHold = false;
-    fDash = bDashHold ? 1 : 0;
+    bLastDoor = bDoor;
+    if (bDoorOn && (nTimeNow - nDoorTime) >= pConfig->nDoorOnMs)
+        bDoorOn = false;
+
+    // Dash power down: grace, then (with an off delay) halting with DashShutdown on, then 2 s unpowered
+    const bool bWant = fIgnition || bDoorOn;
+    if (eDash == IgnDash::Off && bWant)
+        eDash = IgnDash::On;
+    if (eDash == IgnDash::On && !bWant)
+    {
+        eDash = IgnDash::Grace;
+        nDashTime = nTimeNow;
+    }
+    if (eDash == IgnDash::Grace)
+    {
+        if (bWant)
+            eDash = IgnDash::On;
+        else if ((nTimeNow - nDashTime) >= pConfig->nDashHoldMs)
+        {
+            eDash = pConfig->nDashOffDelayMs ? IgnDash::Halting : IgnDash::Off;
+            nDashTime = nTimeNow;
+        }
+    }
+    if (eDash == IgnDash::Halting && (nTimeNow - nDashTime) >= pConfig->nDashOffDelayMs)
+    {
+        eDash = IgnDash::Restart;
+        nDashTime = nTimeNow;
+    }
+    if (eDash == IgnDash::Restart && (nTimeNow - nDashTime) >= IGN_RESTART_OFF_MS)
+        eDash = IgnDash::Off;
+    fDash = (eDash == IgnDash::On || eDash == IgnDash::Grace || eDash == IgnDash::Halting) ? 1 : 0;
+    fDashShutdown = eDash == IgnDash::Halting ? 1 : 0;
 }
 
 bool Ignition::StartIn(uint32_t nTimeNow) const
@@ -182,12 +217,12 @@ void Ignition::StatusFrame(uint8_t *data)
 {
     const bool bFollower = pConfig->eRole == IgnRole::Follower;
     data[0] = static_cast<uint8_t>(eState) | (static_cast<uint8_t>(pConfig->eRole) << 4);
-    data[1] = 0;
+    data[1] = static_cast<uint8_t>(eDash);
     data[2] = 0;
     // Link: 0 not a follower, 1 ok, 2 lost, 3 sync id invalid (a Main can't send, a follower can't listen)
     data[3] = (nSyncSid == IGN_NO_SYNC && pConfig->eRole != IgnRole::Standalone) ? 3 : bFollower ? (fLinkOk ? 1 : 2) : 0;
     data[4] = 0;
     data[5] = 0;
     data[6] = (fIgnition ? 0x01 : 0) | (fAccessory ? 0x02 : 0) | (fDash ? 0x04 : 0) | (fCranking ? 0x08 : 0) |
-              (fRunning ? 0x10 : 0) | (fReady ? 0x20 : 0);
+              (fRunning ? 0x10 : 0) | (fReady ? 0x20 : 0) | (fDashShutdown ? 0x40 : 0);
 }

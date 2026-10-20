@@ -812,6 +812,11 @@ void InitVarMap()
         pVarMap[index++] = &fLuaOut[i];
     #endif
 
+    // Appended last, so every index above keeps its meaning
+    #if HAS_IGNITION
+    pVarMap[index++] = &ignition.fDashShutdown;
+    #endif
+
     //VarMap size must match the expected size
     if (index != VAR_MAP_SIZE)
         Error::SetFatalError(FatalErrorType::ErrVarMap, MsgSrc::Init);
