@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <cstddef>
 #include "port.h"
 #include "enums.h"
 #include "dbc.h"
@@ -160,6 +161,11 @@ struct DeviceConfig{
 #if !HAS_EXT_MEMORY
 static_assert(sizeof(DeviceConfig) + sizeof(uint32_t) <= CONFIG_SECTOR_SIZE, "DeviceConfig no longer fits its flash sector");
 #endif
+
+// The CANBoard OpenBLT bootloader reads these from the config sector (bootloader/Source/ARMCM4_STM32F3/can.c)
+static_assert(offsetof(DeviceConfig, stDevice) == 0);
+static_assert(offsetof(Config_Device, nBaseId) == 2);
+static_assert(offsetof(Config_Device, eCanSpeed) == 4);
 
 extern DeviceConfig stConfig;
 extern DeviceConfig stConfigTemp; // Used for staging new config before applying

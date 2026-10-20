@@ -108,20 +108,23 @@ void CheckRequestMsgs(CANRxFrame *frame)
         PostTxFrame(&txMsg);
     }
 
-    #if HAS_USB
     // Check for bootloader request, refused while the config is locked
     if ((frame->DLC == 8) && !IsConfigLocked() &&
         (frame->data8[0] == static_cast<uint8_t>(MsgCmd::Bootloader)) && 
         (frame->data8[1] == 'B') && (frame->data8[2] == 'O') && 
         (frame->data8[3] == 'O') && (frame->data8[4] == 'T') && (frame->data8[5] == 'L'))
     {
+        #if HAS_USB
         // Byte 6: 0 = USB-DFU, 1 = OpenBLT update over CAN
         if (frame->data8[6] == 1)
             RequestBootloaderCan(stConfig.stDevice.nBaseId, static_cast<uint8_t>(stConfig.stDevice.eCanSpeed));
         else
             RequestBootloader();
+        #else
+        // CANBoard: OpenBLT over CAN only, it reads base id and speed from the config sector
+        RequestBootloader();
+        #endif
     }
-    #endif
 
     // Check for restart request - applies settings that need a reset (e.g. CAN bitrate)
     // Unburned settings are lost, host should burn first
