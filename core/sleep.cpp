@@ -136,6 +136,11 @@ uint8_t SleepCountdownSec()
     return nCountdown;
 }
 
+uint8_t SleepBlockers()
+{
+    return nBlockers;
+}
+
 void SendSleepInfo()
 {
     CANTxFrame txMsg;
