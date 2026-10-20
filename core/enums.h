@@ -215,6 +215,15 @@ enum class IgnSyncMode : uint8_t
     BaseOffset // nSyncId is an offset from the main module's base id
 };
 
+enum class IgnDash : uint8_t
+{
+    Off,
+    On,
+    Grace,   // Ignition off, nDashHoldMs in case it comes straight back
+    Halting, // Shutting down (DashShutdown on): left to finish even if the ignition comes back
+    Restart  // Kept unpowered 2 s after halting so it boots clean
+};
+
 // An output given a role follows the ignition instead of its own input
 enum class IgnOutputRole : uint8_t
 {

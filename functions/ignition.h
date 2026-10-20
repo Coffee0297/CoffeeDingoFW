@@ -14,6 +14,7 @@ extern float *pVarMap[VAR_MAP_SIZE];
 #define IGN_LINK_TIMEOUT_MS 500
 #define IGN_SYNC_INTERVAL_MS 100
 #define IGN_NO_SYNC 0xFFFF
+#define IGN_RESTART_OFF_MS 2000
 
 struct Config_Ignition{
   bool bEnabled;
@@ -25,7 +26,7 @@ struct Config_Ignition{
   uint16_t nRunningInput;    // Engine running (0 = none: cranking ends on release or max time)
   uint16_t nMaxCrankMs;
   bool bCrankWhileHeld;      // false: one press cranks until running or the max time
-  uint16_t nDashHoldMs;      // Dash stays on this long after the ignition goes off
+  uint16_t nDashHoldMs;      // Dash grace: stays on this long after the ignition goes off, back on if it returns
   uint16_t nSyncId;          // Sync frame: the std id, or the offset from the main module's base id
   IgnSyncMode eSyncMode;
   uint16_t nSyncBase;        // Follower, BaseOffset: the main module's base id
@@ -36,6 +37,9 @@ struct Config_Ignition{
   uint8_t nButtonByte;
   uint8_t nButtonMask;       // Pressed when any of these bits is set
   uint32_t nButtonId;
+  uint16_t nDashOffDelayMs;  // After the grace: DashShutdown on and the dash still powered this long (0 = none)
+  uint16_t nDoorInput;       // A rising edge powers the dash for nDoorOnMs with the ignition off (0 = none)
+  uint32_t nDoorOnMs;
   #if NUM_OUTPUTS > 0
   IgnOutputRole eOutputRole[NUM_OUTPUTS];
   #endif
@@ -57,6 +61,7 @@ public:
         pAllow = config->nCrankAllowInput ? pVarMap[config->nCrankAllowInput] : nullptr;
         pRunning = config->nRunningInput ? pVarMap[config->nRunningInput] : nullptr;
         pStop = pVarMap[config->nStopInput];
+        pDoor = pVarMap[config->nDoorInput];
     }
 
     // nOwnBase: this module's base id, for a BaseOffset sync id
@@ -80,20 +85,24 @@ public:
     void StatusFrame(uint8_t *data);
 
     IgnState eState = IgnState::Off;
+    IgnDash eDash = IgnDash::Off;
     float fIgnition, fAccessory, fCranking, fRunning, fReady, fDash, fLinkOk;
+    float fDashShutdown; // Dash halting: trigger for a CAN Message with the dash's shutdown frame
 
 private:
     void Publish(uint32_t nTimeNow);
     bool StartIn(uint32_t nTimeNow) const;
 
     Config_Ignition* pConfig = nullptr;
-    float *pIgn, *pStart, *pAllow, *pRunning, *pStop;
+    float *pIgn, *pStart, *pAllow, *pRunning, *pStop, *pDoor;
     bool bInit; // First pass after enable only samples the start input
     bool bLastStart;
     bool bNeedRelease; // Max crank time hit or aborted: the button must be released first
     uint32_t nCrankStart;
-    bool bDashHold;
-    uint32_t nIgnOnTime; // Last time the ignition was on, for the dash hold
+    uint32_t nDashTime;
+    bool bLastDoor;
+    bool bDoorOn;
+    uint32_t nDoorTime;
     bool bRxSeen;
     uint32_t nLastRx;
     bool bButton;

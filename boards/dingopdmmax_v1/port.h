@@ -61,7 +61,7 @@
     (NUM_COUNTERS * 1) + \
     (NUM_TIMERS * 1) + \
     (NUM_MATH * 1) + \
-    (HAS_IGNITION * 7) + \
+    (HAS_IGNITION * 8) + \
     VAR_MAP_WIPER_VARS + \
     (NUM_KEYPADS * (KEYPAD_MAX_BUTTONS + KEYPAD_MAX_DIALS + KEYPAD_MAX_ANALOG_INPUTS)) \
 )   
