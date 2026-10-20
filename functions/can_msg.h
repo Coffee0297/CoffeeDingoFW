@@ -45,6 +45,7 @@ private:
 
     float *pInput;
 
+    bool bInit;
     bool bLast;
     uint32_t nLastSent;
     uint8_t nCount;
