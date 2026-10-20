@@ -97,6 +97,9 @@ endif
 # Define project name here
 PROJECT = $(BOARD)
 
+# Also write build/$(PROJECT).srec, the image format of the OpenBLT CAN update (ChibiOS rules.mk runs $(SREC))
+SREC = $(CP) -O srec
+
 # Target settings. MCU is set in boards/*/board.mk
 
 # Imported source files and paths.
