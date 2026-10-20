@@ -5,7 +5,9 @@ bool CanMsg::Due(bool bMuted)
 {
     // A standard id above 0x7FF would be cut to 11 bits and reach the wrong node, so it never sends
     bool bOn = pConfig->bEnabled && *pInput && (pConfig->nIDE || pConfig->nID <= 0x7FF);
-    bool bRising = bOn && !bLast;
+    // The first pass after enable (or power-up) only samples: an input already on sends no Once frame by itself
+    bool bRising = bOn && !bLast && bInit;
+    bInit = pConfig->bEnabled;
     bLast = bOn;
 
     if (!bOn)
