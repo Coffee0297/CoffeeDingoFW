@@ -117,7 +117,11 @@ void CheckRequestMsgs(CANRxFrame *frame)
         #if HAS_USB
         // Byte 6: 0 = USB-DFU, 1 = OpenBLT update over CAN
         if (frame->data8[6] == 1)
+        {
+            #if defined(STM32F4XX) // OpenBLT is the F4 port: ignored on the G474 (v8)
             RequestBootloaderCan(stConfig.stDevice.nBaseId, static_cast<uint8_t>(stConfig.stDevice.eCanSpeed));
+            #endif
+        }
         else
             RequestBootloader();
         #else

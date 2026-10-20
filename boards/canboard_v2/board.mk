@@ -1,7 +1,6 @@
 # The STM32F303 is a Cortex-M4F: hardware FPU (Makefile default) instead of soft-float.
-# MCUDIR stays cortex-m3: those utils match the F303 (the cortex-m4 ones are F4 specific).
 MCU = cortex-m4
-MCUDIR = boards/cortex-m3
+MCUDIR = boards/stm32f303
 
 # -Os: the 62KB flash can't hold -O0 code plus any new feature; no function alignment padding either
 USE_OPT := $(subst -O0,-Os,$(filter-out -falign-functions=16,$(USE_OPT)))

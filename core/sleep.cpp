@@ -245,7 +245,7 @@ void CheckQuietWake(const CANRxFrame *frame)
 // Right after STOP ends, before the reset clears EXTI->PR: which armed line woke it
 static void CaptureWake()
 {
-    uint32_t nPr = EXTI->PR;
+    uint32_t nPr = EXTI->PR1; // ChibiOS aliases PR1 to PR on the F3/F4
     // A short CAN frame can be gone from PR by now; with CAN armed and nothing else pending, it was CAN
     WakeReason eReason = stConfig.stDevice.bDisableCanWake ? WakeReason::PowerOn : WakeReason::Can;
     uint8_t nSource = 0;
@@ -376,7 +376,7 @@ void EnterSleep()
     #endif
 
     // Arming a line can latch an edge from the pin changing mode; only a real wake may end the stop
-    EXTI->PR = 0x0000FFFF;
+    EXTI->PR1 = 0x0000FFFF; // ChibiOS aliases PR1 to PR on the F3/F4
 
     EnterStopMode();
     CaptureWake();

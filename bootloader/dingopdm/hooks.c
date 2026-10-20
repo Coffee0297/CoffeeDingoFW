@@ -82,7 +82,7 @@ blt_bool CpuUserProgramStartHook(void)
 {
   /* dingoFW: the application requests the CAN bootloader by leaving a magic value at the
    * top of SRAM (0x2001FFF0) and resetting - see RequestBootloaderCan() in
-   * boards/cortex-m4/mcu_utils.cpp. If present, consume it and keep the bootloader active
+   * boards/stm32f446/mcu_utils.cpp. If present, consume it and keep the bootloader active
    * so dingoConfig can reflash over CAN, instead of starting the (otherwise valid)
    * application. That word is outside this bootloader's linked RAM, so neither the app nor
    * this bootloader's startup clears it; we clear it here so the next plain reset (e.g.

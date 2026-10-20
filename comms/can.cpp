@@ -98,8 +98,9 @@ void CanTxThread(void *)
                 nTxFails = 0;
             else if (++nTxFails >= CAN_NOACK_FAIL_STREAK)
             {
-                // All three mailboxes stuck retransmitting: abort them (TSR flags are write-1, so no |=)
-                CAND1.can->TSR = CAN_TSR_ABRQ0 | CAN_TSR_ABRQ1 | CAN_TSR_ABRQ2;
+                // Every TX mailbox stuck retransmitting: abort them (no-op in ChibiOS' FDCAN driver)
+                for (canmbx_t nMbx = 1; nMbx <= CAN_TX_MAILBOXES; nMbx++)
+                    canTryAbortX(&CAND1, nMbx);
                 nNoAckBackoff = CAN_NOACK_BACKOFF_CYCLES;
                 nTxFails = 0;
             }

@@ -136,9 +136,9 @@ uint16_t GetAdcRaw(AnalogChannel channel)
 
 float AdcToVolts(adcsample_t raw)
 {
-    // MCU vRef = 3.3v
+    // MCU vRef = measured VDDA
     // 4095 counts full scale
-    float mcuVolts = (3.3 / 4095) * raw;
+    float mcuVolts = (GetVDDA() / 4095) * raw;
 
     const float rUpper = 4700;
     const float rLower = 10000;
@@ -165,12 +165,16 @@ float GetBattVolt()
 
 float GetTemperature()
 {
-    return (30.0 + ((float)(GetAdcRaw(AnalogChannel::TempSensor) - STM32_TEMP_3V3_30C) / (STM32_TEMP_3V3_110C - STM32_TEMP_3V3_30C)) * (110.0 - 30.0));
+    return (STM32_TS_CAL1_TEMP + ((float)(GetAdcRaw(AnalogChannel::TempSensor) - STM32_TS_CAL1) / (STM32_TS_CAL2 - STM32_TS_CAL1)) * (STM32_TS_CAL2_TEMP - STM32_TS_CAL1_TEMP));
 }
 
 float GetVDDA()
 {
-    return ((float)STM32_VREF_INT_CAL / (float)GetAdcRaw(AnalogChannel::VRefInt)) * 3.3;
+    uint16_t raw = GetAdcRaw(AnalogChannel::VRefInt);
+    if (raw == 0)
+        return 3.3; // No conversion yet, assume nominal
+
+    return ((float)STM32_VREF_INT_CAL / (float)raw) * STM32_CAL_VDDA;
 }
 
 void SetOutputNeopixel(uint8_t index)

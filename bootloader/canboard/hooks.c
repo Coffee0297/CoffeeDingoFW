@@ -52,7 +52,7 @@
 blt_bool CpuUserProgramStartHook(void)
 {
   /* dingoFW: the application requests the CAN bootloader by leaving a magic value in CCM
-   * SRAM (0x10000FFC) and resetting - see RequestBootloader() in boards/cortex-m3/
+   * SRAM (0x10000FFC) and resetting - see RequestBootloader() in boards/stm32f303/
    * mcu_utils.cpp. If present, consume it and keep the bootloader active so dingoConfig can
    * reflash over CAN, instead of starting the (otherwise valid) application. CCM survives the
    * warm reset and neither the app nor this bootloader's startup clears it.
