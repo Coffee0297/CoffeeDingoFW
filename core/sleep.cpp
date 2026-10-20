@@ -38,6 +38,8 @@ static uint16_t nWakes;
 
 // Woken by CAN and not yet heard a real frame: nothing periodic goes out (see CheckQuietWake)
 static volatile bool bQuietWake;
+// Going to sleep: nothing periodic goes out either, a frame now would wake a module that is already asleep
+static volatile bool bSleeping;
 
 // External variables from pdm.cpp that we need access to
 extern DeviceConfig stConfig;
@@ -154,7 +156,7 @@ void InitSleep()
 
 bool QuietWake()
 {
-    return bQuietWake;
+    return bQuietWake || bSleeping;
 }
 
 // CAN RX thread. A goodbye wakes every sleeping module; if each then started talking (they forget "sleep now"
@@ -245,11 +247,21 @@ void EnterSleep()
         txMsg.data8[7] = 0;
         PostTxFrame(&txMsg);
     }
+    bSleeping = true;
 
     // Let CanTxThread flush queued frames before the transceiver goes to standby
     chThdSleepMilliseconds(100);
 
+    // Stop the CAN controller before its pins change: left running it answers the lost RX pin with an error
+    // frame, and the error flags the other nodes send back wake this module straight up again. Park TX recessive.
+    StopCan();
+    palSetLineMode(LINE_CAN_TX, PAL_MODE_OUTPUT_PUSHPULL);
+    palSetLine(LINE_CAN_TX);
+
     palSetLine(LINE_CAN_STANDBY); // CAN disabled
+
+    // Let the transceiver settle in standby before a wake source is armed
+    chThdSleepMilliseconds(20);
 
     // Set wakeup sources
 
@@ -276,6 +288,9 @@ void EnterSleep()
     palEnableLineEvent(LINE_USB_DP, PAL_EVENT_MODE_BOTH_EDGES | PAL_STM32_PUPDR_FLOATING);
     palSetLineMode(LINE_USB_DM, PAL_MODE_INPUT);
     palEnableLineEvent(LINE_USB_DM, PAL_EVENT_MODE_BOTH_EDGES | PAL_STM32_PUPDR_FLOATING);
+
+    // Arming a line can latch an edge from the pin changing mode; only a real wake may end the stop
+    EXTI->PR1 = 0x0000FFFF; // ChibiOS aliases PR1 to PR on the F3/F4
 
     EnterStopMode();
     CaptureWake();
