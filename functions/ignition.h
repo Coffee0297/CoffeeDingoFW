@@ -40,6 +40,7 @@ struct Config_Ignition{
   uint16_t nDashOffDelayMs;  // After the grace: DashShutdown on and the dash still powered this long (0 = none)
   uint16_t nDoorInput;       // A rising edge powers the dash for nDoorOnMs with the ignition off (0 = none)
   uint32_t nDoorOnMs;
+  uint16_t nStatusId;        // Status frame std id (0 = its slot in the module's own frames)
   #if NUM_OUTPUTS > 0
   IgnOutputRole eOutputRole[NUM_OUTPUTS];
   #endif
@@ -73,6 +74,10 @@ public:
     // The sync id: a follower's resolves against nSyncBase, a sender's against its own base and must stay
     // clear of its own frames (base .. base + CYCLIC_TX_OFFSET + NUM_TX_MSGS - 1). IGN_NO_SYNC when invalid.
     static uint16_t SyncId(const Config_Ignition &c, uint16_t nOwnBase);
+
+    // The status frame id: nDefault (its own slot) for 0, else nStatusId unless it lands on another of its own
+    // frames or on the sync id. IGN_NO_SYNC when invalid.
+    static uint16_t StatusId(const Config_Ignition &c, uint16_t nOwnBase, uint16_t nDefault);
 
     // Main: true when the sync frame [state, flags] is due (every 100 ms, at once on a change); nSyncSid is its id
     bool SyncFrame(uint8_t *data, uint32_t nTimeNow);

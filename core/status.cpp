@@ -367,9 +367,10 @@ uint16_t GetTimerElapsed(uint8_t nTimer)
 }
 
 #if HAS_IGNITION
-bool GetIgnitionFrame(uint8_t *data)
+bool GetIgnitionFrame(uint8_t *data, uint16_t &nSid)
 {
-    if (!stConfig.stIgnition.bEnabled)
+    nSid = Ignition::StatusId(stConfig.stIgnition, stConfig.stDevice.nBaseId, nSid);
+    if (!stConfig.stIgnition.bEnabled || nSid == IGN_NO_SYNC)
         return false;
     ignition.StatusFrame(data);
     data[7] = 0;

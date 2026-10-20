@@ -54,7 +54,8 @@ uint8_t GetTimerOutputs();
 uint8_t GetTimersRunning();
 uint16_t GetTimerElapsed(uint8_t nTimer);
 
-bool GetIgnitionFrame(uint8_t *data);
+// nSid: in the frame's own slot, out the id to send on (nStatusId)
+bool GetIgnitionFrame(uint8_t *data, uint16_t &nSid);
 
 bool GetKeypadEnable(uint8_t nKeypad);
 uint32_t GetKeypadButtons(uint8_t nKeypad);
