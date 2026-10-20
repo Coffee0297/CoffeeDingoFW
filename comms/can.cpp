@@ -315,9 +315,12 @@ void UpdateCanFilters()
         #endif
 
         #if HAS_IGNITION
-        const uint16_t nSync = Ignition::SyncId(stConfig.stIgnition, stConfig.stDevice.nBaseId);
-        if (stConfig.stIgnition.bEnabled && stConfig.stIgnition.eRole == IgnRole::Follower && nSync != IGN_NO_SYNC)
+        const Config_Ignition &ign = stConfig.stIgnition;
+        const uint16_t nSync = Ignition::SyncId(ign, stConfig.stDevice.nBaseId);
+        if (ign.bEnabled && ign.eRole == IgnRole::Follower && nSync != IGN_NO_SYNC)
             Add(nSync, false);
+        if (ign.bEnabled && ign.eRole != IgnRole::Follower && ign.nButtonMask && (ign.nButtonIde || ign.nButtonId <= 0x7FF))
+            Add(ign.nButtonId, ign.nButtonIde == 1);
         #endif
     }
 

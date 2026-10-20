@@ -29,7 +29,7 @@ void Ignition::Update(uint32_t nTimeNow, uint16_t nOwnBase)
     }
 
     fLinkOk = 1;
-    const bool bStart = On(pStart);
+    const bool bStart = StartIn(nTimeNow);
     // A button or key in START held at power-up (or when enabled) must be released before it can crank
     if (!bInit)
     {
@@ -110,10 +110,29 @@ void Ignition::Publish(uint32_t nTimeNow)
     fDash = bDashHold ? 1 : 0;
 }
 
+bool Ignition::StartIn(uint32_t nTimeNow) const
+{
+    if (!pConfig->nButtonMask)
+        return On(pStart);
+    // A sender that goes quiet must not leave the button pressed
+    return bButton && (!pConfig->nButtonTimeoutMs || (nTimeNow - nButtonRx) < pConfig->nButtonTimeoutMs);
+}
+
 void Ignition::CheckMsg(const CANRxFrame &rx, uint32_t nTimeNow)
 {
-    if (!pConfig || !pConfig->bEnabled || pConfig->eRole != IgnRole::Follower)
+    if (!pConfig || !pConfig->bEnabled)
         return;
+    if (pConfig->eRole != IgnRole::Follower)
+    {
+        const bool bExt = pConfig->nButtonIde == 1;
+        if (pConfig->nButtonMask && rx.IDE == (bExt ? CAN_IDE_EXT : CAN_IDE_STD) &&
+            (bExt ? rx.EID : rx.SID) == pConfig->nButtonId && rx.DLC > pConfig->nButtonByte)
+        {
+            bButton = (rx.data8[pConfig->nButtonByte] & pConfig->nButtonMask) != 0;
+            nButtonRx = nTimeNow;
+        }
+        return;
+    }
     if (rx.IDE != CAN_IDE_STD || rx.SID != nSyncSid || rx.DLC < 2)
         return;
     eMainState = (rx.data8[0] <= static_cast<uint8_t>(IgnState::Running)) ? static_cast<IgnState>(rx.data8[0]) : IgnState::Off;
