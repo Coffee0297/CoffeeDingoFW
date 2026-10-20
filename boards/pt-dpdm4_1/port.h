@@ -7,8 +7,6 @@
 
 #define PDM_TYPE 2 //2 = PT-DPDM
 
-#define PROCESS_STACK 0x1000
-
 #define HAS_SE_LEDS TRUE
 #define HAS_USB TRUE
 #define HAS_I2C TRUE
@@ -68,7 +66,9 @@
     (NUM_KEYPADS * (KEYPAD_MAX_BUTTONS + KEYPAD_MAX_DIALS + KEYPAD_MAX_ANALOG_INPUTS)) \
 )   
 
-#define MAILBOX_SIZE 256
+#define MAILBOX_SIZE 256 // param FIFO and USB TX queue (USB bursts, not measurable in the Sim)
+#define CAN_RX_MAILBOX_SIZE 64 // Sim peak 4 under a 3000-frame flood; 1 Mbit/s full load is 16 per 2 ms device cycle
+#define CAN_TX_MAILBOX_SIZE 128 // Sim peak 42 (all status frames + Lua)
 #define DEVICE_THREAD_STACK 2048
 #define CAN_THREAD_STACK 512
 
