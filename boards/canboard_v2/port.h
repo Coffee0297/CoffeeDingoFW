@@ -5,8 +5,6 @@
 
 #define BOARD_ID 2 //Version reply byte 1: 0 PDM, 1 PDM-MAX, 2 CANBoard, 3 PT-DPDM4
 
-#define PROCESS_STACK 0x0400
-
 // 4KB CCM (ram4), CPU only (no DMA), zeroed at startup like .bss
 #define CCM_BSS __attribute__((section(".ram4_clear")))
 
