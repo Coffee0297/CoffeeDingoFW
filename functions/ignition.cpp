@@ -168,6 +168,18 @@ bool Ignition::SyncFrame(uint8_t *data, uint32_t nTimeNow)
     return true;
 }
 
+float *Ignition::RoleVar(IgnOutputRole eRole)
+{
+    switch (eRole)
+    {
+    case IgnOutputRole::Ignition: return &fIgnition;
+    case IgnOutputRole::Accessory: return &fAccessory;
+    case IgnOutputRole::Dash: return &fDash;
+    case IgnOutputRole::Starter: return &fCranking;
+    default: return nullptr;
+    }
+}
+
 void Ignition::StatusFrame(uint8_t *data)
 {
     const bool bFollower = pConfig->eRole == IgnRole::Follower;

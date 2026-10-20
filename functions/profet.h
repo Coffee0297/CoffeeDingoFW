@@ -92,6 +92,9 @@ public:
         pwm.SetConfig(&config->stPwm);
     }
 
+    // The ignition switches an output it has a role for from its own signal
+    void SetInput(float *pIn) { pInput = pIn; }
+
     void Update(bool bOutEnabled);
 
     // Dual-channel devices share one IS pin, DSEL picks which channel it reports.

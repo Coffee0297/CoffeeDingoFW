@@ -216,6 +216,10 @@
     {0x1E00, 16, &stConfig.stIgnition.nButtonByte,      &stConfigTemp.stIgnition.nButtonByte,      ParamType::UInt8,  0, 0, 7}, \
     {0x1E00, 17, &stConfig.stIgnition.nButtonMask,      &stConfigTemp.stIgnition.nButtonMask,      ParamType::UInt8,  0, 0, 255}, \
     {0x1E00, 18, &stConfig.stIgnition.nButtonTimeoutMs, &stConfigTemp.stIgnition.nButtonTimeoutMs, ParamType::UInt16, 1000, 0, 60000}
+
+// One role per output, sub 0x30 + output
+#define IGNITION_OUTPUT_PARAMS(i) \
+    {0x1E00, 0x30 + (i), &stConfig.stIgnition.eOutputRole[i], &stConfigTemp.stIgnition.eOutputRole[i], ParamType::Enum, static_cast<uint32_t>(IgnOutputRole::None), 0, 4}
 #endif
 
 //=============================================================================
