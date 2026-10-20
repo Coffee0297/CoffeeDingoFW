@@ -230,7 +230,7 @@
 #define IGNITION_PARAMS() \
     {0x1E00,  0, &stConfig.stIgnition.bEnabled,         &stConfigTemp.stIgnition.bEnabled,         ParamType::Bool,   0, 0, 1}, \
     {0x1E00,  1, &stConfig.stIgnition.eMode,            &stConfigTemp.stIgnition.eMode,            ParamType::Enum,   static_cast<uint32_t>(IgnMode::SwitchButton), 0, 2}, \
-    {0x1E00,  2, &stConfig.stIgnition.eRole,            &stConfigTemp.stIgnition.eRole,            ParamType::Enum,   static_cast<uint32_t>(IgnRole::Main), 0, 1}, \
+    {0x1E00,  2, &stConfig.stIgnition.eRole,            &stConfigTemp.stIgnition.eRole,            ParamType::Enum,   static_cast<uint32_t>(IgnRole::Main), 0, 2}, \
     {0x1E00,  3, &stConfig.stIgnition.nIgnInput,        &stConfigTemp.stIgnition.nIgnInput,        ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
     {0x1E00,  4, &stConfig.stIgnition.nStartInput,      &stConfigTemp.stIgnition.nStartInput,      ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
     {0x1E00,  5, &stConfig.stIgnition.nCrankAllowInput, &stConfigTemp.stIgnition.nCrankAllowInput, ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
@@ -238,7 +238,9 @@
     {0x1E00,  7, &stConfig.stIgnition.nMaxCrankMs,      &stConfigTemp.stIgnition.nMaxCrankMs,      ParamType::UInt16, 5000, 500, 30000}, \
     {0x1E00,  8, &stConfig.stIgnition.bCrankWhileHeld,  &stConfigTemp.stIgnition.bCrankWhileHeld,  ParamType::Bool,   1, 0, 1}, \
     {0x1E00,  9, &stConfig.stIgnition.nDashHoldMs,      &stConfigTemp.stIgnition.nDashHoldMs,      ParamType::UInt16, 0, 0, 60000}, \
-    {0x1E00, 10, &stConfig.stIgnition.nMainStateId,     &stConfigTemp.stIgnition.nMainStateId,     ParamType::UInt16, 0, 0, 2047}
+    {0x1E00, 10, &stConfig.stIgnition.nSyncId,          &stConfigTemp.stIgnition.nSyncId,          ParamType::UInt16, 0x6F1, 0, 0x7FF}, \
+    {0x1E00, 11, &stConfig.stIgnition.eSyncMode,        &stConfigTemp.stIgnition.eSyncMode,        ParamType::Enum,   static_cast<uint32_t>(IgnSyncMode::Absolute), 0, 1}, \
+    {0x1E00, 12, &stConfig.stIgnition.nSyncBase,        &stConfigTemp.stIgnition.nSyncBase,        ParamType::UInt16, 0, 0, 0x7FF}
 #endif
 
 //=============================================================================

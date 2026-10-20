@@ -298,8 +298,7 @@ void CyclicUpdate()
         #endif
 
         #if HAS_IGNITION && !defined(STM32G4XX) // FDCAN frames have no SID/IDE; ported with the rest of v8's CAN code
-        if (rxMsg.IDE == CAN_IDE_STD)
-            ignition.CheckMsg(rxMsg.SID, rxMsg.data8, rxMsg.DLC, SYS_TIME);
+        ignition.CheckMsg(rxMsg, SYS_TIME);
         #endif
     }
 
@@ -365,7 +364,20 @@ void CyclicUpdate()
     #endif
 
     #if HAS_IGNITION
-    ignition.Update(SYS_TIME);
+    ignition.Update(SYS_TIME, stConfig.stDevice.nBaseId);
+    #if !defined(STM32G4XX) // FDCAN frames have no SID/IDE; ported with the rest of v8's CAN code
+    {
+        // Not held back during config reads/writes: a follower would drop its starter
+        CANTxFrame tx;
+        if (ignition.SyncFrame(tx.data8, SYS_TIME) && !*pVarMap[stConfig.stDevice.nMuteCanTxInput])
+        {
+            tx.IDE = CAN_IDE_STD;
+            tx.SID = ignition.nSyncSid;
+            tx.DLC = 2;
+            PostTxFrame(&tx);
+        }
+    }
+    #endif
     #endif
 
     #if NUM_KEYPADS > 0

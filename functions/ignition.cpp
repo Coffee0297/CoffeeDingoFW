@@ -1,29 +1,29 @@
 #include "ignition.h"
+#include "device_config.h"
 
 static inline bool On(const float *p) { return p && *p != 0.0f; }
 
-void Ignition::Update(uint32_t nTimeNow)
+void Ignition::Update(uint32_t nTimeNow, uint16_t nOwnBase)
 {
     if (!pConfig || !pConfig->bEnabled)
     {
         eState = IgnState::Off;
         fIgnition = fAccessory = fCranking = fRunning = fReady = fDash = fLinkOk = 0;
+        bRxSeen = false;
         return;
     }
+
+    nSyncSid = SyncId(*pConfig, nOwnBase);
 
     if (pConfig->eRole == IgnRole::Follower)
     {
         // Hold the last state while the link is down, but never keep cranking
         fLinkOk = (bRxSeen && (nTimeNow - nLastRx) < IGN_LINK_TIMEOUT_MS) ? 1 : 0;
-        if (!fLinkOk)
-            nRxFlags &= ~0x02;
-        fIgnition = (nRxFlags & 0x01) ? 1 : 0;
-        fCranking = (nRxFlags & 0x02) ? 1 : 0;
-        fRunning = (nRxFlags & 0x04) ? 1 : 0;
-        fReady = (nRxFlags & 0x08) ? 1 : 0;
-        fDash = (nRxFlags & 0x10) ? 1 : 0;
-        fAccessory = (fIgnition && !fCranking) ? 1 : 0;
-        eState = fCranking ? IgnState::Cranking : fRunning ? IgnState::Running : fIgnition ? IgnState::On : IgnState::Off;
+        if (fLinkOk)
+            eState = eMainState;
+        else if (eState == IgnState::Cranking)
+            eState = IgnState::On;
+        Publish(nTimeNow);
         return;
     }
 
@@ -100,25 +100,55 @@ void Ignition::Publish(uint32_t nTimeNow)
     fDash = bDashHold ? 1 : 0;
 }
 
-void Ignition::CheckMsg(uint16_t nSid, const uint8_t *data, uint8_t nDlc, uint32_t nTimeNow)
+#if !defined(STM32G4XX) // FDCAN frames have no SID/IDE; ported with the rest of v8's CAN code
+void Ignition::CheckMsg(const CANRxFrame &rx, uint32_t nTimeNow)
 {
     if (!pConfig || !pConfig->bEnabled || pConfig->eRole != IgnRole::Follower)
         return;
-    if (nSid != pConfig->nMainStateId || nDlc < 3 || data[0] != IGN_FRAME_MARKER)
+    if (rx.IDE != CAN_IDE_STD || rx.SID != nSyncSid || rx.DLC < 2)
         return;
-    nRxFlags = data[2];
+    eMainState = (rx.data8[0] <= static_cast<uint8_t>(IgnState::Running)) ? static_cast<IgnState>(rx.data8[0]) : IgnState::Off;
     nLastRx = nTimeNow;
     bRxSeen = true;
 }
+#endif
 
-bool Ignition::StateFrame(uint8_t *data)
+uint16_t Ignition::SyncId(const Config_Ignition &c, uint16_t nOwnBase)
 {
-    if (!pConfig || !pConfig->bEnabled || pConfig->eRole != IgnRole::Main)
+    const bool bFollower = c.eRole == IgnRole::Follower;
+    const uint32_t nId = c.nSyncId + ((c.eSyncMode == IgnSyncMode::BaseOffset) ? (bFollower ? c.nSyncBase : nOwnBase) : 0);
+    if (nId > 0x7FF)
+        return IGN_NO_SYNC;
+    // A sender's sync frame must not land on its own config or status ids
+    if (!bFollower && (nId - nOwnBase) < static_cast<uint32_t>(CYCLIC_TX_OFFSET + NUM_TX_MSGS))
+        return IGN_NO_SYNC;
+    return nId;
+}
+
+bool Ignition::SyncFrame(uint8_t *data, uint32_t nTimeNow)
+{
+    if (!pConfig || !pConfig->bEnabled || pConfig->eRole != IgnRole::Main || nSyncSid == IGN_NO_SYNC)
         return false;
-    data[0] = IGN_FRAME_MARKER;
-    data[1] = static_cast<uint8_t>(eState);
-    data[2] = (fIgnition ? 0x01 : 0) | (fCranking ? 0x02 : 0) | (fRunning ? 0x04 : 0) | (fReady ? 0x08 : 0) | (fDash ? 0x10 : 0);
-    for (uint8_t i = 3; i < 8; i++)
-        data[i] = 0;
+    // Changes go out at once, the repeat is what followers time the link on
+    if (eState == eSyncState && (nTimeNow - nSyncTime) < IGN_SYNC_INTERVAL_MS)
+        return false;
+    nSyncTime = nTimeNow;
+    eSyncState = eState;
+    data[0] = static_cast<uint8_t>(eState);
+    data[1] = 0; // flags
     return true;
+}
+
+void Ignition::StatusFrame(uint8_t *data)
+{
+    const bool bFollower = pConfig->eRole == IgnRole::Follower;
+    data[0] = static_cast<uint8_t>(eState) | (static_cast<uint8_t>(pConfig->eRole) << 4);
+    data[1] = 0;
+    data[2] = 0;
+    // Link: 0 not a follower, 1 ok, 2 lost, 3 sync id invalid (a Main can't send, a follower can't listen)
+    data[3] = (nSyncSid == IGN_NO_SYNC && pConfig->eRole != IgnRole::Standalone) ? 3 : bFollower ? (fLinkOk ? 1 : 2) : 0;
+    data[4] = 0;
+    data[5] = 0;
+    data[6] = (fIgnition ? 0x01 : 0) | (fAccessory ? 0x02 : 0) | (fDash ? 0x04 : 0) | (fCranking ? 0x08 : 0) |
+              (fRunning ? 0x10 : 0) | (fReady ? 0x20 : 0);
 }

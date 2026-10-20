@@ -307,8 +307,9 @@ void UpdateCanFilters()
         #endif
 
         #if HAS_IGNITION
-        if (stConfig.stIgnition.bEnabled && stConfig.stIgnition.eRole == IgnRole::Follower)
-            Add(stConfig.stIgnition.nMainStateId, false);
+        const uint16_t nSync = Ignition::SyncId(stConfig.stIgnition, stConfig.stDevice.nBaseId);
+        if (stConfig.stIgnition.bEnabled && stConfig.stIgnition.eRole == IgnRole::Follower && nSync != IGN_NO_SYNC)
+            Add(nSync, false);
         #endif
     }
 
