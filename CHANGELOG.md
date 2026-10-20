@@ -7,7 +7,7 @@ from `core/device_config.h`. 5.6.x and earlier are on the old fork line (`master
 
 **New base: upstream dingoFW `development`.** The fork's features were re-built one by one on top of upstream's
 current code (each one also offered upstream as its own PR), so this line follows upstream closely from now on.
-**`CONFIG_VERSION` 0x0013 → 0x000A (upstream numbering + the ignition parity round): saved configs reset to defaults. Write the project to the
+**`CONFIG_VERSION` 0x0013 → 0x000B (upstream numbering + the ignition parity round + the status id): saved configs reset to defaults. Write the project to the
 module again after flashing.** Needs a dingoConfig that knows the 5.7 layout (it reads the version and picks it).
 
 ### Changed (compared with 5.6.6)
@@ -20,6 +20,9 @@ module again after flashing.** Needs a dingoConfig that knows the 5.7 layout (it
   module's base in sub 12) every 100 ms and at once on a change, instead of the 'I' state frame on base+36 / base+12.
   That slot now carries the ignition status (state/role, dash state, sleep status, link, sleep countdown, output
   flags, wake source). Every module of a car needs the same sync id.
+- **Ignition status frame on its own id** (0x1E00 sub 23): 0 keeps it on base+36 / base+12, anything else is the std id
+  it goes out on, so modules spaced 0x20 apart keep their status out of the next module's range. An id on another of
+  the module's own frames or on the sync id sends no status.
 - Currents in the status frames stay at 0.1 A/bit as in 5.6 (PDM Msg 0 total, Msg 1/2 outputs; upstream sends 1 A/bit);
   the DBC factor is 0.1.
 - A CAN input that times out goes off as upstream does; "value on timeout" (sub 14) applies only with sub 15 on.
