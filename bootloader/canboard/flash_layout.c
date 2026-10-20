@@ -6,20 +6,24 @@
 *               allowed to erase/program for the application.
 *
 *               Memory map (2 KB sectors, 32 total):
-*                 0x08000000 - 0x08003FFF  sectors  0..7  (16 KB)  bootloader  -> RESERVED
-*                 0x08004000 - 0x0800F7FF  sectors  8..30 (46 KB)  application -> programmable
+*                 0x08000000 - 0x08001FFF  sectors  0..3  ( 8 KB)  bootloader  -> RESERVED
+*                 0x08002000 - 0x0800F7FF  sectors  4..30 (54 KB)  application -> programmable
 *                 0x0800F800 - 0x0800FFFF  sector  31     ( 2 KB)  config      -> EXCLUDED
 *
 *               The config sector is deliberately NOT listed here, so a CAN firmware update
 *               never erases the device's persisted settings. The bootloader's own sectors
-*               (0..7) are also not listed, so it cannot overwrite itself.
+*               (0..3) are also not listed, so it cannot overwrite itself.
 *
-*               flashLayout[0].sector_start (0x08004000) is the application base address that
+*               flashLayout[0].sector_start (0x08002000) is the application base address that
 *               the bootloader jumps to, and the lowest address it will program.
 ****************************************************************************************/
 static const tFlashSector flashLayout[] =
 {
-  { 0x08004000, 0x00800 },              /* flash sector  8 - 2kb  (application base)    */
+  { 0x08002000, 0x00800 },              /* flash sector  4 - 2kb  (application base)    */
+  { 0x08002800, 0x00800 },              /* flash sector  5 - 2kb                        */
+  { 0x08003000, 0x00800 },              /* flash sector  6 - 2kb                        */
+  { 0x08003800, 0x00800 },              /* flash sector  7 - 2kb                        */
+  { 0x08004000, 0x00800 },              /* flash sector  8 - 2kb                        */
   { 0x08004800, 0x00800 },              /* flash sector  9 - 2kb                        */
   { 0x08005000, 0x00800 },              /* flash sector 10 - 2kb                        */
   { 0x08005800, 0x00800 },              /* flash sector 11 - 2kb                        */
