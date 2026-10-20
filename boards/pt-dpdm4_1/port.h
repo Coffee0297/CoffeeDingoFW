@@ -90,7 +90,7 @@
 #define MAILBOX_SIZE 256 // param FIFO and USB TX queue (USB bursts, not measurable in the Sim)
 #define CAN_RX_MAILBOX_SIZE 64 // Sim peak 4 under a 3000-frame flood; 1 Mbit/s full load is 16 per 2 ms device cycle
 #define CAN_TX_MAILBOX_SIZE 128 // Sim peak 42 (all status frames + Lua)
-#define DEVICE_THREAD_STACK 2048
+#define DEVICE_THREAD_STACK 1536 // device and param threads: Sim peak 568 / 816 B of the 2 KB working area
 #define CAN_THREAD_STACK 512
 
 #define NUM_TX_MSGS 36
