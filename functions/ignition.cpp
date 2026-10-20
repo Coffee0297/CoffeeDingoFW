@@ -34,6 +34,8 @@ void Ignition::Update(uint32_t nTimeNow, uint16_t nOwnBase, bool bHoldAwake)
         fLinkOk = (bRxSeen && (nTimeNow - nLastRx) < IGN_LINK_TIMEOUT_MS) ? 1 : 0;
         if (fLinkOk)
             eState = eMainState;
+        else if (!bRxSeen)
+            eState = IgnState::Off; // nothing heard yet, e.g. just switched from Main
         else if (eState == IgnState::Cranking)
             eState = IgnState::On;
         Publish(nTimeNow);
