@@ -19,7 +19,7 @@
 
 #define NUM_OUTPUTS 0
 #define NUM_DIG_OUTPUTS 4
-#define DI_PWM_MAX_FREQ 0 // no PWM measuring on the inputs: no RAM left for it
+#define DI_PWM_MAX_FREQ 5000 // Hz, as on fork master: 10k series, no capacitor, the edge IRQ is the limit
 #define NUM_DIG_INPUTS 8
 #define NUM_ANALOG_INPUTS 5
 #define ROTARY_MAX_POS 10
@@ -62,7 +62,7 @@
 
 #define VAR_MAP_SIZE ( \
     VAR_MAP_SYS_VARS + \
-    (NUM_DIG_INPUTS * 1) + \
+    (NUM_DIG_INPUTS * 3) + \
     (NUM_ANALOG_INPUTS * 5) + \
     (NUM_DIG_OUTPUTS * 1) + \
     (NUM_CAN_INPUTS * 2) + \
