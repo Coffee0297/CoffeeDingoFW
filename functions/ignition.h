@@ -15,6 +15,8 @@ extern float *pVarMap[VAR_MAP_SIZE];
 #define IGN_SYNC_INTERVAL_MS 100
 #define IGN_NO_SYNC 0xFFFF
 #define IGN_RESTART_OFF_MS 2000
+#define IGN_ANNOUNCE_MS 300 // Main: sleep flag in the sync frame this long before going quiet
+#define IGN_QUIET_MS 2000   // All periodic CAN TX stopped this long before sleeping
 
 struct Config_Ignition{
   bool bEnabled;
@@ -40,6 +42,7 @@ struct Config_Ignition{
   uint16_t nDashOffDelayMs;  // After the grace: DashShutdown on and the dash still powered this long (0 = none)
   uint16_t nDoorInput;       // A rising edge powers the dash for nDoorOnMs with the ignition off (0 = none)
   uint32_t nDoorOnMs;
+  uint32_t nSleepDelayMs;    // Sleep this long after the ignition, door and dash went off (0 = the ignition doesn't)
   #if NUM_OUTPUTS > 0
   IgnOutputRole eOutputRole[NUM_OUTPUTS];
   #endif
@@ -64,8 +67,12 @@ public:
         pDoor = pVarMap[config->nDoorInput];
     }
 
-    // nOwnBase: this module's base id, for a BaseOffset sync id
-    void Update(uint32_t nTimeNow, uint16_t nOwnBase);
+    // nOwnBase: this module's base id, for a BaseOffset sync id. bHold: USB connected or a config session, no sleep
+    void Update(uint32_t nTimeNow, uint16_t nOwnBase, bool bHold);
+
+    // Ignition sleep: stop all periodic CAN TX (every module on the bus together), then sleep
+    bool TxQuiet() const { return ePhase == Phase::Quiet || ePhase == Phase::Sleep; }
+    bool SleepRequest() const { return ePhase == Phase::Sleep; }
 
     // Follower: a frame that may be the main module's sync frame; Main/Standalone: the start button frame
     void CheckMsg(const CANRxFrame &rx, uint32_t nTimeNow);
@@ -86,11 +93,15 @@ public:
 
     IgnState eState = IgnState::Off;
     IgnDash eDash = IgnDash::Off;
+    IgnSleep eSleep = IgnSleep::Disabled;
     float fIgnition, fAccessory, fCranking, fRunning, fReady, fDash, fLinkOk;
     float fDashShutdown; // Dash halting: trigger for a CAN Message with the dash's shutdown frame
 
 private:
+    enum class Phase : uint8_t { Awake, Announce, Quiet, Sleep };
+
     void Publish(uint32_t nTimeNow);
+    void UpdateSleep(uint32_t nTimeNow);
     bool StartIn(uint32_t nTimeNow) const;
 
     Config_Ignition* pConfig = nullptr;
@@ -110,4 +121,11 @@ private:
     IgnState eMainState; // Follower: the state in the last sync frame
     uint32_t nSyncTime;
     IgnState eSyncState;
+    bool bSyncSleep;
+    bool bMainSleep; // Follower: the main module's sleep flag, kept after its frames stop (it went quiet)
+    bool bHold;
+    uint32_t nNow;
+    Phase ePhase;
+    uint32_t nIdleSince;
+    uint32_t nPhaseTime;
 };

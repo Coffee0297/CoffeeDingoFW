@@ -20,6 +20,9 @@ static volatile uint32_t nLastCanRxTime;
 static volatile uint16_t nNoAckBackoff;
 
 extern DeviceConfig stConfig;
+#if HAS_IGNITION
+extern Ignition ignition;
+#endif
 
 // Bus activity for the sleep timer. A wake frame narrows it to that frame (data bytes past the length read as 0),
 // dingoConfig's frames always count
@@ -340,6 +343,10 @@ bool CanTxMuted()
 {
     #if CAN_SLEEP
     if (QuietWake())
+        return true;
+    #endif
+    #if HAS_IGNITION
+    if (ignition.TxQuiet())
         return true;
     #endif
     return *pVarMap[stConfig.stDevice.nMuteCanTxInput];
