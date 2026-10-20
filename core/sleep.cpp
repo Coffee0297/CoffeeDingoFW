@@ -190,6 +190,13 @@ void InitSleep()
     }
 }
 
+// Ignition status byte 7 (dingoFW #74's bits): 0x80 this boot followed a sleep, 1 CAN, 2 digital input, 4 USB, 8 other
+uint8_t WakeSourceBits()
+{
+    static const uint8_t nBits[] = {0, 0x81, 0x82, 0x84, 0x88};
+    return nBits[static_cast<uint8_t>(eWakeReason)];
+}
+
 bool QuietWake()
 {
     return bQuietWake;
@@ -230,6 +237,10 @@ static void CaptureWake()
             }
         }
     }
+    // Nothing known pending but another line: say so rather than guess CAN
+    if (eReason != WakeReason::DigitalInput && eReason != WakeReason::Usb &&
+        !(nPr & (1U << PAL_PAD(LINE_CAN_RX))) && (nPr & 0xFFFF))
+        eReason = WakeReason::Other;
     uint32_t nCount = (nWakeKeep[0] == WAKE_MAGIC) ? ((nWakeKeep[1] >> 16) & 0x7FFF) : 0;
     nWakeKeep[1] = WAKE_NEW | (((nCount + 1) & 0x7FFF) << 16) | (nSource << 8) | static_cast<uint32_t>(eReason);
     nWakeKeep[0] = WAKE_MAGIC;

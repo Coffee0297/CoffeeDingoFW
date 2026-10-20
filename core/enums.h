@@ -74,7 +74,8 @@ enum class WakeReason : uint8_t
     PowerOn = 0, // not a wake: power applied, a reset, or the reason was lost
     Can = 1,
     DigitalInput = 2, // wakeSource = input number (1..)
-    Usb = 3
+    Usb = 3,
+    Other = 4 // another EXTI line
 };
 
 enum class MsgType : uint8_t
