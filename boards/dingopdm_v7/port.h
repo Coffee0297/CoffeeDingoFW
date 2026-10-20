@@ -47,7 +47,7 @@
 
 #define HAS_LUA TRUE
 #define NUM_LUA_OUTPUTS 32
-#define LUA_HEAP_SIZE (32 * 1024) // 40 KB on its own branch; the other features need the rest of the RAM
+#define LUA_HEAP_SIZE (40 * 1024) // as on its own branch, after the mailbox/stack trims; 48 KB does not fit
 #define LUA_SCRIPT_MAX 4096
 
 #define HAS_NEOPIXELS FALSE
