@@ -543,10 +543,11 @@ CANTxMsg TxMsg30()
     //=======================================================
     // Build Msg 30 (Ignition status, while the block is enabled)
     //=======================================================
-    stMsg.frame.SID = stConfig.stDevice.nBaseId + CYCLIC_TX_OFFSET + 30;
+    uint16_t nSid = stConfig.stDevice.nBaseId + CYCLIC_TX_OFFSET + 30;
     stMsg.frame.DLC = 8;
 
-    stMsg.bSend = GetIgnitionFrame(stMsg.frame.data8);
+    stMsg.bSend = GetIgnitionFrame(stMsg.frame.data8, nSid);
+    stMsg.frame.SID = nSid;
 
     return stMsg;
 }
