@@ -14,6 +14,7 @@ void SendSleepInfo();
 uint8_t SleepCountdownSec();
 uint8_t SleepBlockers();
 bool QuietWake();
+uint8_t WakeSourceBits();
 void CheckQuietWake(const CANRxFrame *frame);
 void CheckQuietWakeInputs();
 void EnableLineEventWithPull(ioline_t line, InputPull pull);
