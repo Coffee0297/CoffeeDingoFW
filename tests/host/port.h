@@ -3,5 +3,6 @@
 #include <cstdint>
 #include "enums.h"
 #define VAR_MAP_SIZE 8
+#define NUM_TX_MSGS 31
 extern uint32_t nHostTimeMs;
 #define SYS_TIME nHostTimeMs
