@@ -10,6 +10,7 @@ void Ignition::Update(uint32_t nTimeNow, uint16_t nOwnBase)
         eState = IgnState::Off;
         fIgnition = fAccessory = fCranking = fRunning = fReady = fDash = fLinkOk = 0;
         bRxSeen = false;
+        bInit = false;
         return;
     }
 
@@ -29,6 +30,13 @@ void Ignition::Update(uint32_t nTimeNow, uint16_t nOwnBase)
 
     fLinkOk = 1;
     const bool bStart = On(pStart);
+    // A button or key in START held at power-up (or when enabled) must be released before it can crank
+    if (!bInit)
+    {
+        bInit = true;
+        bLastStart = bStart;
+        bNeedRelease = bStart;
+    }
     const bool bPress = bStart && !bLastStart;
     bLastStart = bStart;
     if (!bStart)
@@ -52,6 +60,8 @@ void Ignition::Update(uint32_t nTimeNow, uint16_t nOwnBase)
         else if (bPress && eState == IgnState::Off) bIgn = true;                                    // On, maybe crank below
         break;
     }
+    if (On(pStop))
+        bIgn = false;
 
     if (!bIgn)
     {

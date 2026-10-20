@@ -29,6 +29,7 @@ struct Config_Ignition{
   uint16_t nSyncId;          // Sync frame: the std id, or the offset from the main module's base id
   IgnSyncMode eSyncMode;
   uint16_t nSyncBase;        // Follower, BaseOffset: the main module's base id
+  uint16_t nStopInput;       // Everything off while it is on (0 = none)
 };
 
 class Ignition
@@ -46,6 +47,7 @@ public:
         pStart = pVarMap[config->nStartInput];
         pAllow = config->nCrankAllowInput ? pVarMap[config->nCrankAllowInput] : nullptr;
         pRunning = config->nRunningInput ? pVarMap[config->nRunningInput] : nullptr;
+        pStop = pVarMap[config->nStopInput];
     }
 
     // nOwnBase: this module's base id, for a BaseOffset sync id
@@ -72,7 +74,8 @@ private:
     void Publish(uint32_t nTimeNow);
 
     Config_Ignition* pConfig = nullptr;
-    float *pIgn, *pStart, *pAllow, *pRunning;
+    float *pIgn, *pStart, *pAllow, *pRunning, *pStop;
+    bool bInit; // First pass after enable only samples the start input
     bool bLastStart;
     bool bNeedRelease; // Max crank time hit or aborted: the button must be released first
     uint32_t nCrankStart;
