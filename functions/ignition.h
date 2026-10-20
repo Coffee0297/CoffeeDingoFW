@@ -30,6 +30,12 @@ struct Config_Ignition{
   IgnSyncMode eSyncMode;
   uint16_t nSyncBase;        // Follower, BaseOffset: the main module's base id
   uint16_t nStopInput;       // Everything off while it is on (0 = none)
+  // Start button (or key START) read straight from a CAN frame instead of nStartInput, when nButtonMask != 0
+  uint16_t nButtonTimeoutMs; // No frame for this long reads released (0 = never)
+  uint8_t nButtonIde;
+  uint8_t nButtonByte;
+  uint8_t nButtonMask;       // Pressed when any of these bits is set
+  uint32_t nButtonId;
 };
 
 class Ignition
@@ -53,7 +59,7 @@ public:
     // nOwnBase: this module's base id, for a BaseOffset sync id
     void Update(uint32_t nTimeNow, uint16_t nOwnBase);
 
-    // Follower: a frame that may be the main module's sync frame
+    // Follower: a frame that may be the main module's sync frame; Main/Standalone: the start button frame
     void CheckMsg(const CANRxFrame &rx, uint32_t nTimeNow);
 
     // The sync id: a follower's resolves against nSyncBase, a sender's against its own base and must stay
@@ -72,6 +78,7 @@ public:
 
 private:
     void Publish(uint32_t nTimeNow);
+    bool StartIn(uint32_t nTimeNow) const;
 
     Config_Ignition* pConfig = nullptr;
     float *pIgn, *pStart, *pAllow, *pRunning, *pStop;
@@ -83,6 +90,8 @@ private:
     uint32_t nIgnOnTime; // Last time the ignition was on, for the dash hold
     bool bRxSeen;
     uint32_t nLastRx;
+    bool bButton;
+    uint32_t nButtonRx;
     IgnState eMainState; // Follower: the state in the last sync frame
     uint32_t nSyncTime;
     IgnState eSyncState;
