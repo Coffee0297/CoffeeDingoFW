@@ -23,8 +23,12 @@ module again after flashing.** Needs a dingoConfig that knows the 5.7 layout (it
 - **CANBoard bootloader moved to 8 KB, app at 0x08002000** (was 16 KB / 0x08004000). Every CANBoard needs the new
   `bootloader/canboard` bootloader programmed once over SWD (e.g. `flash-dingo.ps1 -Hex canboard_blt.hex,canboard_v2.hex`);
   after that, updates over CAN as before. The old 16 KB bootloader does not start a 5.7 CANBoard app.
-- CANBoard: ignition block (params 0x1E00, var map 88-94, state frame Msg 10 = base+12) now fits in the larger app region.
-  No PWM input on its digital inputs (no RAM; the PDMs have it).
+- CANBoard: ignition block (params 0x1E00, state frame Msg 10 = base+12), 2 PID blocks (0x2300-0x2301, output frame
+  Msg 11 = base+13) and PWM measuring on all 8 digital inputs (0x1200 subs 5-7, up to 5 kHz) now fit. CANBoard var map
+  after the timers: DI PWM duty/freq 79-94, analog scaled 95-99, math 100-103, ignition 104-110, comfort blink 111-112,
+  PID 113-120.
+- Lua heap 40 KB on the PDMs (CAN RX queue 64 and TX queue 128 frames, device/param thread stacks 1.5 KB, all measured in
+  the Sim with room to spare).
 - PDM apps run behind the OpenBLT bootloader (0x08004000) as before; the bootloader is built from `bootloader/`.
 
 ### Added (new since 5.6.6)
@@ -36,7 +40,11 @@ module again after flashing.** Needs a dingoConfig that knows the 5.7 layout (it
   hardened USB parser, wrap-safe timing, packed CAN filters.
 
 ### Kept from 5.6.6
-- Lua, overload trip log, bench test, identify, sleep info / wake reason / quiet wake, comfort blink, ignition (PDMs and CANBoard), PWM inputs (PDMs),
+- Lua, overload trip log, bench test, identify, sleep info / wake reason / quiet wake, comfort blink, ignition (PDMs and CANBoard), PWM inputs (PDMs and CANBoard),
   math, CAN messages, CANBoard DO PWM / timers / sleep (M4F `-Os` build), USB SLCAN filter + identify, no-ACK
   back-off, board and version markers in the image, `.srec` output, little-endian CAN-input re-broadcast,
   CANBoard sleep countdown in Msg 1.
+
+### Fixed
+- CANBoard: reading the config at boot no longer overflows the main-thread stack into the interrupt stack (a 1.7 KB
+  copy on a 1 KB stack); an interrupt during the read could reset the config to defaults.
