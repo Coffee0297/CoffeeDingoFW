@@ -210,6 +210,18 @@ enum class IgnDash : uint8_t
     Restart  // Kept unpowered 2 s after halting so it boots clean
 };
 
+enum class IgnSleep : uint8_t
+{
+    Disabled,    // No sleep delay: the ignition doesn't put the module to sleep
+    Awake,       // Ignition, door or dash on
+    Counting,    // Sleep delay running
+    Following,   // Follower: sleeps when the main module says so
+    WaitingDash, // Delay over, the dash is still powering down
+    Held,        // Delay over, USB connected or a config session running
+    Quiet,       // All periodic CAN TX stopped, about to sleep
+    Sleep
+};
+
 // An output given a role follows the ignition instead of its own input
 enum class IgnOutputRole : uint8_t
 {

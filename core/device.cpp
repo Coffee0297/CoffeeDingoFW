@@ -346,7 +346,11 @@ void CyclicUpdate()
     #endif
 
     #if HAS_IGNITION
-    ignition.Update(SYS_TIME, stConfig.stDevice.nBaseId);
+    #if HAS_USB
+    ignition.Update(SYS_TIME, stConfig.stDevice.nBaseId, GetUsbConnected() || IsParamOpInProgress());
+    #else
+    ignition.Update(SYS_TIME, stConfig.stDevice.nBaseId, IsParamOpInProgress());
+    #endif
     #if !defined(STM32G4XX) // FDCAN frames have no SID/IDE; ported with the rest of v8's CAN code
     {
         // Not held back during config reads/writes: a follower would drop its starter

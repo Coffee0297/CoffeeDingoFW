@@ -14,6 +14,9 @@
 static volatile uint32_t nLastCanRxTime;
 
 extern DeviceConfig stConfig;
+#if HAS_IGNITION
+extern Ignition ignition;
+#endif
 
 static THD_WORKING_AREA(waCanCyclicTxThread, CAN_THREAD_STACK);
 void CanCyclicTxThread(void *)
@@ -293,6 +296,10 @@ bool CanTxMuted()
 {
     #if CAN_SLEEP
     if (QuietWake())
+        return true;
+    #endif
+    #if HAS_IGNITION
+    if (ignition.TxQuiet())
         return true;
     #endif
     return *pVarMap[stConfig.stDevice.nMuteCanTxInput];
