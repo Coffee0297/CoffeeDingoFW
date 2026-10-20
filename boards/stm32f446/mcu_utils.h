@@ -1,7 +1,11 @@
 #pragma once
 
-#define STM32_TEMP_3V3_30C *((uint16_t *)0x1FFF7A2C)
-#define STM32_TEMP_3V3_110C *((uint16_t *)0x1FFF7A2E)
+// F4 factory calibration is taken at VDDA = 3.3V, at 30C and 110C (RM0390)
+#define STM32_TS_CAL1 *((uint16_t *)0x1FFF7A2C)
+#define STM32_TS_CAL2 *((uint16_t *)0x1FFF7A2E)
+#define STM32_TS_CAL1_TEMP 30.0
+#define STM32_TS_CAL2_TEMP 110.0
+#define STM32_CAL_VDDA 3.3
 
 #define STM32_VREF_INT_CAL *((uint16_t *)0x1FFF7A2A)
 

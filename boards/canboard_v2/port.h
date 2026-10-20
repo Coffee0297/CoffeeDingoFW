@@ -74,7 +74,7 @@
 #define NUM_TX_MSGS 9
 #define DEFAULT_BASE_ID 0x640
 
-#define ADC1_NUM_CHANNELS 5
+#define ADC1_NUM_CHANNELS 6
 #define ADC1_BUF_DEPTH 1
 
 #define ADC2_NUM_CHANNELS   1
@@ -94,7 +94,8 @@ enum class AnalogChannel
     AnIn3,
     AnIn4,
     AnIn5,
-    TempSensor
+    TempSensor,
+    VRefInt
 };
 
 const CANConfig &GetCanConfig(CanBitrate bitrate);
@@ -103,3 +104,4 @@ msg_t InitAdc();
 uint16_t GetAdcRaw(AnalogChannel channel);
 float GetAdcVolts(AnalogChannel channel);
 uint16_t GetTemperature();
+float GetVDDA();
