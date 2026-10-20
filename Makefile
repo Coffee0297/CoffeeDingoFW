@@ -97,6 +97,9 @@ endif
 # Define project name here
 PROJECT = $(BOARD)
 
+# Also emit build/$(PROJECT).srec, the image the CAN flasher (OpenBLT) takes; rules.mk runs $(SREC) as the command
+SREC = $(CP) -O srec
+
 # Target settings. MCU is set in boards/*/board.mk
 
 # Imported source files and paths.
