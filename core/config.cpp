@@ -15,7 +15,9 @@ bool ReadConfig(){
     }
 
     #if !HAS_EXT_MEMORY
-    DeviceConfig tempConfig;
+    // The staging copy, unused until the param thread starts: a local DeviceConfig (1.7 KB) overflowed the CANBoard's
+    // 1 KB main-thread stack into the interrupt stack below it
+    DeviceConfig &tempConfig = stConfigTemp;
 
     flash_error_t err = flashRead(CONFIG_FLASH, CONFIG_FLASH_OFFSET,
                                   sizeof(DeviceConfig), (uint8_t*)&tempConfig);
