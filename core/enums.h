@@ -270,6 +270,16 @@ enum class IgnSyncMode : uint8_t
     BaseOffset // nSyncId is an offset from the main module's base id
 };
 
+// An output given a role follows the ignition instead of its own input
+enum class IgnOutputRole : uint8_t
+{
+    None,      // Its own input applies
+    Ignition,  // On whenever the ignition is on, cranking included
+    Accessory, // Like Ignition, but off while cranking
+    Dash,      // The Dash signal (hold / power down)
+    Starter    // On while cranking
+};
+
 enum class IgnState : uint8_t
 {
     Off,
