@@ -9,6 +9,9 @@
 #include "condition.h"
 #include "timer.h"
 #include "pid.h"
+#if CAN_SLEEP
+#include "sleep.h"
+#endif
 #if NUM_OUTPUTS > 0
 #include "profet.h"
 #endif
@@ -435,7 +438,11 @@ bool GetIgnitionFrame(uint8_t *data)
     if (!stConfig.stIgnition.bEnabled)
         return false;
     ignition.StatusFrame(data);
+    #if CAN_SLEEP
+    data[7] = WakeSourceBits();
+    #else
     data[7] = 0;
+    #endif
     return true;
 }
 #endif
