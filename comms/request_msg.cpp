@@ -357,6 +357,8 @@ void CheckRequestMsgs(CANRxFrame *frame)
         if (eLuaCmd == MsgCmd::LuaWriteComplete)
         {
             stConfig.stLua.nLength = (nOff < LUA_SCRIPT_MAX) ? nOff : LUA_SCRIPT_MAX - 1;
+            // end marker for LuaRead: a shorter program would otherwise read back with the old one's tail
+            stConfig.stLua.acScript[stConfig.stLua.nLength] = '\0';
             txMsg.data8[3] = WriteConfig();
             txMsg.DLC = 4;
             ReloadLua();
