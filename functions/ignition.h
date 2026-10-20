@@ -36,6 +36,9 @@ struct Config_Ignition{
   uint8_t nButtonByte;
   uint8_t nButtonMask;       // Pressed when any of these bits is set
   uint32_t nButtonId;
+  #if NUM_OUTPUTS > 0
+  IgnOutputRole eOutputRole[NUM_OUTPUTS];
+  #endif
 };
 
 class Ignition
@@ -69,6 +72,9 @@ public:
     // Main: true when the sync frame [state, flags] is due (every 100 ms, at once on a change); nSyncSid is its id
     bool SyncFrame(uint8_t *data, uint32_t nTimeNow);
     uint16_t nSyncSid = IGN_NO_SYNC;
+
+    // The signal an output with this role follows, nullptr for None
+    float *RoleVar(IgnOutputRole eRole);
 
     // Status frame bytes 0-6 (byte 7, the wake source, is the caller's)
     void StatusFrame(uint8_t *data);
