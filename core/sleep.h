@@ -12,6 +12,7 @@ void EnterSleep();
 void InitSleep();
 void SendSleepInfo();
 uint8_t SleepCountdownSec();
+uint8_t SleepBlockers();
 bool QuietWake();
 void CheckQuietWake(const CANRxFrame *frame);
 void CheckQuietWakeInputs();
