@@ -59,7 +59,8 @@ bool GetTableEnable(uint8_t nTable);
 float GetTableVal(uint8_t nTable);
 bool GetAnyPidEnable();
 int16_t GetPidOutput(uint8_t nPid);
-bool GetIgnitionFrame(uint8_t *data);
+// nSid: in the frame's own slot, out the id to send on (nStatusId)
+bool GetIgnitionFrame(uint8_t *data, uint16_t &nSid);
 
 bool GetKeypadEnable(uint8_t nKeypad);
 uint32_t GetKeypadButtons(uint8_t nKeypad);

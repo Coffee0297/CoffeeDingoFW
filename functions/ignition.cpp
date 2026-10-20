@@ -261,6 +261,17 @@ uint16_t Ignition::SyncId(const Config_Ignition &c, uint16_t nOwnBase)
     return nId;
 }
 
+uint16_t Ignition::StatusId(const Config_Ignition &c, uint16_t nOwnBase, uint16_t nDefault)
+{
+    if (c.nStatusId == 0 || c.nStatusId == nDefault)
+        return nDefault;
+    if (c.nStatusId > 0x7FF || static_cast<uint32_t>(c.nStatusId - nOwnBase) < static_cast<uint32_t>(CYCLIC_TX_OFFSET + NUM_TX_MSGS))
+        return IGN_NO_SYNC;
+    if (c.eRole != IgnRole::Standalone && c.nStatusId == SyncId(c, nOwnBase))
+        return IGN_NO_SYNC;
+    return c.nStatusId;
+}
+
 bool Ignition::SyncFrame(uint8_t *data, uint32_t nTimeNow)
 {
     if (!pConfig || !pConfig->bEnabled || pConfig->eRole != IgnRole::Main || nSyncSid == IGN_NO_SYNC)
