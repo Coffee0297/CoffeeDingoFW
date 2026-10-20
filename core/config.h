@@ -51,6 +51,9 @@ struct Config_Device{
   bool bConnectUsbToCan;
   uint16_t nMuteCanTxInput;
   uint16_t nForceSleepInput;
+  uint16_t nSleepTimeoutMs;
+  bool bSleepIgnoreAlwaysOn;  // outputs on ALWAYS_TRUE (var 1) don't keep the module awake
+  uint8_t nWakeDigInputMask;  // bit i = digital input i+1 wakes (unless bDisableDigInWake)
 };
 
 struct DeviceConfig{
