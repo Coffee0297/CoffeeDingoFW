@@ -1,5 +1,5 @@
-MCU = cortex-m3
-MCUDIR = boards/cortex-m3
+MCU = cortex-m4
+MCUDIR = boards/stm32f303
 USE_FPU = no
 USE_FPU_OPT =
 

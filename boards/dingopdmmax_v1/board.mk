@@ -1,5 +1,5 @@
 MCU = cortex-m4
-MCUDIR = boards/cortex-m4
+MCUDIR = boards/stm32f446
 
 # List of all the board related files.
 BOARDSRC = ./boards/dingopdmmax_v1/board.c
