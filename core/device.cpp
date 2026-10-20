@@ -535,6 +535,7 @@ void InitVarMap()
     pVarMap[index++] = &ignition.fReady;
     pVarMap[index++] = &ignition.fDash;
     pVarMap[index++] = &ignition.fLinkOk;
+    pVarMap[index++] = &ignition.fDashShutdown;
     #endif
 
     //VarMap size must match the expected size

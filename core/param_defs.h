@@ -215,7 +215,10 @@
     {0x1E00, 15, &stConfig.stIgnition.nButtonId,        &stConfigTemp.stIgnition.nButtonId,        ParamType::UInt32, 0, 0, 0x1FFFFFFF}, \
     {0x1E00, 16, &stConfig.stIgnition.nButtonByte,      &stConfigTemp.stIgnition.nButtonByte,      ParamType::UInt8,  0, 0, 7}, \
     {0x1E00, 17, &stConfig.stIgnition.nButtonMask,      &stConfigTemp.stIgnition.nButtonMask,      ParamType::UInt8,  0, 0, 255}, \
-    {0x1E00, 18, &stConfig.stIgnition.nButtonTimeoutMs, &stConfigTemp.stIgnition.nButtonTimeoutMs, ParamType::UInt16, 1000, 0, 60000}
+    {0x1E00, 18, &stConfig.stIgnition.nButtonTimeoutMs, &stConfigTemp.stIgnition.nButtonTimeoutMs, ParamType::UInt16, 1000, 0, 60000}, \
+    {0x1E00, 19, &stConfig.stIgnition.nDashOffDelayMs,  &stConfigTemp.stIgnition.nDashOffDelayMs,  ParamType::UInt16, 0, 0, 60000}, \
+    {0x1E00, 20, &stConfig.stIgnition.nDoorInput,       &stConfigTemp.stIgnition.nDoorInput,       ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
+    {0x1E00, 21, &stConfig.stIgnition.nDoorOnMs,        &stConfigTemp.stIgnition.nDoorOnMs,        ParamType::UInt32, 60000, 1000, 3600000}
 
 // One role per output, sub 0x30 + output
 #define IGNITION_OUTPUT_PARAMS(i) \
