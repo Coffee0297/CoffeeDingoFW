@@ -24,12 +24,8 @@ void CanCyclicTxThread(void *)
 
     while (1)
     {
-        bool bMuted = *pVarMap[stConfig.stDevice.nMuteCanTxInput];
-        #if CAN_SLEEP
-        bMuted = bMuted || QuietWake();
-        #endif
 
-        if (!IsParamOpInProgress() && !bMuted)
+        if (!IsParamOpInProgress() && !CanTxMuted())
         {
             for (uint8_t i = 0; i < NUM_TX_MSGS; i++)
             {
@@ -291,4 +287,13 @@ void UpdateCanFilters()
 uint32_t GetLastCanRxTime()
 {
     return nLastCanRxTime;
+}
+
+bool CanTxMuted()
+{
+    #if CAN_SLEEP
+    if (QuietWake())
+        return true;
+    #endif
+    return *pVarMap[stConfig.stDevice.nMuteCanTxInput];
 }
