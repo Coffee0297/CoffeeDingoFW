@@ -209,7 +209,8 @@
     {0x1E00,  9, &stConfig.stIgnition.nDashHoldMs,      &stConfigTemp.stIgnition.nDashHoldMs,      ParamType::UInt16, 0, 0, 60000}, \
     {0x1E00, 10, &stConfig.stIgnition.nSyncId,          &stConfigTemp.stIgnition.nSyncId,          ParamType::UInt16, 0x6F1, 0, 0x7FF}, \
     {0x1E00, 11, &stConfig.stIgnition.eSyncMode,        &stConfigTemp.stIgnition.eSyncMode,        ParamType::Enum,   static_cast<uint32_t>(IgnSyncMode::Absolute), 0, 1}, \
-    {0x1E00, 12, &stConfig.stIgnition.nSyncBase,        &stConfigTemp.stIgnition.nSyncBase,        ParamType::UInt16, 0, 0, 0x7FF}
+    {0x1E00, 12, &stConfig.stIgnition.nSyncBase,        &stConfigTemp.stIgnition.nSyncBase,        ParamType::UInt16, 0, 0, 0x7FF}, \
+    {0x1E00, 13, &stConfig.stIgnition.nStopInput,       &stConfigTemp.stIgnition.nStopInput,       ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}
 #endif
 
 //=============================================================================
