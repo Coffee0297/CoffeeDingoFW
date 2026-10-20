@@ -19,8 +19,8 @@
  */
 MEMORY
 {
-    /* OpenBLT bootloader in sectors 0-7 (bootloader/canboard) */
-    flash0 (rx) : org = 0x08004000, len = 46k
+    /* OpenBLT bootloader in sectors 0-3 (8 KB, bootloader/canboard) */
+    flash0 (rx) : org = 0x08002000, len = 54k
     flash_config (r) : org = 0x0800F800, len = 2k
     flash1 (rx) : org = 0x00000000, len = 0
     flash2 (rx) : org = 0x00000000, len = 0
