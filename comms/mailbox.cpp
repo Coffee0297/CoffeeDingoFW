@@ -4,25 +4,33 @@
 
 static chibios_rt::Mailbox<CANRxFrame*, MAILBOX_SIZE> rxMb;
 static chibios_rt::Mailbox<CANTxFrame*, MAILBOX_SIZE> txMb;
+#if HAS_USB
 static chibios_rt::Mailbox<CANTxFrame*, MAILBOX_SIZE> txUsbMb;
+#endif
 
 //Mailbox buffer of CAN frames
 //Not managed by mailbox
 CANRxFrame rxFrames[MAILBOX_SIZE];
 CANTxFrame txFrames[MAILBOX_SIZE];
+#if HAS_USB
 CANTxFrame txUsbFrames[MAILBOX_SIZE];
+#endif
 
 //Used to manage the memory used by the mailbox
 bool rxMsgUsed[MAILBOX_SIZE];
 bool txMsgUsed[MAILBOX_SIZE];
+#if HAS_USB
 bool txUsbMsgUsed[MAILBOX_SIZE];
+#endif
 
 // Mutexes protecting each *MsgUsed array from concurrent access between
 // Post* (CanRxThread/main thread) and Fetch* (CanTxThread/main thread).
 // Priority inheritance ensures no priority inversion across thread priorities.
 static chibios_rt::Mutex rxMutex;
 static chibios_rt::Mutex txMutex;
+#if HAS_USB
 static chibios_rt::Mutex txUsbMutex;
+#endif
 
 msg_t PostTxFrame(CANTxFrame *frame)
 {
@@ -61,6 +69,7 @@ msg_t FetchTxFrame(CANTxFrame *frame, sysinterval_t timeout)
     return result;
 }
 
+#if HAS_USB
 msg_t PostTxUsbFrame(CANTxFrame *frame)
 {
     txUsbMutex.lock();
@@ -93,6 +102,9 @@ msg_t FetchTxUsbFrame(CANTxFrame *frame, sysinterval_t timeout)
     }
     return result;
 }
+#else
+msg_t PostTxUsbFrame(CANTxFrame *) { return MSG_OK; } // no USB: nothing would ever fetch it
+#endif
 
 msg_t PostRxFrame(CANRxFrame *frame)
 {
