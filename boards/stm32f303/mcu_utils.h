@@ -8,3 +8,5 @@
 #define STM32_CAL_VDDA 3.3
 
 #define STM32_VREF_INT_CAL *((uint16_t *)0x1FFFF7BA)
+
+void RequestBootloader();
