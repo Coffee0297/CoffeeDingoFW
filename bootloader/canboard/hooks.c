@@ -215,7 +215,7 @@ blt_bool NvmDoneHook(void)
 blt_bool NvmVerifyChecksumHook(void)
 {
   /* dingoFW app-validity check (replaces OpenBLT's built-in vector-table checksum).
-   * The relocated application starts at 0x08004000. Judge it present/valid by sanity-
+   * The relocated application starts at 0x08002000. Judge it present/valid by sanity-
    * checking its first two vector-table words:
    *   - initial stack pointer must point into the F303's SRAM (0x20000000..0x2001FFFF),
    *   - reset vector must point into the application's flash region with the Thumb bit set.
@@ -224,15 +224,15 @@ blt_bool NvmVerifyChecksumHook(void)
    * Interrupted-flash robustness: FlashDone() writes the vector block LAST, so the vectors
    * only become valid once the whole image has been programmed. A brown-out mid-update leaves
    * the vectors erased -> this check fails -> the bootloader stays active and re-flashable. */
-  blt_int32u initialSp    = *((volatile blt_int32u *)0x08004000UL);
-  blt_int32u resetVector  = *((volatile blt_int32u *)0x08004004UL);
+  blt_int32u initialSp    = *((volatile blt_int32u *)0x08002000UL);
+  blt_int32u resetVector  = *((volatile blt_int32u *)0x08002004UL);
 
   if ((initialSp & 0xFFFE0000UL) != 0x20000000UL)
   {
     return BLT_FALSE;                 /* stack pointer not in SRAM -> no valid app */
   }
   if (((resetVector & 0x1UL) == 0UL) ||
-      (resetVector < 0x08004000UL) || (resetVector >= 0x0800F800UL))
+      (resetVector < 0x08002000UL) || (resetVector >= 0x0800F800UL))
   {
     return BLT_FALSE;                 /* reset vector not a Thumb address in the app region */
   }

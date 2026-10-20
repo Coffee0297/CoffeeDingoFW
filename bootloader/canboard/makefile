@@ -25,7 +25,7 @@
 #****************************************************************************************
 # dingoFW: OpenBLT XCP-over-CAN bootloader for the CANBoard (STM32F303K8). Build with arm-none-eabi-gcc
 # on the PATH:  cd bootloader/canboard && make   ->  bin/canboard_blt.hex (and .srec, .elf)
-# Program it once at 0x08000000 over SWD, then the application, which is linked at 0x08004000.
+# Program it once at 0x08000000 over SWD, then the application, which is linked at 0x08002000.
 # Reflash the application over CAN afterwards.
 SHELL = sh
 

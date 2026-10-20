@@ -64,8 +64,8 @@
 )
 
 // Last 2KB sector of flash (sector 31, 0x0800F800)
-// Program flash runs from 0x08004000 (after the 16 KB OpenBLT bootloader) to the end of sector 30
-// !!! Flash must be smaller than 47104 bytes !!!
+// Program flash runs from 0x08002000 (after the 8 KB OpenBLT bootloader) to the end of sector 30
+// !!! Flash must be smaller than 55296 bytes !!!
 #define CONFIG_SECTOR       31U
 #define CONFIG_FLASH_OFFSET (CONFIG_SECTOR * 2048U)
 #define CONFIG_FLASH        getBaseFlash(&EFLD1)
