@@ -114,6 +114,8 @@ include $(CHIBIOS)/os/hal/osal/rt-nil/osal.mk
 # RTOS files (optional).
 include $(CHIBIOS)/os/rt/rt.mk
 include $(CHIBIOS)/os/various/cpp_wrappers/chcpp.mk
+# newlib syscalls (malloc via chCoreAlloc), chcpp.mk no longer pulls them in
+include $(CHIBIOS)/os/various/newlib_bindings/newlib.mk
 # Auto-build files in ./source recursively.
 include $(CHIBIOS)/tools/mk/autobuild.mk
 
