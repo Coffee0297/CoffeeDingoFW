@@ -259,8 +259,15 @@ enum class IgnMode : uint8_t
 
 enum class IgnRole : uint8_t
 {
-    Main,     // Reads the inputs, runs the state machine, broadcasts the state
-    Follower  // Copies the main module's state frame
+    Main,       // Reads the inputs, runs the state machine, broadcasts the state on the sync id
+    Follower,   // Takes its state from the main module's sync frame
+    Standalone  // Like Main, but broadcasts nothing
+};
+
+enum class IgnSyncMode : uint8_t
+{
+    Absolute,  // nSyncId is the CAN id
+    BaseOffset // nSyncId is an offset from the main module's base id
 };
 
 enum class IgnState : uint8_t

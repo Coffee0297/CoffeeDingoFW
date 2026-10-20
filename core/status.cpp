@@ -432,7 +432,11 @@ int16_t GetPidOutput(uint8_t nPid)
 #if HAS_IGNITION
 bool GetIgnitionFrame(uint8_t *data)
 {
-    return ignition.StateFrame(data);
+    if (!stConfig.stIgnition.bEnabled)
+        return false;
+    ignition.StatusFrame(data);
+    data[7] = 0;
+    return true;
 }
 #endif
 

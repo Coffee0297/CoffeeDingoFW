@@ -195,7 +195,7 @@ CANTxMsg TxMsg10()
 {
     CANTxMsg stMsg;
     //=======================================================
-    // Build Msg 10 (Ignition state, main module only)
+    // Build Msg 10 (Ignition status, while the block is enabled)
     //=======================================================
     stMsg.frame.SID = stConfig.stDevice.nBaseId + CYCLIC_TX_OFFSET + 10;
     stMsg.frame.DLC = 8;
