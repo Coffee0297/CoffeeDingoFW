@@ -3,6 +3,7 @@
 //   g++ -std=c++20 -I tests/host -I functions -I core -I utils tests/host_selftest.cpp functions/timer.cpp -o build/host_selftest && build/host_selftest
 //   g++ -std=c++20 -DMATH_ONLY -I tests/host -I functions -I core -I utils tests/host_selftest.cpp functions/math_block.cpp -o build/host_math && build/host_math
 //   g++ -std=c++20 -Wall -DIGNITION_ONLY -I tests/host -I functions -I core -I utils tests/host_selftest.cpp functions/ignition.cpp -o build/host_ignition && build/host_ignition
+//   g++ -std=c++20 -Wall -DIGN_STATUS_ID_ONLY -I tests/host -I functions -I core -I utils tests/host_selftest.cpp functions/ignition.cpp -o build/host_ign_status_id && build/host_ign_status_id
 // Each feature adds its own section below, picked with -D<NAME>_ONLY, and its build line here.
 #include <cassert>
 #include <cstdio>
@@ -202,6 +203,32 @@ int main()
 
     c.bEnabled = false; step(); assert(g.fIgnition == 0 && !g.SyncFrame(frame, t + 9999));
     std::puts("host_ignition OK");
+    return 0;
+}
+#elif defined(IGN_STATUS_ID_ONLY)
+#include "ignition.h"
+
+int main()
+{
+    // PDM at 0x680: own frames 0x680..0x6A0, status slot base+32 = 0x6A0, sync 0x6F1
+    Config_Ignition c{}; c.bEnabled = true; c.eRole = IgnRole::Main; c.nSyncId = 0x6F1;
+    assert(Ignition::StatusId(c, 0x680, 0x6A0) == 0x6A0);                 // 0: its own slot
+    c.nStatusId = 0x7A0; assert(Ignition::StatusId(c, 0x680, 0x6A0) == 0x7A0);
+    c.nStatusId = 0x6A0; assert(Ignition::StatusId(c, 0x680, 0x6A0) == 0x6A0);   // = its slot: fine
+    c.nStatusId = 0x685; assert(Ignition::StatusId(c, 0x680, 0x6A0) == IGN_NO_SYNC);   // its own Msg 3
+    c.nStatusId = 0x680; assert(Ignition::StatusId(c, 0x680, 0x6A0) == IGN_NO_SYNC);   // its base
+    c.nStatusId = 0x6A1; assert(Ignition::StatusId(c, 0x680, 0x6A0) == 0x6A1);   // just past its frames
+    c.nStatusId = 0x67F; assert(Ignition::StatusId(c, 0x680, 0x6A0) == 0x67F);   // just below its base
+    c.nStatusId = 0x800; assert(Ignition::StatusId(c, 0x680, 0x6A0) == IGN_NO_SYNC);
+    c.nStatusId = 0x6F1; assert(Ignition::StatusId(c, 0x680, 0x6A0) == IGN_NO_SYNC);   // its sync frame
+    c.eRole = IgnRole::Follower; assert(Ignition::StatusId(c, 0x680, 0x6A0) == IGN_NO_SYNC);   // the id it follows
+    c.eRole = IgnRole::Standalone; assert(Ignition::StatusId(c, 0x680, 0x6A0) == 0x6F1);   // sends no sync
+    // offset sync: 0x680 + 0x40 = 0x6C0
+    c.eRole = IgnRole::Main; c.eSyncMode = IgnSyncMode::BaseOffset; c.nSyncId = 0x40;
+    c.nStatusId = 0x6C0; assert(Ignition::StatusId(c, 0x680, 0x6A0) == IGN_NO_SYNC);
+    c.nStatusId = 0x6C1; assert(Ignition::StatusId(c, 0x680, 0x6A0) == 0x6C1);
+
+    std::puts("host_ign_status_id OK");
     return 0;
 }
 #else
