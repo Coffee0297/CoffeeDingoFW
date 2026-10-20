@@ -15,7 +15,7 @@ uint32_t nHostTimeMs = 0;
 #include "ignition.h"
 
 static float v[VAR_MAP_SIZE];
-static Ignition g, fol;   // static: zeroed like the firmware's globals
+static Ignition g, fol, fol2;   // static: zeroed like the firmware's globals
 
 int main()
 {
@@ -166,6 +166,35 @@ int main()
     step(1000); assert(g.eDash == IgnDash::Grace);
     step(1000); assert(g.fDash == 0);
     v[3] = 0; step(); c.nDoorInput = 0; g.SetConfig(&c);
+
+    // ignition sleep, main: 5 s after off = 3 s counting, sleep flag 300 ms, 2 s quiet; USB/config session holds it
+    c.nSleepDelayMs = 5000; c.nDashHoldMs = 0; v[4] = 1; step(); v[4] = 0; step();
+    g.StatusFrame(frame); assert(frame[2] == (uint8_t)IgnSleep::Counting && frame[4] == 5 && frame[5] == 0);
+    step(2980); assert(g.eSleep == IgnSleep::Counting && !g.TxQuiet());
+    t += 20; g.Update(t, 0x680, true); assert(g.eSleep == IgnSleep::Held);
+    step(); assert(!g.TxQuiet() && g.SyncFrame(frame, t) && frame[0] == 0 && frame[1] == 0x01);   // sleep flag first
+    step(300); assert(g.TxQuiet() && !g.SleepRequest());
+    step(1990); assert(!g.SleepRequest());
+    step(20); assert(g.SleepRequest() && g.eSleep == IgnSleep::Sleep);
+    v[4] = 1; step(); assert(!g.TxQuiet() && g.eSleep == IgnSleep::Awake);   // ignition back: awake
+    v[4] = 0; c.nSleepDelayMs = 0; step(); assert(g.eSleep == IgnSleep::Disabled);
+
+    // ignition sleep, follower: quiet with the main module's flag (kept after its frames stop); alone, its own delay
+    Config_Ignition c2{}; c2.bEnabled = true; c2.eRole = IgnRole::Follower; c2.nSyncId = 0x6F1; c2.nSleepDelayMs = 4000;
+    fol2.SetConfig(&c2);
+    uint32_t u = 1000;
+    auto sy = [&](uint8_t st, uint8_t fl) {
+        CANRxFrame r{}; r.SID = 0x6F1; r.IDE = CAN_IDE_STD; r.DLC = 2; r.data8[0] = st; r.data8[1] = fl; fol2.CheckMsg(r, u); };
+    fol2.Update(u, 0x6C0, false); sy(0, 0); fol2.Update(u += 10, 0x6C0, false);
+    assert(fol2.eSleep == IgnSleep::Following);
+    u += 10000; sy(0, 0); fol2.Update(u, 0x6C0, false); assert(fol2.eSleep == IgnSleep::Following && !fol2.TxQuiet());
+    sy(0, 1); fol2.Update(u += 10, 0x6C0, false); assert(fol2.TxQuiet());   // no announce of its own
+    fol2.Update(u += 600, 0x6C0, false); assert(fol2.fLinkOk == 0 && fol2.TxQuiet());
+    fol2.Update(u += 1400, 0x6C0, false); assert(fol2.SleepRequest());
+    c2.bEnabled = false; fol2.Update(u, 0x6C0, false); c2.bEnabled = true;
+    fol2.Update(u += 10, 0x6C0, false); sy(1, 0); fol2.Update(u += 10, 0x6C0, false); sy(0, 0); fol2.Update(u += 10, 0x6C0, false);
+    fol2.Update(u += 600, 0x6C0, false); assert(fol2.fLinkOk == 0 && fol2.eSleep == IgnSleep::Counting);
+    fol2.Update(u += 1500, 0x6C0, false); assert(fol2.TxQuiet());
 
     c.bEnabled = false; step(); assert(g.fIgnition == 0 && !g.SyncFrame(frame, t + 9999));
     std::puts("host_ignition OK");
