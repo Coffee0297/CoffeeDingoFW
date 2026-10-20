@@ -314,13 +314,17 @@ BO_ 253 dingoPdmMaxMsg29: 8 Vector__XXX
  SG_ TimerElapsed_5 : 0|16@1+ (0.01,0) [0|655.35] "s" Vector__XXX
 
 BO_ 254 dingoPdmMaxMsg30: 8 Vector__XXX
- SG_ IgnDash : 20|1@1+ (1,0) [0|1] "" Vector__XXX
- SG_ IgnReady : 19|1@1+ (1,0) [0|1] "" Vector__XXX
- SG_ IgnRunning : 18|1@1+ (1,0) [0|1] "" Vector__XXX
- SG_ IgnCranking : 17|1@1+ (1,0) [0|1] "" Vector__XXX
- SG_ IgnIgnition : 16|1@1+ (1,0) [0|1] "" Vector__XXX
- SG_ IgnState : 8|8@1+ (1,0) [0|3] "" Vector__XXX
- SG_ IgnMarker : 0|8@1+ (1,0) [0|255] "" Vector__XXX
+ SG_ IgnDashShutdown : 54|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ IgnReady : 53|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ IgnRunning : 52|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ IgnStarter : 51|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ IgnDash : 50|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ IgnAccessory : 49|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ IgnIgnition : 48|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ IgnLink : 24|8@1+ (1,0) [0|3] "" Vector__XXX
+ SG_ IgnDashState : 8|8@1+ (1,0) [0|4] "" Vector__XXX
+ SG_ IgnRole : 4|4@1+ (1,0) [0|2] "" Vector__XXX
+ SG_ IgnState : 0|4@1+ (1,0) [0|3] "" Vector__XXX
 
 
 
@@ -337,6 +341,9 @@ VAL_ 227 OutputState_4 0 "Off" 1 "On" 2 "Overcurrent" 3 "Fault" ;
 VAL_ 227 OutputState_3 0 "Off" 1 "On" 2 "Overcurrent" 3 "Fault" ;
 VAL_ 227 OutputState_2 0 "Off" 1 "On" 2 "Overcurrent" 3 "Fault" ;
 VAL_ 227 OutputState_1 0 "Off" 1 "On" 2 "Overcurrent" 3 "Fault" ;
+VAL_ 254 IgnLink 0 "NotFollower" 1 "Ok" 2 "Lost" 3 "SyncIdInvalid" ;
+VAL_ 254 IgnDashState 0 "Off" 1 "On" 2 "Grace" 3 "Halting" 4 "Restart" ;
+VAL_ 254 IgnRole 0 "Main" 1 "Follower" 2 "Standalone" ;
 VAL_ 254 IgnState 0 "Off" 1 "On" 2 "Cranking" 3 "Running" ;
 
 
