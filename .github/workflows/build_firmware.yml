@@ -104,12 +104,7 @@ jobs:
           cp build/pt-dpdm4_1.bin firmware_artifacts/pt-dpdm4_1_FW_v${VERSION_DASHED}.bin
           cp build/pt-dpdm4_1.elf firmware_artifacts/pt-dpdm4_1_FW_v${VERSION_DASHED}.elf
 
-          # Build fifth variant, in build directory
-          make clean
-          make BOARD=dingopdm_v8
-          cp build/dingopdm_v8.hex firmware_artifacts/dingopdm_v8_FW_v${VERSION_DASHED}.hex
-          cp build/dingopdm_v8.bin firmware_artifacts/dingopdm_v8_FW_v${VERSION_DASHED}.bin
-          cp build/dingopdm_v8.elf firmware_artifacts/dingopdm_v8_FW_v${VERSION_DASHED}.elf
+          # dingopdm_v8 left out: upstream's v8 bring-up doesn't compile yet
 
           # Copy back to build for the release action
           cp firmware_artifacts/* build/
@@ -128,7 +123,14 @@ jobs:
           generate_release_notes: true
           body: |
             ## Firmware Release v${{ steps.extract_version.outputs.version }}
-      
+
+            **Installing 5.7 for the first time:** every image is linked behind the OpenBLT CAN bootloader.
+            - dingoPDM / dingoPDM-Max / PT-DPDM4: the app starts at 0x08004000. Flash the bootloader (`bootloader/dingopdm`)
+              to 0x08000000 and the app to 0x08004000 over USB DFU once; later updates can go over CAN.
+            - CANBoard: the app starts at 0x08002000, behind the new 8 KB bootloader. A CANBoard still on the 5.x
+              16 KB bootloader can't start this image: flash the new bootloader (`bootloader/canboard`) once over SWD.
+            - The stored config format changed: modules start from factory settings, so Apply your project again.
+
             **dingoPDM:**
             - [HEX](https://github.com/${{ github.repository }}/releases/download/v${{ steps.extract_version.outputs.version }}/dingopdm_v7_FW_v${{ steps.extract_version.outputs.version_dashed }}.hex)
             - [BIN](https://github.com/${{ github.repository }}/releases/download/v${{ steps.extract_version.outputs.version }}/dingopdm_v7_FW_v${{ steps.extract_version.outputs.version_dashed }}.bin)
@@ -148,11 +150,6 @@ jobs:
             - [HEX](https://github.com/${{ github.repository }}/releases/download/v${{ steps.extract_version.outputs.version }}/pt-dpdm4_1_FW_v${{ steps.extract_version.outputs.version_dashed }}.hex)
             - [BIN](https://github.com/${{ github.repository }}/releases/download/v${{ steps.extract_version.outputs.version }}/pt-dpdm4_1_FW_v${{ steps.extract_version.outputs.version_dashed }}.bin)
             - [ELF](https://github.com/${{ github.repository }}/releases/download/v${{ steps.extract_version.outputs.version }}/pt-dpdm4_1_FW_v${{ steps.extract_version.outputs.version_dashed }}.elf)
-
-            **dingoPDM v8:**
-            - [HEX](https://github.com/${{ github.repository }}/releases/download/v${{ steps.extract_version.outputs.version }}/dingopdm_v8_FW_v${{ steps.extract_version.outputs.version_dashed }}.hex)
-            - [BIN](https://github.com/${{ github.repository }}/releases/download/v${{ steps.extract_version.outputs.version }}/dingopdm_v8_FW_v${{ steps.extract_version.outputs.version_dashed }}.bin)
-            - [ELF](https://github.com/${{ github.repository }}/releases/download/v${{ steps.extract_version.outputs.version }}/dingopdm_v8_FW_v${{ steps.extract_version.outputs.version_dashed }}.elf)
           files: |
             build/dingopdm_v7_FW_v${{ steps.extract_version.outputs.version_dashed }}.hex
             build/dingopdm_v7_FW_v${{ steps.extract_version.outputs.version_dashed }}.bin
@@ -166,9 +163,6 @@ jobs:
             build/pt-dpdm4_1_FW_v${{ steps.extract_version.outputs.version_dashed }}.hex
             build/pt-dpdm4_1_FW_v${{ steps.extract_version.outputs.version_dashed }}.bin
             build/pt-dpdm4_1_FW_v${{ steps.extract_version.outputs.version_dashed }}.elf
-            build/dingopdm_v8_FW_v${{ steps.extract_version.outputs.version_dashed }}.hex
-            build/dingopdm_v8_FW_v${{ steps.extract_version.outputs.version_dashed }}.bin
-            build/dingopdm_v8_FW_v${{ steps.extract_version.outputs.version_dashed }}.elf
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       
