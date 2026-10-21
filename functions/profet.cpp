@@ -1,6 +1,5 @@
 #include "profet.h"
 #include "dbc.h"
-#include "overload_log.h"
 
 #if NUM_OUTPUTS > 0
 void Profet::Update(bool bOutEnabled)
@@ -13,13 +12,17 @@ void Profet::Update(bool bOutEnabled)
         palClearLine(m_in);
         nOcCount = 0;
         eState = ProfetState::Off;
-        eReported = ProfetState::Off;
-        nOpenLoadStart = 0;
+        fCurrent = 0;
         fOutput = 0;
+        fWarning = 0;
+        fOpenLoad = 0;
+        fUndercurrent = 0;
+        fI2 = fLoad = 0;
+        nTestMode = 0;
         return;
     }
 
-    HandleDsel();
+    // DSEL for dual-channel devices is set by the caller, see SelectDsel()
 
     // Follower device — mirror primary
     if (pPrimary != nullptr)
@@ -28,19 +31,19 @@ void Profet::Update(bool bOutEnabled)
         return;
     }
 
-    // Bench test override: while a test holds, the output ignores its input (mode 1 solid on, mode 2
-    // PWM at the requested duty/frequency). When it ends, an output that was On drops to Off for one
-    // cycle so the normal path re-arms cleanly (soft-start, duty, frequency). A tripped/faulted
-    // state is never touched by the test.
-    bool bTestNow = TestActive();
-    if (!bTestNow)
+    // Test ends on timeout or trip; drop to Off for a cycle so PWM and inrush re-arm from the input
+    if (nTestMode && (((int32_t)(nTestEnd - SYS_TIME) <= 0) || (eState != ProfetState::On && eState != ProfetState::Off)))
+    {
         nTestMode = 0;
-    if (bTest && !bTestNow && eState == ProfetState::On)
-        eState = ProfetState::Off;
-    bTest = bTestNow;
-    bTestPwm = bTest && nTestMode == 2;
+        if (eState == ProfetState::On)
+        {
+            pwm.Off();
+            palClearLine(m_in);
+            eState = ProfetState::Off;
+        }
+    }
 
-    if (((*pInput) || bTest) && bOutEnabled)
+    if (((*pInput) || nTestMode) && bOutEnabled)
         eReqState = ProfetState::On;
     else
         eReqState = ProfetState::Off;
@@ -62,7 +65,12 @@ void Profet::Update(bool bOutEnabled)
     if (pFollower != nullptr && pFollower->eState == ProfetState::Fault)
         eState = ProfetState::Fault;
 
-    bInRushActive = (pConfig->nInrushTime + nInRushOnTime) > SYS_TIME;
+    bInRushActive = (SYS_TIME - nInRushOnTime) < pConfig->nInrushTime;
+
+    // Current-limited soft start: the ramp holds above the inrush limit instead of tripping,
+    // and the output trips if the ramp hasn't finished within the timeout
+    bool bLimitedStart = pConfig->nSoftStartTimeout > 0 && pwm.IsSoftStarting();
+    bool bHoldSoftStart = false;
 
     switch (eState)
     {
@@ -82,28 +90,45 @@ void Profet::Update(bool bOutEnabled)
         break;
 
     case ProfetState::On:
-        if (bTestPwm)
+        if (nTestMode == 2)
         {
-            // Same path a follower uses on a PWM primary: start the timer if this output's own PWM
-            // is off, then run the test duty/frequency.
             pwm.EnsureStarted();
             pwm.OverrideFrequency(nTestFreq);
             pwm.SetDutyCycle(nTestDuty);
             pwm.On();
         }
-        else if (pwm.IsEnabled())
-        {
-            if (bTest)
-                pwm.SetDutyCycle(100);   // test "on" on a PWM output = full duty
+        else if (PwmRunning())
             pwm.On();
-        }
         else
+        {
+            pwm.Off();
             palSetLine(m_in);
+        }
 
         // Check for turn off
         if (eReqState == ProfetState::Off)
         {
-            eState = ProfetState::Off;
+            // Soft stop ramps a PWM output's duty down first, but a disabled output (starter disable) cuts at once
+            if (pwm.IsEnabled() && pConfig->nSoftStopTime > 0 && bOutEnabled)
+            {
+                if (!bSoftStopping)
+                {
+                    bSoftStopping = true;
+                    nSoftStopStart = SYS_TIME;
+                    nSoftStopDuty = pwm.GetDutyCycle();
+                }
+
+                if ((SYS_TIME - nSoftStopStart) >= pConfig->nSoftStopTime)
+                    eState = ProfetState::Off;
+            }
+            else
+                eState = ProfetState::Off;
+        }
+        else if (bSoftStopping)
+        {
+            // Back on during the soft stop - return to the duty it had
+            bSoftStopping = false;
+            pwm.SetDutyCycle(nSoftStopDuty);
         }
 
         // Overcurrent
@@ -115,11 +140,30 @@ void Profet::Update(bool bOutEnabled)
         }
 
         // Inrush overcurrent
-        if (fCurrent > pConfig->fInrushLimit && bInRushActive)
+        if (fCurrent > pConfig->fInrushLimit && bInRushActive && !bLimitedStart)
         {
             nOcTriggerTime = SYS_TIME;
             nOcCount++;
             eState = ProfetState::Overcurrent;
+        }
+
+        if (bLimitedStart)
+        {
+            bHoldSoftStart = fCurrent > pConfig->fInrushLimit;
+
+            if ((SYS_TIME - nInRushOnTime) > pConfig->nSoftStartTimeout)
+            {
+                nOcTriggerTime = SYS_TIME;
+                nOcCount++;
+                eState = ProfetState::Overcurrent;
+            }
+}
+
+        // Hard short - straight to Fault, inrush window or not, no retry
+        if (pConfig->fHardShortLimit > 0 && fCurrent > pConfig->fHardShortLimit)
+        {
+            nOcCount++;
+            eState = ProfetState::Fault;
         }
 
         break;
@@ -129,30 +173,24 @@ void Profet::Update(bool bOutEnabled)
 
         palClearLine(m_in);
 
-        // No reset, straight to fault
-        if (pConfig->eResetMode == ProfetResetMode::None)
+        // No reset, or overcurrent count exceeded - latch fault
+        // Checked first so nothing below can override it
+        if ((pConfig->eResetMode == ProfetResetMode::None) ||
+            (pConfig->eResetMode == ProfetResetMode::Count && nOcCount >= pConfig->nResetLimit))
         {
             eState = ProfetState::Fault;
         }
-
-        // Overcurrent count exceeded
-        if (nOcCount >= pConfig->nResetLimit && pConfig->eResetMode == ProfetResetMode::Count)
+        // Check for turn off
+        else if (eReqState == ProfetState::Off)
         {
-            eState = ProfetState::Fault;
+            eState = ProfetState::Off;
         }
-
         // Overcurrent reset time exceeded
         // ResetEndless or ResetCount
-        if ((pConfig->nResetTime + nOcTriggerTime) < SYS_TIME)
+        else if ((SYS_TIME - nOcTriggerTime) > pConfig->nResetTime)
         {
             nInRushOnTime = SYS_TIME;
             eState = ProfetState::On;
-        }
-
-        // Check for turn off
-        if (eReqState == ProfetState::Off)
-        {
-            eState = ProfetState::Off;
         }
         break;
 
@@ -160,60 +198,80 @@ void Profet::Update(bool bOutEnabled)
         pwm.Off();
 
         palClearLine(m_in);
-        // Fault requires power cycle, no way out
+        // Fault requires power cycle, a retry-all or (if enabled) the input going off
+        if (pConfig->bClearOnReassert && !(*pInput))
+            ClearFault();
+        break;
+
+    default: // Warning/OpenLoad/Undercurrent are overlays, never in eState
         break;
     }
 
-    // The regular PWM update (soft-start, variable duty, frequency tracking) would fight the test
-    // override every cycle, so it pauses while a test holds; the one-cycle Off at test end restarts it.
-    if (!bTest)
-        pwm.Update();
+    // The test owns duty and frequency while it runs
+    if (!nTestMode)
+        pwm.Update(bHoldSoftStart);
 
-    // Peak-hold: track the highest current seen since the last report. The control loop
-    // runs at 500Hz so this catches inrush/short spikes the 10Hz CAN broadcast would miss.
-    if (fCurrent > fPeak)
-        fPeak = fCurrent;
+    // Past inrush: Warning above fWarnLimit, OpenLoad below fOpenLoadLimit for nOpenLoadTime,
+    // Undercurrent below fUnderLimit for nUnderTime (report only, or a trip to Fault with bUnderTrip)
+    bool bReportOn = (eState == ProfetState::On) && ((SYS_TIME - nInRushOnTime) >= pConfig->nInrushTime);
+    bool bOpenLoad = bReportOn && (pConfig->fOpenLoadLimit > 0) && (fCurrent < pConfig->fOpenLoadLimit);
+    bool bUnder = bReportOn && (pConfig->fUnderLimit > 0) && (fCurrent < pConfig->fUnderLimit);
+    if (!bOpenLoad)
+        nOpenLoadStart = SYS_TIME;
+    if (!bUnder)
+        nUnderStart = SYS_TIME;
+    bOpenLoad = bOpenLoad && ((SYS_TIME - nOpenLoadStart) >= pConfig->nOpenLoadTime);
+    bUnder = bUnder && ((SYS_TIME - nUnderStart) >= pConfig->nUnderTime);
 
-    // Reported state overlay: Warning / OpenLoad are sub-states of On (report only, the
-    // output keeps running). The raw eState drives the trip logic above and is unchanged.
-    eReported = eState;
-    if (eState == ProfetState::On && !bInRushActive)
+    if (bUnder && pConfig->bUnderTrip)
     {
-        // Open-load (broken bulb / no load): On but current below the floor for the debounce time.
-        if (pConfig->fOpenLoadLimit > 0 && fCurrent < pConfig->fOpenLoadLimit)
-        {
-            if (nOpenLoadStart == 0)
-                nOpenLoadStart = SYS_TIME;
-            if ((SYS_TIME - nOpenLoadStart) >= pConfig->nOpenLoadTime)
-                eReported = ProfetState::OpenLoad;
-        }
-        else
-        {
-            nOpenLoadStart = 0;
-            // Warning: above warn limit but below trip limit.
-            if (pConfig->fWarnLimit > 0 && fCurrent > pConfig->fWarnLimit)
-                eReported = ProfetState::Warning;
-        }
+        pwm.Off();
+        palClearLine(m_in);
+        eState = ProfetState::Fault;
+    }
+
+    if (bOpenLoad)
+        eOverlay = ProfetState::OpenLoad;
+    else if (bUnder)
+        eOverlay = ProfetState::Undercurrent;
+    else if (bReportOn && (pConfig->fWarnLimit > 0) && (fCurrent > pConfig->fWarnLimit))
+        eOverlay = ProfetState::Warning;
+    else
+        eOverlay = ProfetState::On;
+
+    // After pwm.Update() so the ramp overrides the duty it sets
+    if (bSoftStopping && eState == ProfetState::On)
+    {
+        uint32_t nElapsed = SYS_TIME - nSoftStopStart;
+        if (nElapsed < pConfig->nSoftStopTime)
+            pwm.SetDutyCycle(nSoftStopDuty * (pConfig->nSoftStopTime - nElapsed) / pConfig->nSoftStopTime);
     }
     else
-    {
-        nOpenLoadStart = 0;
-    }
-
-    // 5.6: log the moment it enters Warning or OpenLoad (once per entry) for the tool's event list
-    if (eReported != eLastReported)
-    {
-        if (eReported == ProfetState::Warning) OvlNotice(m_num - 1, 1);
-        else if (eReported == ProfetState::OpenLoad) OvlNotice(m_num - 1, 2);
-        eLastReported = eReported;
-    }
+        bSoftStopping = false;
 
     // Set var map values
     fOutput = eState == ProfetState::On ? 1 : 0;
     fOvercurrent = eState == ProfetState::Overcurrent ? 1 : 0;
     fFault = eState == ProfetState::Fault ? 1 : 0;
+    fWarning = GetReportedState() == ProfetState::Warning ? 1 : 0;
+    fOpenLoad = GetReportedState() == ProfetState::OpenLoad ? 1 : 0;
+    fUndercurrent = GetReportedState() == ProfetState::Undercurrent ? 1 : 0;
 
     palClearLine(LINE_E2);
+}
+
+// Back to Off with the retry count cleared, so the output turns on again if requested
+void Profet::ClearFault()
+{
+    if (eState == ProfetState::Overcurrent || eState == ProfetState::Fault)
+    {
+        eState = ProfetState::Off;
+        nOcCount = 0;
+    }
+
+    // A follower latches Fault when it mirrors its primary's, and would hold the primary in Fault
+    if (pFollower != nullptr && pFollower->eState == ProfetState::Fault)
+        pFollower->eState = ProfetState::Off;
 }
 
 void Profet::FollowerUpdate()
@@ -266,31 +324,44 @@ void Profet::FollowerUpdate()
     fOutput = eState == ProfetState::On ? 1 : 0;
     fOvercurrent = eState == ProfetState::Overcurrent ? 1 : 0;
     fFault = 0;
-
-    if (fCurrent > fPeak)
-        fPeak = fCurrent;
-    eReported = eState;
 }
 
-void Profet::HandleDsel()
+bool Profet::SetTest(uint8_t nMode, uint8_t nDuty, uint16_t nFreq, uint8_t nHoldSec)
 {
-    // Select the appropriate IS channel on dual-channel devices
-    // DSEL changeover takes max ~60us
+    if (nMode == 0)
+    {
+        if (nTestMode)
+            nTestEnd = SYS_TIME; // ends next cycle through the normal path
+        return true;
+    }
+
+    // Paired outputs share the load, testing one half would overload the other
+    if (!pConfig->bEnabled || pPrimary != nullptr || pFollower != nullptr ||
+        nMode > 2 || nHoldSec < 1 || nHoldSec > 30 ||
+        (nMode == 2 && (nDuty > 100 || nFreq < 16 || nFreq > 400)) ||
+        eState == ProfetState::Overcurrent || eState == ProfetState::Fault)
+        return false;
+
+    nTestDuty = nDuty;
+    nTestFreq = nFreq;
+    nTestEnd = SYS_TIME + (uint32_t)nHoldSec * 1000;
+    nTestMode = nMode;
+    return true;
+}
+
+void Profet::SelectDsel()
+{
+    // Select the IS channel on dual-channel devices
+    // Caller waits DSEL_SETTLE_US before measuring, once for all outputs in the pass
     if (m_model == ProfetModel::BTS7008_2EPA_CH1)
-    {
         palClearLine(m_dsel);
-        chThdSleepMicroseconds(60);
-    }
     else if (m_model == ProfetModel::BTS7008_2EPA_CH2)
-    {
         palSetLine(m_dsel);
-        chThdSleepMicroseconds(60);
-    }
 }
 
 void Profet::MeasureCurrent()
 {
-    if ((pwm.IsEnabled() || bTestPwm) && eState == ProfetState::On)
+    if (PwmRunning() && eState == ProfetState::On)
     {
         // Assign to local vars to prevent CNT rolling over and slipping past check
         // Example:
@@ -325,9 +396,24 @@ void Profet::MeasureCurrent()
         }
     }
     else
+    {
+        // Also the PWM fallback: at turn-on a low duty has no sample window yet, so it must not
+        // reuse the last on-time reading (a held soft start would never start again after a trip)
         nIS = GetAdcRaw(m_ain);
+        nLastIS = nIS;
+    }
 
     CalculateCurrent();
+
+    // Wire load from this output's own current, before a follower's is added
+    if (pConfig->nThermalTau > 0 && pConfig->fCurrentLimit > 0)
+    {
+        fI2 = FilterI2(fI2, fCurrent, SYS_TIME - nLoadTime, pConfig->nThermalTau);
+        fLoad = 100.0f * fI2 / (pConfig->fCurrentLimit * pConfig->fCurrentLimit);
+    }
+    else
+        fI2 = fLoad = 0;
+    nLoadTime = SYS_TIME;
 }
 
 void Profet::CalculateCurrent()
@@ -352,44 +438,6 @@ void Profet::CalculateCurrent()
             fCurrent = 0;
         break;
     }
-}
-
-void Profet::ForceOff()
-{
-    pwm.Off();
-    palClearLine(m_in);
-    palClearLine(m_den);   // diagnostics off: with DEN high an off Profet still draws its diag current (sleep only; wake = reset)
-    if (eState != ProfetState::Fault)   // a fault stays a fault
-        eState = ProfetState::Off;
-    eReported = eState;
-    fOutput = 0;
-    fOvercurrent = 0;
-}
-
-bool Profet::TestActive()
-{
-    return nTestMode != 0 && (int32_t)(nTestEnd - SYS_TIME) > 0;
-}
-
-void Profet::SetTest(uint8_t nMode, uint8_t nDuty, uint16_t nFreq, uint8_t nHoldSec)
-{
-    if (nMode == 0 || nMode > 2)
-    {
-        nTestMode = 0;
-        return;
-    }
-
-    if (nDuty > 100) nDuty = 100;
-    if (nFreq == 0) nFreq = pConfig->stPwm.nFreq > 0 ? pConfig->stPwm.nFreq : 100;   // 0 = this output's own frequency
-    if (nFreq < 15) nFreq = 15;                                                      // same window as Pwm::GetTargetFreq
-    if (nFreq > 400) nFreq = 400;
-    if (nHoldSec == 0) nHoldSec = 1;
-    if (nHoldSec > 30) nHoldSec = 30;
-
-    nTestDuty = nDuty;
-    nTestFreq = nFreq;
-    nTestEnd = SYS_TIME + (uint32_t)nHoldSec * 1000u;
-    nTestMode = nMode;   // last — makes the override visible to the control loop
 }
 
 #endif

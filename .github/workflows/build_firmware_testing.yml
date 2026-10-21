@@ -11,8 +11,6 @@ on:
       - ".github/workflows/build_firmware_testing.yml"
   workflow_dispatch:
 
-permissions:
-  contents: write
 
 jobs:
   build-and-release:
@@ -20,7 +18,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v7
         with:
           submodules: recursive
 
@@ -80,21 +78,28 @@ jobs:
           cp build/dingopdm_v7.bin firmware_artifacts/dingopdm_v7_FW_v${VERSION_DASHED}.bin
           cp build/dingopdm_v7.elf firmware_artifacts/dingopdm_v7_FW_v${VERSION_DASHED}.elf
 
-          # Build second variant — keep in firmware_artifacts so the next 'make clean' can't wipe it
+          # Build second variant, in build directory
           make clean
           make BOARD=dingopdmmax_v1
           cp build/dingopdmmax_v1.hex firmware_artifacts/dingopdmmax_v1_FW_v${VERSION_DASHED}.hex
           cp build/dingopdmmax_v1.bin firmware_artifacts/dingopdmmax_v1_FW_v${VERSION_DASHED}.bin
           cp build/dingopdmmax_v1.elf firmware_artifacts/dingopdmmax_v1_FW_v${VERSION_DASHED}.elf
 
-          # Build third variant — also into firmware_artifacts
+          # Build third variant, in build directory
           make clean
           make BOARD=canboard_v2
           cp build/canboard_v2.hex firmware_artifacts/canboard_v2_FW_v${VERSION_DASHED}.hex
           cp build/canboard_v2.bin firmware_artifacts/canboard_v2_FW_v${VERSION_DASHED}.bin
           cp build/canboard_v2.elf firmware_artifacts/canboard_v2_FW_v${VERSION_DASHED}.elf
 
-          # Copy all renamed artifacts back to build/ for the release action
+          # Build fourth variant, in build directory
+          make clean
+          make BOARD=pt-dpdm4_1
+          cp build/pt-dpdm4_1.hex firmware_artifacts/pt-dpdm4_1_FW_v${VERSION_DASHED}.hex
+          cp build/pt-dpdm4_1.bin firmware_artifacts/pt-dpdm4_1_FW_v${VERSION_DASHED}.bin
+          cp build/pt-dpdm4_1.elf firmware_artifacts/pt-dpdm4_1_FW_v${VERSION_DASHED}.elf
+
+          # Copy back to build for the release action
           cp firmware_artifacts/* build/
 
           ls -l build/
@@ -102,7 +107,7 @@ jobs:
           VERSION_DASHED: ${{ steps.extract_version.outputs.version_dashed }}
 
       - name: Create GitHub Pre-Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: testing-latest
           name: Testing v${{ steps.extract_version.outputs.version }}
@@ -128,6 +133,12 @@ jobs:
             - [HEX](https://github.com/${{ github.repository }}/releases/download/testing-latest/canboard_v2_FW_v${{ steps.extract_version.outputs.version_dashed }}.hex)
             - [BIN](https://github.com/${{ github.repository }}/releases/download/testing-latest/canboard_v2_FW_v${{ steps.extract_version.outputs.version_dashed }}.bin)
             - [ELF](https://github.com/${{ github.repository }}/releases/download/testing-latest/canboard_v2_FW_v${{ steps.extract_version.outputs.version_dashed }}.elf)
+
+            **PT-DPDM4:**
+            - [HEX](https://github.com/${{ github.repository }}/releases/download/testing-latest/pt-dpdm4_1_FW_v${{ steps.extract_version.outputs.version_dashed }}.hex)
+            - [BIN](https://github.com/${{ github.repository }}/releases/download/testing-latest/pt-dpdm4_1_FW_v${{ steps.extract_version.outputs.version_dashed }}.bin)
+            - [ELF](https://github.com/${{ github.repository }}/releases/download/testing-latest/pt-dpdm4_1_FW_v${{ steps.extract_version.outputs.version_dashed }}.elf)
+
           files: |
             build/dingopdm_v7_FW_v${{ steps.extract_version.outputs.version_dashed }}.hex
             build/dingopdm_v7_FW_v${{ steps.extract_version.outputs.version_dashed }}.bin
@@ -138,5 +149,8 @@ jobs:
             build/canboard_v2_FW_v${{ steps.extract_version.outputs.version_dashed }}.hex
             build/canboard_v2_FW_v${{ steps.extract_version.outputs.version_dashed }}.bin
             build/canboard_v2_FW_v${{ steps.extract_version.outputs.version_dashed }}.elf
+            build/pt-dpdm4_1_FW_v${{ steps.extract_version.outputs.version_dashed }}.hex
+            build/pt-dpdm4_1_FW_v${{ steps.extract_version.outputs.version_dashed }}.bin
+            build/pt-dpdm4_1_FW_v${{ steps.extract_version.outputs.version_dashed }}.elf
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -5,15 +5,18 @@
 #if HAS_USB
 #include "usb.h"
 #else
-static bool GetUsbConnected() { return false; }   // no USB port (CANBoard)
+static bool GetUsbConnected() { return false; }
 #endif
 #include "status.h"
 #include "mcu_utils.h"
 #include "device_config.h"
+#include "config_ext.h"
+#include "mailbox.h"
+#include <algorithm>
 
 #if CAN_SLEEP
-#define SLEEP_REQUEST_DELAY 2000   // FW #52: wait after a sleep request so other modules settle
-#define SLEEP_BOOT_GRACE_MS 1000   // let inputs debounce / CAN inputs arrive before honouring force-sleep
+#define SLEEP_BOOT_GRACE_MS 1000 // inputs and CAN inputs settle before force sleep or a request can act
+#define SLEEP_REQUEST_DELAY 2000 // a sleep request waits so the other modules settle too
 
 // Static variables that were in pdm.cpp
 static uint8_t nNumOutputsOn;
@@ -21,131 +24,107 @@ static uint8_t nLastNumOutputsOn;
 static uint32_t nAllOutputsOffTime;
 static bool bLastUsbConnected;
 static uint32_t nUsbDisconnectedTime;
+static uint32_t nNoSleepRequestTime;
 
-// Sleep-request coordination (FW #52)
-static bool bSleepPending;          // a request is in its settle window
-static uint32_t nSleepPendingTime;  // when the request started
+// For SleepInfo: seconds until auto sleep (0xFF = not counting), what blocks it, why it is going to sleep
+static uint8_t nCountdown = 0xFF;
+static uint8_t nBlockers;
+static uint8_t nWhy;
 
-// 5.6 sleep status for the tool
-static uint8_t nCountdown = 0xFF, nBlockers = 0, nWhy = 0;
-static WakeReason eWake = WakeReason::PowerOn;
-static uint8_t nWakeSource = 0;
-static uint16_t nWakes = 0;
+// Why it woke and how often since power-on, kept across the wake reset in ChibiOS's no-init RAM (.ram0 is
+// reserved by the linker and not cleared at startup). Valid only with the magic.
+// nWakeKeep[1] = WAKE_NEW | wakes << 16 | source << 8 | reason
+static volatile uint32_t nWakeKeep[2] __attribute__((section(".ram0")));
+#define WAKE_MAGIC 0x57414B45 // "WAKE"
+#define WAKE_NEW 0x80000000   // a wake not yet reported; a reset that isn't a wake keeps only the count
+static WakeReason eWakeReason = WakeReason::PowerOn;
+static uint8_t nWakeSource;
+static uint16_t nWakes;
 
-// Kept across the wake reset: RAM the startup code does not clear (top of SRAM next to the bootloader words on
-// the PDMs, CCM next to the bootloader magic on the CANBoard). ponytail: a magic word marks it valid; on a board
-// or emulator that clears RAM on reset the reason reads PowerOn.
-#if defined(STM32F4XX)
-static volatile uint32_t *const kWakeKeep = (volatile uint32_t *)0x2001FFE0;
-#else
-static volatile uint32_t *const kWakeKeep = (volatile uint32_t *)0x10000FF0;
-#endif
-#define WAKE_MAGIC 0x57414B45u   // "WAKE"
-#define WAKE_NEW   0x80000000u   // kWakeKeep[1]: the reason is of a wake not yet read (a plain reset keeps only the count)
+// Woken by CAN and not yet heard a real frame: nothing periodic goes out (see CheckQuietWake)
+static volatile bool bQuietWake;
+// Going to sleep: nothing periodic goes out either, a frame now would wake a module that is already asleep
+static volatile bool bSleeping;
 
 // External variables from pdm.cpp that we need access to
 extern DeviceConfig stConfig;
-extern bool bSleepRequest;
+bool bSleepRequest;
+#if HAS_IGNITION
+extern Ignition ignition;
+#endif
+
+// [Sleep, 'Z', 'Z', 'Z', why (1 auto, 2 forced, 3 request, 4 ignition)], so the tool can tell asleep from unplugged.
+// Not from a quiet wake: it would wake the others again.
+static void SendGoodbye(uint8_t nGoodbyeWhy)
+{
+    if (bQuietWake)
+        return;
+    CANTxFrame txMsg;
+    txMsg.SID = stConfig.stDevice.nBaseId + CONFIG_TX_OFFSET;
+    txMsg.IDE = CAN_IDE_STD;
+    txMsg.DLC = 8;
+    txMsg.data8[0] = static_cast<uint8_t>(MsgCmd::Sleep);
+    txMsg.data8[1] = 'Z';
+    txMsg.data8[2] = 'Z';
+    txMsg.data8[3] = 'Z';
+    txMsg.data8[4] = nGoodbyeWhy;
+    txMsg.data8[5] = 0;
+    txMsg.data8[6] = 0;
+    txMsg.data8[7] = 0;
+    PostTxFrame(&txMsg);
+}
 #if NUM_OUTPUTS > 0
 extern Profet pf[NUM_OUTPUTS];
 #endif
-#if NUM_DIG_INPUTS > 0
-extern Digital_Input digIn[NUM_DIG_INPUTS];
-#endif
 
-// Outputs currently on, optionally ignoring always-on outputs (varmap index 1 = ALWAYS_TRUE).
-// Without ignoring them an always-on output would block sleep forever (FW #52).
-static uint8_t CountOutputsOn()
-{
-    uint8_t n = 0;
-#if NUM_OUTPUTS > 0
-    for (int i = 0; i < NUM_OUTPUTS; i++)
-    {
-        if (GetOutputState(i) == ProfetState::Off) continue;
-        if (stConfig.stDevice.bSleepIgnoreAlwaysOn && stConfig.stOutput[i].nInput == 1) continue;
-        n++;
-    }
-#endif
-    return n;
-}
-
-// True while the var-map signal picked as the force-sleep input is asserted (0 = unused).
-static bool ForceSleepAsserted()
-{
-    const uint16_t n = stConfig.stDevice.nForceSleepInput;
-    return n != 0 && n < VAR_MAP_SIZE && pVarMap[n] != nullptr && *pVarMap[n] != 0.0f;
-}
-
-// CheckEnterSleep — called every control-loop tick; true = go to sleep now (Sleep state ->
-// outputs forced off, CAN transceiver to standby, EnterSleep()). Three ways in:
-//
-//   1. Force sleep   nForceSleepInput != 0 and that var-map signal is true (ignition DI, CAN
-//                    input, timer, virtual input, Lua var). Immediate: ignores outputs-on,
-//                    CAN traffic and bSleepEnabled. Blocked only by USB connected and the
-//                    first SLEEP_BOOT_GRACE_MS after boot.
-//   2. Auto sleep    bSleepEnabled and, for nSleepTimeoutMs (0 = SLEEP_TIMEOUT): no outputs on
-//                    (bSleepIgnoreAlwaysOn skips ALWAYS_TRUE outputs), USB unplugged, and no
-//                    CAN RX that passes this module's filter. One chatty sender keeps it awake.
-//   3. Sleep request CAN "Sleep QUIT" to BaseId-1 (dingoConfig's Sleep button) sets bSleepRequest.
-//                    Needs bSleepEnabled, no outputs on, no USB (CAN idle not needed), then waits
-//                    SLEEP_REQUEST_DELAY; any condition breaking in that window cancels it.
-//
-// Mute (nMuteTxInput, comms/can.cpp) is not a sleep mode: it only withholds the cyclic telemetry
-// so the fleet can go quiet and every module's auto-sleep timer can run out. CAN outputs, Lua
-// txCan and config replies still transmit and still count as bus traffic.
-//
-// Wake (EnterSleep): DIs in nWakeDigInputMask, CAN RX edge if bWakeOnCan, USB always. Any wake is a
-// full MCU reset — vars, timers and Lua state start from zero; analog inputs cannot wake.
-// Boards with CAN_SLEEP FALSE never sleep; for them only mute applies.
 bool CheckEnterSleep()
 {
     bool bEnterSleep = false;
 
-    // Effective outputs-on count (honours "ignore always-on").
-    nNumOutputsOn = CountOutputsOn();
+    // Count number of outputs on
+    nNumOutputsOn = 0;
+    #if NUM_OUTPUTS > 0
+    for (int i = 0; i < NUM_OUTPUTS; i++)
+    {
+        // A stay-alive output that is on doesn't keep the device awake, one in overcurrent/fault does
+        if ((GetOutputState(i) != ProfetState::Off) &&
+            !(stConfig.stDevice.bSleepIgnoreAlwaysOn && (stConfig.stOutput[i].nInput == 1)) &&
+            !(stConfig.stOutput[i].bStayAlive && (GetOutputState(i) == ProfetState::On)))
+            nNumOutputsOn++;
+    }
+    #endif
+    #if NUM_DIG_OUTPUTS > 0
+    for (uint8_t i = 0; i < NUM_DIG_OUTPUTS; i++)
+    {
+        if (GetDigOutputState(i) &&
+            !(stConfig.stDevice.bSleepIgnoreAlwaysOn && (stConfig.stDigOutput[i].nInput == 1)))
+            nNumOutputsOn++;
+    }
+    #endif
 
-    // All outputs just turned off, save time - wait the timeout before sleep
+    // All outputs just turned off, save time - wait the sleep timeout before sleep
     if ((nNumOutputsOn == 0) && (nLastNumOutputsOn > 0))
+    {
         nAllOutputsOffTime = SYS_TIME;
+    }
     nLastNumOutputsOn = nNumOutputsOn;
 
-    //USB disconnected, save time - wait the timeout before sleep
+    //USB disconnected, save time - wait the sleep timeout before sleep
     if (!GetUsbConnected() && bLastUsbConnected)
         nUsbDisconnectedTime = SYS_TIME;
+
     bLastUsbConnected = GetUsbConnected();
 
-    // Had issue with SYS_TIME being < GetLastCanRxTime when msgs come in quickly
-    uint32_t sys = SYS_TIME;
-    uint32_t canLast = GetLastCanRxTime();
-    uint32_t nCanRxIdleTime = (sys >= canLast) ? (sys - canLast) : 0;
+    // CAN Rx thread can stamp a time slightly after SYS_TIME was read here,
+    // so treat a negative (signed) difference as 0. Wrap-safe.
+    int32_t nCanRxDiff = static_cast<int32_t>(SYS_TIME - GetLastCanRxTime());
+    uint32_t nCanRxIdleTime = (nCanRxDiff > 0) ? nCanRxDiff : 0;
+    uint32_t nTimeout = stConfig.stDevice.nSleepTimeoutMs;
 
-    uint32_t nTimeout = stConfig.stDevice.nSleepTimeoutMs ? stConfig.stDevice.nSleepTimeoutMs : SLEEP_TIMEOUT;
-
-    // ---- 1. Force sleep (FW #52) ----------------------------------------------------
-    // Any var-map signal — a digital input (ignition), a CAN input (a fleet "sleep now"
-    // message), a Timer output, a virtual input — forces sleep immediately, ignoring the
-    // CAN-idle and outputs-on restrictions and the auto-sleep enable. The decision stays
-    // local to this module: no handshake with anyone. USB must be unplugged (USB activity
-    // instantly wakes the MCU -> reset -> stale COM port, the #36 soft-lock). A short boot
-    // grace lets debounce / CAN inputs settle so a half-read pin can't put a freshly woken
-    // module straight back to sleep.
-    if (ForceSleepAsserted() && !GetUsbConnected() && sys > SLEEP_BOOT_GRACE_MS)
-    {
-        nWhy = 2;
-        return true;
-    }
-
-    // ---- 5.6 status: what blocks auto-sleep, and how long until it if nothing does ----------
-    uint32_t elapsed = SYS_TIME - nAllOutputsOffTime;
-    if ((SYS_TIME - nUsbDisconnectedTime) < elapsed) elapsed = SYS_TIME - nUsbDisconnectedTime;
-    if (nCanRxIdleTime < elapsed) elapsed = nCanRxIdleTime;
-    nBlockers = (stConfig.stDevice.bSleepEnabled ? 0 : 1) | (nNumOutputsOn > 0 ? 2 : 0) | (GetUsbConnected() ? 4 : 0) |
-                (nCanRxIdleTime < nTimeout && nCanRxIdleTime == elapsed ? 8 : 0);
-    nCountdown = (nBlockers & 7) ? 0xFF : (elapsed >= nTimeout ? 0 : (uint8_t)((nTimeout - elapsed + 999) / 1000));
-
-    // ---- 2. Automatic sleep --------------------------------------------------------
-    // No outputs on, no CAN traffic, no USB, for the configured timeout.
-    bEnterSleep = stConfig.stDevice.bSleepEnabled &&
+    // No outputs on, no CAN msgs received and no USB connected
+    // Go to sleep after timeout
+    // A quiet wake was asleep a moment ago and heard nothing real since: it goes back to sleep
+    bEnterSleep = (stConfig.stDevice.bSleepEnabled || bQuietWake) &&
                   (nNumOutputsOn == 0) &&
                   (nLastNumOutputsOn == 0) &&
                   !GetUsbConnected() &&
@@ -153,89 +132,152 @@ bool CheckEnterSleep()
                   ((SYS_TIME - nAllOutputsOffTime) > nTimeout) &&
                   (nCanRxIdleTime > nTimeout);
 
-    // ---- 3. Sleep request (tool / CAN sleep msg) -----------------------------------
-    // Honour only when safe: sleep enabled, no USB, no outputs on (CAN idle NOT required).
-    // Then wait SLEEP_REQUEST_DELAY so other modules settle before sleeping. A module that
-    // can't sleep keeps broadcasting, which wakes any module that already slept (FW #52
-    // "if any device failed to sleep, all are woken").
-    bool bRequestConditions = stConfig.stDevice.bSleepEnabled &&
-                              (nNumOutputsOn == 0) &&
-                              !GetUsbConnected();
-    if (bSleepRequest)
-    {
-        if (!bRequestConditions) { bSleepRequest = false; bSleepPending = false; }   // reject unsafe request
-        else if (!bSleepPending) { bSleepPending = true; nSleepPendingTime = SYS_TIME; }
-    }
+    // Never with USB connected: the USB wake resets the MCU under the host and the COM port goes stale
+    bool bSleepAllowed = !GetUsbConnected() && (SYS_TIME > SLEEP_BOOT_GRACE_MS);
 
-    bool bRequestSleep = false;
-    if (bSleepPending)
-    {
-        if (!bRequestConditions) { bSleepPending = false; bSleepRequest = false; }    // conditions broke -> abort
-        else if ((SYS_TIME - nSleepPendingTime) > SLEEP_REQUEST_DELAY) bRequestSleep = true;
-    }
+    // Sleep request: only with sleep enabled and no outputs on, and only if that still holds after the delay
+    if (!(bSleepAllowed && stConfig.stDevice.bSleepEnabled && (nNumOutputsOn == 0)))
+        bSleepRequest = false;
+    if (!bSleepRequest)
+        nNoSleepRequestTime = SYS_TIME;
+    bool bRequestSleep = (SYS_TIME - nNoSleepRequestTime) > SLEEP_REQUEST_DELAY;
 
-    if (bEnterSleep) nWhy = 1;
-    else if (bRequestSleep) nWhy = 3;
-    return bEnterSleep || bRequestSleep;
+    bool bForceSleep = bSleepAllowed && *pVarMap[stConfig.stDevice.nForceSleepInput];
+
+    // Blockers: 1 sleep disabled, 2 outputs on, 4 USB, 8 CAN traffic within the timeout
+    nBlockers = (stConfig.stDevice.bSleepEnabled ? 0 : 1) | ((nNumOutputsOn > 0) ? 2 : 0) |
+                (GetUsbConnected() ? 4 : 0) | ((nCanRxIdleTime < nTimeout) ? 8 : 0);
+    uint32_t nIdle = std::min({SYS_TIME - nAllOutputsOffTime, SYS_TIME - nUsbDisconnectedTime, nCanRxIdleTime});
+    if (nBlockers & 7)
+        nCountdown = 0xFF;
+    else
+        nCountdown = (nIdle >= nTimeout) ? 0 : (nTimeout - nIdle + 999) / 1000;
+    nWhy = bForceSleep ? 2 : (bRequestSleep ? 3 : 1);
+
+    #if HAS_IGNITION
+    // The ignition's goodbye goes out when its quiet starts, while the fleet is still awake: at sleep it would
+    // wake the modules that are already asleep
+    static bool bIgnQuiet;
+    if (ignition.TxQuiet() && !bIgnQuiet)
+        SendGoodbye(4);
+    bIgnQuiet = ignition.TxQuiet();
+    if (bSleepAllowed && ignition.SleepRequest())
+    {
+        nWhy = 4;
+        return true;
+    }
+    #endif
+
+    return bEnterSleep || bRequestSleep || bForceSleep;
 }
 
-uint8_t SleepCountdownSec() { return nCountdown; }
-uint8_t SleepBlockers() { return nBlockers; }
-uint8_t SleepWhy() { return nWhy; }
-WakeReason GetWakeReason() { return eWake; }
-
-// Quiet wake (5.6.3): woken by CAN traffic, the module stays silent until it hears a real frame (anything but
-// another module's goodbye). A goodbye wakes every sleeping module; were they to restart talking (they forget
-// "sleep now" across the STOP reset), they would wake each other for ever. With nothing real on the bus it
-// goes back to sleep without a goodbye of its own.
-static bool bQuietWake = false;
-bool QuietWake() { return bQuietWake; }
-void EndQuietWake() { if (bQuietWake) { bQuietWake = false; SendSleepInfo(); } }
-uint8_t GetWakeSource() { return nWakeSource; }
-uint16_t GetWakeCount() { return nWakes; }
-
-void CaptureWakeAfterStop()
+uint8_t SleepCountdownSec()
 {
-    // EXTI pending bits = the lines that ended STOP: CAN RX, USB D+/D-, or a digital input
-    const uint32_t pr = EXTI->PR;
-    // Only an armed source ends STOP: with no digital input or USB line pending it was CAN (a short frame can
-    // leave no pending bit by the time this runs).
-    uint32_t reason = static_cast<uint32_t>(stConfig.stDevice.bWakeOnCan ? WakeReason::Can : WakeReason::PowerOn), source = 0;
-    if (pr & (1u << PAL_PAD(LINE_CAN_RX))) reason = static_cast<uint32_t>(WakeReason::Can);
-#if HAS_USB
-    if (pr & ((1u << PAL_PAD(LINE_USB_DP)) | (1u << PAL_PAD(LINE_USB_DM)))) reason = static_cast<uint32_t>(WakeReason::Usb);
-#endif
-#if NUM_DIG_INPUTS > 0
-    for (uint8_t i = 0; i < NUM_DIG_INPUTS; i++)
-        if ((stConfig.stDevice.nWakeDigInputMask & (1u << i)) && (pr & (1u << PAL_PAD(digIn[i].GetLine()))))
-        { reason = static_cast<uint32_t>(WakeReason::DigitalInput); source = i + 1; break; }
-#endif
-    const uint32_t wakes = ((kWakeKeep[0] == WAKE_MAGIC ? (kWakeKeep[1] >> 16) & 0x7FFF : 0) + 1) & 0x7FFF;
-    kWakeKeep[1] = WAKE_NEW | (wakes << 16) | (source << 8) | reason;
-    kWakeKeep[0] = WAKE_MAGIC;
+    return nCountdown;
 }
 
-void ReadWakeAtBoot()
+uint8_t SleepBlockers()
 {
-    // The count runs from power-on: it was cleared at every boot, so it read 1 after any number of wakes. Power-on
-    // leaves no magic (count 0); a reset that is not a wake keeps the count but reports power-on.
-    if (kWakeKeep[0] != WAKE_MAGIC)
-        return;
-    const uint32_t v = kWakeKeep[1];
-    nWakes = (uint16_t)((v >> 16) & 0x7FFF);
-    if (v & WAKE_NEW)
+    return nBlockers;
+}
+
+void SendSleepInfo()
+{
+    CANTxFrame txMsg;
+    txMsg.SID = stConfig.stDevice.nBaseId + CONFIG_TX_OFFSET;
+    txMsg.IDE = CAN_IDE_STD;
+    txMsg.DLC = 8;
+    txMsg.data8[0] = static_cast<uint8_t>(MsgCmd::SleepInfo);
+    txMsg.data8[1] = static_cast<uint8_t>(eWakeReason);
+    txMsg.data8[2] = nWakeSource;
+    txMsg.data8[3] = nWakes & 0xFF;
+    txMsg.data8[4] = nWakes >> 8;
+    txMsg.data8[5] = nCountdown;
+    txMsg.data8[6] = nBlockers;
+    txMsg.data8[7] = 0;
+    PostTxFrame(&txMsg);
+}
+
+// At boot, before the CAN threads start: pick up the wake left by CaptureWake
+void InitSleep()
+{
+    // No magic = power-on (count 0); a reset that isn't a wake keeps the count and reports PowerOn
+    if (nWakeKeep[0] == WAKE_MAGIC)
     {
-        eWake = static_cast<WakeReason>(v & 0xFF);
-        nWakeSource = (v >> 8) & 0xFF;
-        bQuietWake = eWake == WakeReason::Can;
-        kWakeKeep[1] = v & ~WAKE_NEW;
+        uint32_t nKeep = nWakeKeep[1];
+        nWakes = (nKeep >> 16) & 0x7FFF;
+        if (nKeep & WAKE_NEW)
+        {
+            eWakeReason = static_cast<WakeReason>(nKeep & 0xFF);
+            nWakeSource = (nKeep >> 8) & 0xFF;
+            nWakeKeep[1] = nKeep & ~WAKE_NEW;
+            bQuietWake = (eWakeReason == WakeReason::Can);
+        }
     }
 }
 
-void EnableLineEventWithPull(ioline_t line, InputPull pull)
+// Ignition status byte 7 (dingoFW #74's bits): 0x80 this boot followed a sleep, 1 CAN, 2 digital input, 4 USB, 8 other
+uint8_t WakeSourceBits()
+{
+    static const uint8_t nBits[] = {0, 0x81, 0x82, 0x84, 0x88};
+    return nBits[static_cast<uint8_t>(eWakeReason)];
+}
+
+bool QuietWake()
+{
+    return bQuietWake || bSleeping;
+}
+
+// CAN RX thread. A goodbye wakes every sleeping module; if each then started talking (they forget "sleep now"
+// across the wake reset) they would wake each other for ever. So only a frame that isn't another module's
+// goodbye [Sleep, 'Z', 'Z', 'Z', ...] ends a quiet wake; then the module announces why it is awake.
+void CheckQuietWake(const CANRxFrame *frame)
+{
+    if (bQuietWake &&
+        !((frame->DLC == 8) && (frame->data8[0] == static_cast<uint8_t>(MsgCmd::Sleep)) &&
+          (frame->data8[1] == 'Z') && (frame->data8[2] == 'Z') && (frame->data8[3] == 'Z')))
+    {
+        bQuietWake = false;
+        SendSleepInfo();
+    }
+}
+
+// Right after STOP ends, before the reset clears EXTI->PR: which armed line woke it
+static void CaptureWake()
+{
+    uint32_t nPr = EXTI->PR1; // ChibiOS aliases PR1 to PR on the F3/F4
+    // A short CAN frame can be gone from PR by now; with CAN armed and nothing else pending, it was CAN
+    WakeReason eReason = stConfig.stDevice.bDisableCanWake ? WakeReason::PowerOn : WakeReason::Can;
+    uint8_t nSource = 0;
+    #if HAS_USB
+    if (nPr & ((1U << PAL_PAD(LINE_USB_DP)) | (1U << PAL_PAD(LINE_USB_DM))))
+        eReason = WakeReason::Usb;
+    #endif
+    if (!stConfig.stDevice.bDisableDigInWake)
+    {
+        for (uint8_t i = 0; i < NUM_DIG_INPUTS; i++)
+        {
+            if ((stConfig.stDevice.nWakeDigInputMask & (1U << i)) && (nPr & (1U << PAL_PAD(digIn[i].GetLine()))))
+            {
+                eReason = WakeReason::DigitalInput;
+                nSource = i + 1;
+                break;
+            }
+        }
+    }
+    // Nothing known pending but another line: say so rather than guess CAN
+    if (eReason != WakeReason::DigitalInput && eReason != WakeReason::Usb &&
+        !(nPr & (1U << PAL_PAD(LINE_CAN_RX))) && (nPr & 0xFFFF))
+        eReason = WakeReason::Other;
+    uint32_t nCount = (nWakeKeep[0] == WAKE_MAGIC) ? ((nWakeKeep[1] >> 16) & 0x7FFF) : 0;
+    nWakeKeep[1] = WAKE_NEW | (((nCount + 1) & 0x7FFF) << 16) | (nSource << 8) | static_cast<uint32_t>(eReason);
+    nWakeKeep[0] = WAKE_MAGIC;
+}
+
+void EnableLineEventWithPull(ioline_t line, InputPull pull) 
 {
     uint32_t eventMode = PAL_EVENT_MODE_BOTH_EDGES;
-
+    
     switch(pull) {
         case InputPull::Up:
             eventMode |= PAL_STM32_PUPDR_PULLUP;
@@ -247,45 +289,98 @@ void EnableLineEventWithPull(ioline_t line, InputPull pull)
             eventMode |= PAL_STM32_PUPDR_FLOATING;
             break;
     }
-
+    
     palEnableLineEvent(line, eventMode);
-}
-
-static void ArmUsbWake()
-{
-#if HAS_USB
-    palSetLineMode(LINE_USB_DP, PAL_MODE_INPUT);
-    palEnableLineEvent(LINE_USB_DP, PAL_EVENT_MODE_BOTH_EDGES | PAL_STM32_PUPDR_FLOATING);
-    palSetLineMode(LINE_USB_DM, PAL_MODE_INPUT);
-    palEnableLineEvent(LINE_USB_DM, PAL_EVENT_MODE_BOTH_EDGES | PAL_STM32_PUPDR_FLOATING);
-#endif
 }
 
 void EnterSleep()
 {
-    // Wake sources are configurable (FW #52): each digital input has its own checkbox
-    // (nWakeDigInputMask) and CAN traffic can be excluded (bWakeOnCan) so a module parked on
-    // a chattering bus — or one meant to wake only from its ignition pin — stays asleep.
-    // USB is always armed so plugging in for config always recovers the module.
+    // Clear CAN sleep request so we don't immediately re-enter sleep after waking up
+    bSleepRequest = false;
 
-#if NUM_DIG_INPUTS > 0
-    for (uint8_t i = 0; i < NUM_DIG_INPUTS; i++)
+    // Forced sleep can arrive with outputs on - shut them off, no current protection while stopped.
+    // Stay-alive outputs that are on stay on, the user opted out of that protection
+    #if NUM_OUTPUTS > 0
+    for (uint8_t i = 0; i < NUM_OUTPUTS; i++)
     {
-        digIn[i].StopPwm();   // its edge event is re-armed (or not) as a wake source below
-        if (stConfig.stDevice.nWakeDigInputMask & (1u << i))
-            EnableLineEventWithPull(digIn[i].GetLine(), stConfig.stDigInput[i].ePull);
+        if (stConfig.stOutput[i].bStayAlive && (pf[i].GetState() == ProfetState::On))
+            pf[i].StayOn();
+        else
+            pf[i].ForceOff(true); // DEN comes back on wake: wake is a reset and the Profet constructor sets it
     }
-#endif
+    #endif
 
-    if (stConfig.stDevice.bWakeOnCan)
+    // The SlowThread may not have stored the last change yet
+    #if HAS_EXT_MEMORY
+    WriteRetained();
+    #endif
+
+    if (nWhy != 4) // the ignition's went out when its quiet started
+        SendGoodbye(nWhy);
+    bSleeping = true;
+
+    // The control loop stops in STOP mode, don't leave a digital output latched on
+    #if NUM_DIG_OUTPUTS > 0
+    for (uint8_t i = 0; i < NUM_DIG_OUTPUTS; i++)
+        digOut[i].ForceOff();
+    #endif
+
+    // Let CanTxThread flush queued frames before the transceiver goes to standby
+    chThdSleepMilliseconds(100);
+
+    // Stop the CAN controller before its pins change: left running it answers the lost RX pin with an error
+    // frame, and the error flags the other nodes send back wake this module straight up again. Park TX recessive.
+    StopCan();
+    palSetLineMode(LINE_CAN_TX, PAL_MODE_OUTPUT_PUSHPULL);
+    palSetLine(LINE_CAN_TX);
+
+    #ifdef LINE_CAN_STANDBY
+    palSetLine(LINE_CAN_STANDBY); // CAN disabled
+    #endif
+
+    // Let the transceiver settle in standby before a wake source is armed
+    chThdSleepMilliseconds(20);
+
+    // A PWM input's edge event would wake it, and the wake event below needs the same EXTI line
+    #if DI_PWM_MAX_FREQ > 0
+    for(uint8_t i = 0; i < NUM_DIG_INPUTS; i++)
+        digIn[i].StopPwm();
+    #endif
+
+    // Set wakeup sources
+
+    // Digital inputs change detection, with configured pullup or pulldown
+    // Can be disabled in config
+    if(!stConfig.stDevice.bDisableDigInWake)
+    {
+        for(uint8_t i = 0; i < NUM_DIG_INPUTS; i++)
+        {
+            if (stConfig.stDevice.nWakeDigInputMask & (1u << i))
+                EnableLineEventWithPull(digIn[i].GetLine(), stConfig.stDigInput[i].ePull);
+        }
+    }
+
+    // CAN receive detection - can be disabled in config
+    if(!stConfig.stDevice.bDisableCanWake)
     {
         palSetLineMode(LINE_CAN_RX, PAL_MODE_INPUT);
         palEnableLineEvent(LINE_CAN_RX, PAL_EVENT_MODE_BOTH_EDGES | PAL_STM32_PUPDR_FLOATING);
     }
 
-    ArmUsbWake();
+    // USB detection - always active
+    #if HAS_USB
+    palSetLineMode(LINE_USB_DP, PAL_MODE_INPUT);
+    palEnableLineEvent(LINE_USB_DP, PAL_EVENT_MODE_BOTH_EDGES | PAL_STM32_PUPDR_FLOATING);
+    palSetLineMode(LINE_USB_DM, PAL_MODE_INPUT);
+    palEnableLineEvent(LINE_USB_DM, PAL_EVENT_MODE_BOTH_EDGES | PAL_STM32_PUPDR_FLOATING);
+    #endif
+
+    // Arming a line can latch an edge from the pin changing mode; only a real wake may end the stop
+    EXTI->PR1 = 0x0000FFFF; // ChibiOS aliases PR1 to PR on the F3/F4
 
     EnterStopMode();
+    CaptureWake();
+    NVIC_SystemReset();
 }
 
 #endif

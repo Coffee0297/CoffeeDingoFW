@@ -6,24 +6,14 @@
 #include "can_outputs.h"
 #include "counter.h"
 #include "condition.h"
+#include "timer.h"
+#include "math_block.h"
+#include "can_msg.h"
+#include "curve.h"
+#include "latch_gate.h"
+#include "pid.h"
 #include "flasher.h"
 #include "virtual_input.h"
-#include "timer.h"
-#if NUM_TABLES > 0
-#include "table.h"
-#endif
-#if NUM_MATH > 0
-#include "math_block.h"
-extern MathBlock mathBlock[NUM_MATH];
-#endif
-#include "ignition.h"
-extern Ignition ignition;
-#include "comfort_blink.h"
-extern ComfortBlink comfortBlink;
-#if NUM_CAN_MSGS > 0
-#include "can_msg.h"
-extern CanMsg canMsg[NUM_CAN_MSGS];
-#endif
 #if NUM_OUTPUTS > 0
 #include "profet.h"
 #endif
@@ -32,6 +22,12 @@ extern CanMsg canMsg[NUM_CAN_MSGS];
 #endif
 #if HAS_STARTER_DISABLE > 0
 #include "starter.h"
+#endif
+#if HAS_COMFORT_BLINK
+#include "comfort_blink.h"
+#endif
+#if HAS_IGNITION
+#include "ignition.h"
 #endif
 #if NUM_KEYPADS > 0
 #include "keypad/keypad.h"
@@ -53,9 +49,26 @@ extern VirtualInput virtIn[NUM_VIRT_INPUTS];
 extern Flasher flasher[NUM_FLASHERS];
 extern Counter counter[NUM_COUNTERS];
 extern Condition condition[NUM_CONDITIONS];
+#if NUM_TIMERS > 0
 extern Timer timer[NUM_TIMERS];
+#endif
+#if NUM_MATH > 0
+extern MathBlock mathBlock[NUM_MATH];
+#endif
+#if NUM_CAN_MSGS > 0
+extern CanMsg canMsg[NUM_CAN_MSGS];
+#endif
 #if NUM_TABLES > 0
 extern Table table[NUM_TABLES];
+#endif
+#if NUM_CURVES > 0
+extern Curve curve[NUM_CURVES];
+#endif
+#if NUM_LATCH_GATES > 0
+extern LatchGate latchGate[NUM_LATCH_GATES];
+#endif
+#if NUM_PIDS > 0
+extern Pid pid[NUM_PIDS];
 #endif
 #if NUM_OUTPUTS > 0
 extern Profet pf[NUM_OUTPUTS];
@@ -65,6 +78,12 @@ extern Wiper wiper;
 #endif
 #if HAS_STARTER_DISABLE
 extern Starter starter;
+#endif
+#if HAS_COMFORT_BLINK
+extern ComfortBlink comfortBlink;
+#endif
+#if HAS_IGNITION
+extern Ignition ignition;
 #endif
 #if NUM_KEYPADS > 0
 extern Keypad keypad[NUM_KEYPADS];
@@ -79,6 +98,18 @@ extern Digital_Output digOut[NUM_DIG_OUTPUTS];
 extern Analog_Input analogIn[NUM_ANALOG_INPUTS];
 #endif
 
+static MUTEX_DECL(configMutex);
+
+void LockConfig()
+{
+    chMtxLock(&configMutex);
+}
+
+void UnlockConfig()
+{
+    chMtxUnlock(&configMutex);
+}
+
 void ApplyAllConfig()
 {
     ApplyConfig(CanInput::nBaseIndex);
@@ -87,17 +118,26 @@ void ApplyAllConfig()
     ApplyConfig(Flasher::nBaseIndex);
     ApplyConfig(Counter::nBaseIndex);
     ApplyConfig(Condition::nBaseIndex);
+    #if NUM_TIMERS > 0
     ApplyConfig(Timer::nBaseIndex);
+    #endif
     #if NUM_MATH > 0
     ApplyConfig(MathBlock::nBaseIndex);
     #endif
-    ApplyConfig(Ignition::nBaseIndex);
-    ApplyConfig(ComfortBlink::nBaseIndex);
     #if NUM_CAN_MSGS > 0
     ApplyConfig(CanMsg::nBaseIndex);
     #endif
     #if NUM_TABLES > 0
     ApplyConfig(Table::nBaseIndex);
+    #endif
+    #if NUM_CURVES > 0
+    ApplyConfig(Curve::nBaseIndex);
+    #endif
+    #if NUM_LATCH_GATES > 0
+    ApplyConfig(LatchGate::nBaseIndex);
+    #endif
+    #if NUM_PIDS > 0
+    ApplyConfig(Pid::nBaseIndex);
     #endif
     #if NUM_OUTPUTS > 0
     ApplyConfig(Profet::nBaseIndex);
@@ -107,6 +147,12 @@ void ApplyAllConfig()
     #endif
     #if HAS_STARTER_DISABLE
     ApplyConfig(Starter::nBaseIndex);
+    #endif
+    #if HAS_COMFORT_BLINK
+    ApplyConfig(ComfortBlink::nBaseIndex);
+    #endif
+    #if HAS_IGNITION
+    ApplyConfig(Ignition::nBaseIndex);
     #endif
     #if NUM_KEYPADS > 0
     ApplyConfig(Keypad::nBaseIndex);
@@ -122,42 +168,35 @@ void ApplyAllConfig()
     #endif
 }
 
+#if HAS_IGNITION && (NUM_OUTPUTS > 0)
+// An output with an ignition role follows the ignition instead of its input; redone when either config changes
+static void BindIgnitionOutputs()
+{
+    for (uint8_t i = 0; i < NUM_OUTPUTS; i++)
+    {
+        float *pRole = stConfig.stIgnition.bEnabled ? ignition.RoleVar(stConfig.stIgnition.eOutputRole[i]) : nullptr;
+        pf[i].SetInput(pRole ? pRole : pVarMap[stConfig.stOutput[i].nInput]);
+    }
+}
+#endif
+
 void ApplyConfig(uint16_t nIndex)
 {
     uint16_t nBaseIndex = nIndex & 0xFF00;
 
-    // Device config (0x0000)
-    if (nBaseIndex == 0x0000)
+    // Device config (0x0000) - filter enable and base ID (config frame ID) live here
+    // CAN bitrate is not applied live - burn then send MsgCmd::Restart
+    if ((nBaseIndex == 0x0000) || (nBaseIndex == 0x0100))
     {
-        // TODO: Change CAN speed and filters without requiring reset
-        
-        SetCanFilterEnabled(stConfig.stDevice.bCanFilterEnabled);
+        UpdateCanFilters();
     }
 
     if (nBaseIndex == CanInput::nBaseIndex)
     {
-        ClearCanFilters(); // Clear all filters before setting new ones
-
-        // Set filter for CAN settings request message, (Base ID - 1)
-        // Use filter 0, it is always enabled to allow all messages by hal so it must be used
-        SetCanFilterId(0, stConfig.stDevice.nBaseId - 1, false);
-
-        // ids packed into consecutive slots: a slot per enabled input, not per input number
-        uint8_t nSlot = 1;
         for (uint8_t i = 0; i < NUM_CAN_INPUTS; i++)
-        {
             canIn[i].SetConfig(&stConfig.stCanInput[i]);
-            if(!stConfig.stCanInput[i].bEnabled)
-                continue; // Skip if not enabled
 
-            SetCanFilterId(nSlot++, stConfig.stCanInput[i].nID, stConfig.stCanInput[i].nIDE == 1);
-        }
-
-        // Ignition follower (5.6): let the main module's state frame through
-        if (stConfig.stIgnition.bEnabled && stConfig.stIgnition.eRole == IgnRole::Follower)
-            SetCanFilterId(nSlot++, stConfig.stIgnition.nMainStateId, false);
-
-        //TODO: Set can filter without requiring reset, need a new message to indicate all IDs set before stopping CAN
+        UpdateCanFilters();
     }
 
     if (nBaseIndex == CanOutputs::nBaseIndex)
@@ -191,20 +230,13 @@ void ApplyConfig(uint16_t nIndex)
             condition[i].SetConfig(&stConfig.stCondition[i]);
     }
 
+    #if NUM_TIMERS > 0
     if (nBaseIndex == Timer::nBaseIndex)
     {
         for (uint8_t i = 0; i < NUM_TIMERS; i++)
             timer[i].SetConfig(&stConfig.stTimer[i]);
     }
-
-    if (nBaseIndex == ComfortBlink::nBaseIndex)
-        comfortBlink.SetConfig(&stConfig.stComfortBlink);
-
-    if (nBaseIndex == Ignition::nBaseIndex)
-    {
-        ignition.SetConfig(&stConfig.stIgnition);
-        ApplyConfig(CanInput::nBaseIndex);   // the follower's receive filter
-    }
+    #endif
 
     #if NUM_MATH > 0
     if (nBaseIndex == MathBlock::nBaseIndex)
@@ -213,6 +245,7 @@ void ApplyConfig(uint16_t nIndex)
             mathBlock[i].SetConfig(&stConfig.stMath[i]);
     }
     #endif
+
     #if NUM_CAN_MSGS > 0
     if (nBaseIndex == CanMsg::nBaseIndex)
     {
@@ -220,11 +253,36 @@ void ApplyConfig(uint16_t nIndex)
             canMsg[i].SetConfig(&stConfig.stCanMsg[i]);
     }
     #endif
+
     #if NUM_TABLES > 0
     if (nBaseIndex == Table::nBaseIndex)
     {
         for (uint8_t i = 0; i < NUM_TABLES; i++)
             table[i].SetConfig(&stConfig.stTable[i]);
+    }
+    #endif
+
+    #if NUM_CURVES > 0
+    if (nBaseIndex == Curve::nBaseIndex)
+    {
+        for (uint8_t i = 0; i < NUM_CURVES; i++)
+            curve[i].SetConfig(&stConfig.stCurve[i]);
+    }
+    #endif
+
+    #if NUM_LATCH_GATES > 0
+    if (nBaseIndex == LatchGate::nBaseIndex)
+    {
+        for (uint8_t i = 0; i < NUM_LATCH_GATES; i++)
+            latchGate[i].SetConfig(&stConfig.stLatchGate[i]);
+    }
+    #endif
+
+    #if NUM_PIDS > 0
+    if (nBaseIndex == Pid::nBaseIndex)
+    {
+        for (uint8_t i = 0; i < NUM_PIDS; i++)
+            pid[i].SetConfig(&stConfig.stPid[i]);
     }
     #endif
 
@@ -246,7 +304,7 @@ void ApplyConfig(uint16_t nIndex)
         {
             int8_t pri = stConfig.stOutput[i].nPrimaryOutput;
 
-            if (pri == -1)                                           continue; // unpaired
+            if (pri < 0)                                             continue; // unpaired
             if (pri == i)                                            continue; // self-pair
             if (pri >= NUM_OUTPUTS)                                  continue; // out of range
             if (stConfig.stOutput[pri].nPrimaryOutput != -1)         continue; // primary is itself a follower (no chains)
@@ -255,6 +313,10 @@ void ApplyConfig(uint16_t nIndex)
             pf[i].pPrimary      = &pf[pri];
             pf[pri].pFollower   = &pf[i];
         }
+
+        #if HAS_IGNITION
+        BindIgnitionOutputs();
+        #endif
     }
     #endif
 
@@ -272,11 +334,33 @@ void ApplyConfig(uint16_t nIndex)
     }
     #endif
 
+    #if HAS_COMFORT_BLINK
+    if (nBaseIndex == ComfortBlink::nBaseIndex)
+    {
+        comfortBlink.SetConfig(&stConfig.stComfortBlink);
+    }
+    #endif
+
+    #if HAS_IGNITION
+    if (nBaseIndex == Ignition::nBaseIndex)
+    {
+        ignition.SetConfig(&stConfig.stIgnition);
+        #if NUM_OUTPUTS > 0
+        BindIgnitionOutputs();
+        #endif
+
+        UpdateCanFilters(); // Follower Rx ID
+    }
+    #endif
+
     #if NUM_KEYPADS > 0
-    if (nBaseIndex == Keypad::nBaseIndex)
+    // Keypad (0x30xx), buttons (0x31xx) and dials (0x32xx) are all applied through Keypad::SetConfig
+    if ((nBaseIndex & 0xF000) == Keypad::nBaseIndex)
     {
         for (uint8_t i = 0; i < NUM_KEYPADS; i++)
             keypad[i].SetConfig(&stConfig.stKeypad[i]);
+
+        UpdateCanFilters(); // Node ID / model / enable change the keypad Rx IDs
     }
     #endif
 

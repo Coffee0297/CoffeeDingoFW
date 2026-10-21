@@ -7,22 +7,23 @@
 #include "device_config.h"
 #include "mailbox.h"
 #include "enums.h"
+#include "fault_log.h"
+#if CAN_SLEEP
 #include "sleep.h"
+#endif
+#include "param_protocol.h"
+#include "dbc.h"
+#if NUM_OUTPUTS > 0
+#include "overload_log.h"
+#endif
+#include "lua_script.h"
+#include <cstring>
 
 // External variables from pdm.cpp that we need access to
 extern DeviceConfig stConfig;
 extern bool bSleepRequest;
-#if HAS_LUA
-#include "lua_port.h"
-extern volatile bool gLuaReload;   // set here on upload-complete; LuaThread reloads
-#endif
-#if NUM_OUTPUTS > 0
-#include "overload_log.h"
-#include "profet.h"
-#endif
-#if NUM_DIG_OUTPUTS > 0
-#include "digital_output.h"
-#endif
+extern volatile uint32_t nIdentifyStart;
+extern volatile uint32_t nIdentifyMs;
 
 void CheckRequestMsgs(CANRxFrame *frame)
 {
@@ -40,7 +41,7 @@ void CheckRequestMsgs(CANRxFrame *frame)
         CANTxFrame txMsg;
         txMsg.SID = stConfig.stDevice.nBaseId + CONFIG_TX_OFFSET;
         txMsg.IDE = CAN_IDE_STD;
-        txMsg.DLC = 8;   // dingoConfig drops a sleep reply shorter than 8 bytes and reads the ack at [5]
+        txMsg.DLC = 8;
         txMsg.data8[0] = static_cast<uint8_t>(MsgCmd::Sleep);
         txMsg.data8[1] = 'Q';
         txMsg.data8[2] = 'U';
@@ -54,29 +55,34 @@ void CheckRequestMsgs(CANRxFrame *frame)
 
         bSleepRequest = true;
     }
-    #endif
 
-    #if CAN_SLEEP
-    // Sleep info (5.6): why it last woke, how often, and how long until it sleeps
-    if ((frame->DLC == 8) && (frame->data8[0] == static_cast<uint8_t>(MsgCmd::SleepInfo)))
-        SendSleepInfo();
-    #endif
-
-    // Identify: blink the LEDs so the operator can find this module (5.6)
-    if ((frame->DLC == 8) && (frame->data8[0] == static_cast<uint8_t>(MsgCmd::Identify)))
+    if ((frame->DLC == 8) &&
+        (frame->data8[0] == static_cast<uint8_t>(MsgCmd::SleepInfo)))
     {
-        uint8_t secs = frame->data8[1] < 1 ? 1 : (frame->data8[1] > 60 ? 60 : frame->data8[1]);
-        #if HAS_SE_LEDS
-        nIdentifyUntil = SYS_TIME + secs * 1000U;
-        #endif
+        SendSleepInfo();
+    }
+    #endif
+
+    // Identify: the LEDs take turns for 1-60 s so the module can be found
+    if ((frame->DLC == 8) &&
+        (frame->data8[0] == static_cast<uint8_t>(MsgCmd::Identify)))
+    {
+        uint8_t nSecs = frame->data8[1] < 1 ? 1 : (frame->data8[1] > 60 ? 60 : frame->data8[1]);
+        nIdentifyStart = SYS_TIME;
+        nIdentifyMs = nSecs * 1000;
+
         CANTxFrame txMsg;
         txMsg.SID = stConfig.stDevice.nBaseId + CONFIG_TX_OFFSET;
         txMsg.IDE = CAN_IDE_STD;
         txMsg.DLC = 8;
         txMsg.data8[0] = static_cast<uint8_t>(MsgCmd::Identify);
-        txMsg.data8[1] = secs;
-        txMsg.data8[2] = HAS_SE_LEDS ? 1 : 0;
-        txMsg.data8[3] = 0; txMsg.data8[4] = 0; txMsg.data8[5] = 0; txMsg.data8[6] = 0; txMsg.data8[7] = 0;
+        txMsg.data8[1] = nSecs;
+        txMsg.data8[2] = HAS_SE_LEDS;
+        txMsg.data8[3] = 0;
+        txMsg.data8[4] = 0;
+        txMsg.data8[5] = 0;
+        txMsg.data8[6] = 0;
+        txMsg.data8[7] = 0;
         PostTxFrame(&txMsg);
     }
 
@@ -100,198 +106,73 @@ void CheckRequestMsgs(CANRxFrame *frame)
         txMsg.data8[6] = 0;
         txMsg.data8[7] = 0;
         PostTxFrame(&txMsg);
-
-        // Apply CAN filter / bitrate changes at runtime: DeviceThread re-runs InitCan()
-        // shortly after this reply is sent, so no power cycle is needed.
-        gReinitCanRequested = true;
     }
 
-    // Check for bootloader request (all boards). The "BOOTL" signature guards against
-    // accidental entry. The handler is board-specific: on the CANBoard, RequestBootloader()
-    // enters the OpenBLT CAN bootloader (boards/cortex-m3/mcu_utils.cpp). On the PDMs (HAS_USB)
-    // byte 6 selects the path: 0 (default) = USB-DFU system bootloader, 1 = OpenBLT CAN update
-    // of the relocated app (boards/cortex-m4/mcu_utils.cpp).
-    if ((frame->DLC == 8) &&
-        (frame->data8[0] == static_cast<uint8_t>(MsgCmd::Bootloader)) &&
-        (frame->data8[1] == 'B') && (frame->data8[2] == 'O') &&
+    // Check for bootloader request, refused while the config is locked
+    if ((frame->DLC == 8) && !IsConfigLocked() &&
+        (frame->data8[0] == static_cast<uint8_t>(MsgCmd::Bootloader)) && 
+        (frame->data8[1] == 'B') && (frame->data8[2] == 'O') && 
         (frame->data8[3] == 'O') && (frame->data8[4] == 'T') && (frame->data8[5] == 'L'))
     {
         #if HAS_USB
+        // Byte 6: 0 = USB-DFU, 1 = OpenBLT update over CAN
         if (frame->data8[6] == 1)
-            RequestBootloaderCan(stConfig.stDevice.nBaseId,
-                                 static_cast<uint8_t>(stConfig.stDevice.eCanSpeed));
+        {
+            #if defined(STM32F4XX) // OpenBLT is the F4 port: ignored on the G474 (v8)
+            RequestBootloaderCan(stConfig.stDevice.nBaseId, static_cast<uint8_t>(stConfig.stDevice.eCanSpeed));
+            #endif
+        }
         else
             RequestBootloader();
         #else
+        // CANBoard: OpenBLT over CAN only, it reads base id and speed from the config sector
         RequestBootloader();
         #endif
     }
 
-    #if HAS_LUA
-    // ---- Lua program upload (chunked) -------------------------------------
-    // LuaWrite:        [cmd, offHi, offLo, b0, b1, b2, b3, b4]  (5 source bytes)
-    // LuaWriteComplete:[cmd, lenHi, lenLo]  -> set length, persist, reload
-    // LuaRead:         [cmd, offHi, offLo]  -> reply 5 bytes at offset
-    if (frame->DLC == 8 && frame->data8[0] == static_cast<uint8_t>(MsgCmd::LuaWrite))
+    // Check for restart request - applies settings that need a reset (e.g. CAN bitrate)
+    // Unburned settings are lost, host should burn first
+    if ((frame->DLC == 8) &&
+        (frame->data8[0] == static_cast<uint8_t>(MsgCmd::Restart)) &&
+        (frame->data8[1] == 'R') && (frame->data8[2] == 'E') &&
+        (frame->data8[3] == 'S') && (frame->data8[4] == 'E') && (frame->data8[5] == 'T'))
     {
-        uint16_t off = (uint16_t)((frame->data8[1] << 8) | frame->data8[2]);
-        for (uint8_t i = 0; i < 5; i++) {
-            uint16_t o = (uint16_t)(off + i);
-            if (o < LUA_SCRIPT_MAX) stConfig.stLua.acScript[o] = (char)frame->data8[3 + i];
-        }
-        CANTxFrame tx; tx.SID = stConfig.stDevice.nBaseId + CONFIG_TX_OFFSET;
-        tx.IDE = CAN_IDE_STD; tx.DLC = 3;
-        tx.data8[0] = static_cast<uint8_t>(MsgCmd::LuaWrite);
-        tx.data8[1] = frame->data8[1]; tx.data8[2] = frame->data8[2];
-        PostTxFrame(&tx);
-    }
-    else if (frame->DLC == 8 && frame->data8[0] == static_cast<uint8_t>(MsgCmd::LuaWriteComplete))
-    {
-        uint16_t len = (uint16_t)((frame->data8[1] << 8) | frame->data8[2]);
-        if (len >= LUA_SCRIPT_MAX) len = LUA_SCRIPT_MAX - 1;
-        stConfig.stLua.nLength = len;
-        stConfig.stLua.acScript[len] = '\0';
-        stConfig.stLua.bEnabled = (len > 0);
-        bool ok = WriteConfig();          // persist to FRAM/flash
-        gLuaReload = true;                // LuaThread recompiles next cycle
-        CANTxFrame tx; tx.SID = stConfig.stDevice.nBaseId + CONFIG_TX_OFFSET;
-        tx.IDE = CAN_IDE_STD; tx.DLC = 4;
-        tx.data8[0] = static_cast<uint8_t>(MsgCmd::LuaWriteComplete);
-        tx.data8[1] = frame->data8[1]; tx.data8[2] = frame->data8[2];
-        tx.data8[3] = ok ? 1 : 0;
-        PostTxFrame(&tx);
-    }
-    else if (frame->DLC == 8 && frame->data8[0] == static_cast<uint8_t>(MsgCmd::LuaRead))
-    {
-        uint16_t off = (uint16_t)((frame->data8[1] << 8) | frame->data8[2]);
-        CANTxFrame tx; tx.SID = stConfig.stDevice.nBaseId + CONFIG_TX_OFFSET;
-        tx.IDE = CAN_IDE_STD; tx.DLC = 8;
-        tx.data8[0] = static_cast<uint8_t>(MsgCmd::LuaRead);
-        tx.data8[1] = frame->data8[1]; tx.data8[2] = frame->data8[2];
-        for (uint8_t i = 0; i < 5; i++) {
-            uint16_t o = (uint16_t)(off + i);
-            tx.data8[3 + i] = (o < LUA_SCRIPT_MAX) ? (uint8_t)stConfig.stLua.acScript[o] : 0;
-        }
-        PostTxFrame(&tx);
-    }
-    else if (frame->DLC == 8 && frame->data8[0] == static_cast<uint8_t>(MsgCmd::LuaErr))
-    {
-        const char *err = LuaLastError();
-        uint16_t len = 0; while (err[len]) len++;
-        uint16_t off = (uint16_t)((frame->data8[1] << 8) | frame->data8[2]);
-        CANTxFrame tx; tx.SID = stConfig.stDevice.nBaseId + CONFIG_TX_OFFSET;
-        tx.IDE = CAN_IDE_STD; tx.DLC = 8;
-        tx.data8[0] = static_cast<uint8_t>(MsgCmd::LuaErr);
-        tx.data8[1] = frame->data8[1]; tx.data8[2] = frame->data8[2];
-        for (uint8_t i = 0; i < 5; i++) {
-            uint16_t o = (uint16_t)(off + i);
-            tx.data8[3 + i] = (o < len) ? (uint8_t)err[o] : 0;
-        }
-        PostTxFrame(&tx);
-    }
-    #endif // HAS_LUA
+        CANTxFrame txMsg;
+        txMsg.SID = stConfig.stDevice.nBaseId + CONFIG_TX_OFFSET;
+        txMsg.IDE = CAN_IDE_STD;
+        txMsg.DLC = 8;
+        txMsg.data8[0] = static_cast<uint8_t>(MsgCmd::Restart);
+        txMsg.data8[1] = 'R';
+        txMsg.data8[2] = 'E';
+        txMsg.data8[3] = 'S';
+        txMsg.data8[4] = 'E';
+        txMsg.data8[5] = 'T';
+        txMsg.data8[6] = 1; // Acknowledge restart request
+        txMsg.data8[7] = 0;
 
-    #if NUM_OUTPUTS > 0
-    // Overload-log read-back (see MsgCmd OvlCount/OvlHeader/OvlData/OvlClear)
-    if (frame->DLC == 8 && frame->data8[0] == static_cast<uint8_t>(MsgCmd::OvlCount))
-    {
-        CANTxFrame tx; tx.SID = stConfig.stDevice.nBaseId + CONFIG_TX_OFFSET;
-        tx.IDE = CAN_IDE_STD; tx.DLC = 8;   // 5.6: was 2; bytes 2-5 uptime now (ms), 6 notices
-        tx.data8[0] = static_cast<uint8_t>(MsgCmd::OvlCount);
-        tx.data8[1] = OvlLogCount();
-        const uint32_t now = SYS_TIME;
-        tx.data8[2] = now & 0xFF; tx.data8[3] = (now >> 8) & 0xFF; tx.data8[4] = (now >> 16) & 0xFF; tx.data8[5] = now >> 24;
-        tx.data8[6] = OvlNoticeCount(); tx.data8[7] = 0;
-        PostTxFrame(&tx);
-    }
-    else if (frame->DLC == 8 && frame->data8[0] == static_cast<uint8_t>(MsgCmd::OvlTime))
-    {
-        const uint8_t idx = frame->data8[1];
-        const uint32_t t = OvlLogTime(idx);
-        CANTxFrame tx; tx.SID = stConfig.stDevice.nBaseId + CONFIG_TX_OFFSET;
-        tx.IDE = CAN_IDE_STD; tx.DLC = 8;
-        tx.data8[0] = static_cast<uint8_t>(MsgCmd::OvlTime);
-        tx.data8[1] = idx;
-        tx.data8[2] = t & 0xFF; tx.data8[3] = (t >> 8) & 0xFF; tx.data8[4] = (t >> 16) & 0xFF; tx.data8[5] = t >> 24;
-        tx.data8[6] = 0; tx.data8[7] = 0;
-        PostTxFrame(&tx);
-    }
-    else if (frame->DLC == 8 && frame->data8[0] == static_cast<uint8_t>(MsgCmd::OvlNotice))
-    {
-        const uint8_t idx = frame->data8[1];
-        uint8_t nOut = 0xFF, nKind = 0; uint32_t t = 0;
-        OvlNoticeGet(idx, nOut, nKind, t);
-        CANTxFrame tx; tx.SID = stConfig.stDevice.nBaseId + CONFIG_TX_OFFSET;
-        tx.IDE = CAN_IDE_STD; tx.DLC = 8;
-        tx.data8[0] = static_cast<uint8_t>(MsgCmd::OvlNotice);
-        tx.data8[1] = idx; tx.data8[2] = nOut; tx.data8[3] = nKind;
-        tx.data8[4] = t & 0xFF; tx.data8[5] = (t >> 8) & 0xFF; tx.data8[6] = (t >> 16) & 0xFF; tx.data8[7] = t >> 24;
-        PostTxFrame(&tx);
-    }
-    else if (frame->DLC == 8 && frame->data8[0] == static_cast<uint8_t>(MsgCmd::OvlHeader))
-    {
-        uint8_t idx = frame->data8[1];
-        uint8_t nOut = 0, nState = 0; float fPeak = 0, fLimit = 0;
-        bool ok = OvlLogGetHeader(idx, nOut, nState, fPeak, fLimit);
-        uint16_t nPeak = ok ? (uint16_t)(fPeak * 10.0f) : 0;     // 0.1A
-        uint16_t nLimit = ok ? (uint16_t)(fLimit * 10.0f) : 0;
-        CANTxFrame tx; tx.SID = stConfig.stDevice.nBaseId + CONFIG_TX_OFFSET;
-        tx.IDE = CAN_IDE_STD; tx.DLC = 8;
-        tx.data8[0] = static_cast<uint8_t>(MsgCmd::OvlHeader);
-        tx.data8[1] = idx;
-        tx.data8[2] = ok ? nOut : 0xFF;     // 0xFF = invalid index
-        tx.data8[3] = nState;
-        tx.data8[4] = nPeak & 0xFF; tx.data8[5] = nPeak >> 8;
-        tx.data8[6] = nLimit & 0xFF; tx.data8[7] = nLimit >> 8;
-        PostTxFrame(&tx);
-    }
-    else if (frame->DLC == 8 && frame->data8[0] == static_cast<uint8_t>(MsgCmd::OvlData))
-    {
-        uint8_t idx = frame->data8[1];
-        uint16_t off = (uint16_t)((frame->data8[2] << 8) | frame->data8[3]);
-        uint8_t buf[4] = {0, 0, 0, 0};
-        OvlLogGetData(idx, off, buf, 4);
-        CANTxFrame tx; tx.SID = stConfig.stDevice.nBaseId + CONFIG_TX_OFFSET;
-        tx.IDE = CAN_IDE_STD; tx.DLC = 8;
-        tx.data8[0] = static_cast<uint8_t>(MsgCmd::OvlData);
-        tx.data8[1] = idx; tx.data8[2] = frame->data8[2]; tx.data8[3] = frame->data8[3];
-        tx.data8[4] = buf[0]; tx.data8[5] = buf[1]; tx.data8[6] = buf[2]; tx.data8[7] = buf[3];
-        PostTxFrame(&tx);
-    }
-    else if (frame->DLC == 8 && frame->data8[0] == static_cast<uint8_t>(MsgCmd::OvlClear))
-    {
-        OvlLogClear();
-        CANTxFrame tx; tx.SID = stConfig.stDevice.nBaseId + CONFIG_TX_OFFSET;
-        tx.IDE = CAN_IDE_STD; tx.DLC = 1;
-        tx.data8[0] = static_cast<uint8_t>(MsgCmd::OvlClear);
-        PostTxFrame(&tx);
-    }
-    #endif // NUM_OUTPUTS > 0
+        PostTxFrame(&txMsg);
 
-    #if NUM_OUTPUTS > 0 || NUM_DIG_OUTPUTS > 0
-    // Output bench test: [cmd, out, mode, duty, freqLo, freqHi, holdSec, 0]. Only an enabled output is
-    // accepted (a PDM output then runs under its current limits); a release (mode 0) always is. A board
-    // has either Profet outputs (PDM) or digital outputs (CANBoard) — the index addresses whichever it has.
-    if (frame->DLC == 8 && frame->data8[0] == static_cast<uint8_t>(MsgCmd::OutputTest))
-    {
-        uint8_t n = frame->data8[1];
-        uint8_t mode = frame->data8[2];
-        uint16_t freq = (uint16_t)(frame->data8[4] | (frame->data8[5] << 8));
-        bool ok = false;
-        #if NUM_OUTPUTS > 0
-        ok = (n < NUM_OUTPUTS) && (mode == 0 || stConfig.stOutput[n].bEnabled);
-        if (ok) pf[n].SetTest(mode, frame->data8[3], freq, frame->data8[6]);
-        #elif NUM_DIG_OUTPUTS > 0
-        ok = (n < NUM_DIG_OUTPUTS) && (mode == 0 || stConfig.stDigOutput[n].bEnabled);
-        if (ok) digOut[n].SetTest(mode, frame->data8[3], freq, frame->data8[6]);
-        #endif
-        CANTxFrame tx; tx.SID = stConfig.stDevice.nBaseId + CONFIG_TX_OFFSET;
-        tx.IDE = CAN_IDE_STD; tx.DLC = 8;
-        for (uint8_t i = 0; i < 7; i++) tx.data8[i] = frame->data8[i];
-        tx.data8[7] = ok ? 1 : 0;
-        PostTxFrame(&tx);
+        // Let the ack go out before resetting, same margin as sleep
+        chThdSleepMilliseconds(100);
+
+        NVIC_SystemReset();
     }
-    #endif
+
+    // Output bench test, reply echoes bytes 0-6 with byte 7 = accepted
+    if ((frame->DLC == 8) &&
+        (frame->data8[0] == static_cast<uint8_t>(MsgCmd::OutputTest)))
+    {
+        CANTxFrame txMsg;
+        txMsg.SID = stConfig.stDevice.nBaseId + CONFIG_TX_OFFSET;
+        txMsg.IDE = CAN_IDE_STD;
+        txMsg.DLC = 8;
+        for (uint8_t i = 0; i < 7; i++)
+            txMsg.data8[i] = frame->data8[i];
+        txMsg.data8[7] = SetOutputTest(frame->data8[1], frame->data8[2], frame->data8[3],
+                                       frame->data8[4] | (frame->data8[5] << 8), frame->data8[6]);
+
+        PostTxFrame(&txMsg);
+    }
 
     // Check for version request
     if ((frame->DLC == 8) &&
@@ -302,7 +183,7 @@ void CheckRequestMsgs(CANRxFrame *frame)
         txMsg.IDE = CAN_IDE_STD;
         txMsg.DLC = 8;
         txMsg.data8[0] = static_cast<uint8_t>(MsgCmd::Version);
-        txMsg.data8[1] = BOARD_ID; //device-type id (0=PDM, 1=PDM-MAX, 2=CANBoard) — lets the tool identify the board
+        txMsg.data8[1] = BOARD_ID;
         txMsg.data8[2] = 0;
         txMsg.data8[3] = 0;
         txMsg.data8[4] = MAJOR_VERSION;
@@ -312,25 +193,182 @@ void CheckRequestMsgs(CANRxFrame *frame)
 
         PostTxFrame(&txMsg);
     }
-}
 
-#if CAN_SLEEP
-// [SleepInfo, wakeReason, wakeSource, wakesLo, wakesHi, countdown s, blockers, 0] on base+0. Asked for with
-// MsgCmd::SleepInfo, and sent unasked once after every boot (5.6.3), so the bus hears why a module woke.
-void SendSleepInfo()
-{
-    CANTxFrame txMsg;
-    txMsg.SID = stConfig.stDevice.nBaseId + CONFIG_TX_OFFSET;
-    txMsg.IDE = CAN_IDE_STD;
-    txMsg.DLC = 8;
-    txMsg.data8[0] = static_cast<uint8_t>(MsgCmd::SleepInfo);
-    txMsg.data8[1] = static_cast<uint8_t>(GetWakeReason());
-    txMsg.data8[2] = GetWakeSource();
-    txMsg.data8[3] = GetWakeCount() & 0xFF;
-    txMsg.data8[4] = GetWakeCount() >> 8;
-    txMsg.data8[5] = SleepCountdownSec();
-    txMsg.data8[6] = SleepBlockers();
-    txMsg.data8[7] = 0;
-    PostTxFrame(&txMsg);
+    // Check for reset cause request
+    if ((frame->DLC == 8) &&
+        (frame->data8[0] == static_cast<uint8_t>(MsgCmd::ResetCause)))
+    {
+        CANTxFrame txMsg = {};
+        txMsg.SID = stConfig.stDevice.nBaseId + CONFIG_TX_OFFSET;
+        txMsg.IDE = CAN_IDE_STD;
+        txMsg.DLC = 8;
+        txMsg.data8[0] = static_cast<uint8_t>(MsgCmd::ResetCause);
+        txMsg.data8[1] = nResetCause;
+
+        PostTxFrame(&txMsg);
+    }
+
+    #if HAS_EXT_MEMORY && (NUM_OUTPUTS > 0)
+    // Fault log entry n (0 = newest), two frames:
+    // [53, n, count, output | kind << 4, boot count (u16), current x10 (u16)]
+    // [53, n | 0x80, uptime ms (u32), battery V x100 (u16)]
+    if ((frame->DLC == 8) &&
+        (frame->data8[0] == static_cast<uint8_t>(MsgCmd::FaultLogRead)))
+    {
+        FaultLogEntry stEntry;
+        uint8_t n = frame->data8[1] & 0x7F;
+        uint8_t nCount = ReadFaultLog(n, &stEntry);
+
+        CANTxFrame txMsg = {};
+        txMsg.SID = stConfig.stDevice.nBaseId + CONFIG_TX_OFFSET;
+        txMsg.IDE = CAN_IDE_STD;
+        txMsg.DLC = 8;
+        txMsg.data8[0] = static_cast<uint8_t>(MsgCmd::FaultLogRead);
+        txMsg.data8[1] = n;
+        txMsg.data8[2] = nCount;
+        txMsg.data8[3] = stEntry.nOutput | (static_cast<uint8_t>(stEntry.eKind) << 4);
+        txMsg.data8[4] = stEntry.nBootCount & 0xFF;
+        txMsg.data8[5] = stEntry.nBootCount >> 8;
+        txMsg.data8[6] = stEntry.nCurrent & 0xFF;
+        txMsg.data8[7] = stEntry.nCurrent >> 8;
+        PostTxFrame(&txMsg);
+
+        txMsg.data8[1] = n | 0x80;
+        txMsg.data8[2] = stEntry.nUptimeMs & 0xFF;
+        txMsg.data8[3] = (stEntry.nUptimeMs >> 8) & 0xFF;
+        txMsg.data8[4] = (stEntry.nUptimeMs >> 16) & 0xFF;
+        txMsg.data8[5] = stEntry.nUptimeMs >> 24;
+        txMsg.data8[6] = stEntry.nBattVolt & 0xFF;
+        txMsg.data8[7] = stEntry.nBattVolt >> 8;
+        PostTxFrame(&txMsg);
+    }
+
+    // Clear the fault log, reply [54, 1]
+    if ((frame->DLC == 8) &&
+        (frame->data8[0] == static_cast<uint8_t>(MsgCmd::FaultLogClear)))
+    {
+        ClearFaultLog();
+
+        CANTxFrame txMsg = {};
+        txMsg.SID = stConfig.stDevice.nBaseId + CONFIG_TX_OFFSET;
+        txMsg.IDE = CAN_IDE_STD;
+        txMsg.DLC = 8;
+        txMsg.data8[0] = static_cast<uint8_t>(MsgCmd::FaultLogClear);
+        txMsg.data8[1] = 1;
+        PostTxFrame(&txMsg);
+    }
+    #endif
+
+    #if NUM_OUTPUTS > 0
+    // Trip log read-back, frame layouts at MsgCmd::OvlCount
+    MsgCmd eCmd = static_cast<MsgCmd>(frame->data8[0]);
+    if ((frame->DLC == 8) &&
+        ((eCmd == MsgCmd::OvlCount) || (eCmd == MsgCmd::OvlHeader) || (eCmd == MsgCmd::OvlData) ||
+         (eCmd == MsgCmd::OvlClear) || (eCmd == MsgCmd::OvlTime)))
+    {
+        CANTxFrame txMsg = {};
+        txMsg.SID = stConfig.stDevice.nBaseId + CONFIG_TX_OFFSET;
+        txMsg.IDE = CAN_IDE_STD;
+        txMsg.DLC = 8;
+        txMsg.data8[0] = frame->data8[0];
+        txMsg.data8[1] = frame->data8[1];
+        uint8_t idx = frame->data8[1];
+
+        LockConfig(); // DeviceThread writes the log under this lock
+        switch (eCmd)
+        {
+        case MsgCmd::OvlCount:
+            txMsg.data8[1] = OvlLogCount();
+            Dbc::EncodeInt(txMsg.data8, SYS_TIME, 16, 32);
+            break;
+        case MsgCmd::OvlTime:
+            Dbc::EncodeInt(txMsg.data8, OvlLogTime(idx), 16, 32);
+            break;
+        case MsgCmd::OvlHeader:
+        {
+            uint8_t nOut, nState;
+            float fPeak, fLimit;
+            txMsg.data8[2] = 0xFF;
+            if (OvlLogGetHeader(idx, nOut, nState, fPeak, fLimit))
+            {
+                txMsg.data8[2] = nOut;
+                txMsg.data8[3] = nState;
+                Dbc::EncodeInt(txMsg.data8, (uint16_t)(fPeak * 10.0f), 32, 16);
+                Dbc::EncodeInt(txMsg.data8, (uint16_t)(fLimit * 10.0f), 48, 16);
+            }
+            break;
+        }
+        case MsgCmd::OvlData:
+            txMsg.data8[2] = frame->data8[2];
+            txMsg.data8[3] = frame->data8[3];
+            OvlLogGetData(idx, (frame->data8[2] << 8) | frame->data8[3], &txMsg.data8[4], 4);
+            break;
+        default: // OvlClear
+            OvlLogClear();
+            txMsg.DLC = 1;
+            break;
+        }
+        UnlockConfig();
+
+        PostTxFrame(&txMsg);
+    }
+    #endif
+
+    #if HAS_LUA
+    // Lua program upload/read-back in 5-byte chunks, frame layouts at MsgCmd::LuaWrite
+    MsgCmd eLuaCmd = static_cast<MsgCmd>(frame->data8[0]);
+    if ((frame->DLC == 8) &&
+        ((eLuaCmd == MsgCmd::LuaWrite) || (eLuaCmd == MsgCmd::LuaWriteComplete) ||
+         (eLuaCmd == MsgCmd::LuaRead) || (eLuaCmd == MsgCmd::LuaErr)))
+    {
+        CANTxFrame txMsg = {};
+        txMsg.SID = stConfig.stDevice.nBaseId + CONFIG_TX_OFFSET;
+        txMsg.IDE = CAN_IDE_STD;
+        txMsg.DLC = 8;
+        txMsg.data8[0] = frame->data8[0];
+        txMsg.data8[1] = frame->data8[1];
+        txMsg.data8[2] = frame->data8[2];
+        uint16_t nOff = (frame->data8[1] << 8) | frame->data8[2];
+        const char *pErr = GetLuaError();
+        uint16_t nErrLen = strlen(pErr);
+
+        // The script is config: no upload while the config is locked
+        if (IsConfigLocked() && ((eLuaCmd == MsgCmd::LuaWrite) || (eLuaCmd == MsgCmd::LuaWriteComplete)))
+        {
+            txMsg.data8[0] = static_cast<uint8_t>(MsgCmd::Locked);
+            txMsg.data8[1] = 0;
+            txMsg.data8[2] = 0;
+            txMsg.data8[3] = 0;
+            txMsg.data8[4] = static_cast<uint8_t>(eLuaCmd);
+            PostTxFrame(&txMsg);
+            return;
+        }
+
+        for (uint8_t i = 0; i < 5; i++)
+        {
+            uint16_t n = nOff + i;
+            if ((eLuaCmd == MsgCmd::LuaWrite) && (n < LUA_SCRIPT_MAX))
+                stConfig.stLua.acScript[n] = frame->data8[3 + i];
+            else if ((eLuaCmd == MsgCmd::LuaRead) && (n < LUA_SCRIPT_MAX))
+                txMsg.data8[3 + i] = stConfig.stLua.acScript[n];
+            else if ((eLuaCmd == MsgCmd::LuaErr) && (n < nErrLen))
+                txMsg.data8[3 + i] = pErr[n];
+        }
+
+        if (eLuaCmd == MsgCmd::LuaWrite)
+            txMsg.DLC = 3;
+
+        if (eLuaCmd == MsgCmd::LuaWriteComplete)
+        {
+            stConfig.stLua.nLength = (nOff < LUA_SCRIPT_MAX) ? nOff : LUA_SCRIPT_MAX - 1;
+            // end marker for LuaRead: a shorter program would otherwise read back with the old one's tail
+            stConfig.stLua.acScript[stConfig.stLua.nLength] = '\0';
+            txMsg.data8[3] = WriteConfig();
+            txMsg.DLC = 4;
+            ReloadLua();
+        }
+
+        PostTxFrame(&txMsg);
+    }
+    #endif
 }
-#endif

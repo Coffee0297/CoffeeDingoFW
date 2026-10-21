@@ -3,7 +3,9 @@
 #include "port.h"
 #include "enums.h"
 #include "input.h"
+#if DI_PWM_MAX_FREQ > 0
 #include "pwm_meter.h"
+#endif
 
 struct Config_DigInput{
   bool bEnabled;
@@ -11,9 +13,11 @@ struct Config_DigInput{
   bool bInvert;
   uint16_t nDebounceTime; //ms
   InputPull ePull;
-  bool bPwm;            // measure duty/frequency instead of an on/off state
-  uint16_t nPwmFreq;    // Hz the signal runs at; 0 = auto-detect (measured period)
-  uint16_t nPwmMinPulseUs; // glitch filter: edges closer than this (us) are a spike and dropped; 0 = off
+  #if DI_PWM_MAX_FREQ > 0
+  bool bPwm; // measure duty and frequency instead of on/off
+  uint16_t nPwmFreq; // Hz, 0 = measure it
+  uint16_t nPwmMinPulseUs; // glitch filter, 0 = off
+  #endif
 };
 
 class Digital_Input
@@ -27,23 +31,25 @@ public:
 
     void SetConfig(Config_DigInput *config);
 
+    ioline_t GetLine() { return m_line; }
+
     void Update();
 
-    ioline_t GetLine() const { return m_line; }
+    float fVal;
 
-    // PWM mode: the pin's edge interrupt (both edges, cycle-counter timestamps)
+    #if DI_PWM_MAX_FREQ > 0
     void OnEdge();
     void StopPwm();
 
-    float fVal;       // on/off; in PWM mode 1 while a signal is present
-    float fDuty;      // PWM mode: % of each period at the active level (Invert = low is active)
-    float fFreq;      // PWM mode: Hz (measured, or nPwmFreq when fixed)
+    // PWM mode: fVal is 1 while a signal is present
+    float fDuty; // % at the active level
+    float fFreq; // Hz
+    #endif
 
 private:
     const ioline_t m_line;
 
     void SetPull(InputPull pull);
-    void UpdatePwm();
 
     Config_DigInput *pConfig;
 
@@ -54,8 +60,12 @@ private:
     bool bCheck;
     uint32_t nLastTrigTime;
 
-    // written by OnEdge (ISR), taken by UpdatePwm under the system lock
+    #if DI_PWM_MAX_FREQ > 0
+    void UpdatePwm();
+
+    // written by OnEdge (ISR), read by UpdatePwm under the system lock
     bool bPwmActive;
     PwmMeter meter;
     uint32_t nLastEdgeMs;
+    #endif
 };

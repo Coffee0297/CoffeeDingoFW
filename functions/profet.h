@@ -4,6 +4,7 @@
 #include "port.h"
 #include "enums.h"
 #include "pwm.h"
+#include "wire_load.h"
 
 #if NUM_OUTPUTS > 0
 
@@ -19,12 +20,22 @@ struct Config_Output{
   uint16_t nResetTime; //ms
   uint8_t nResetLimit;
   int8_t nPrimaryOutput;  //index of primary to follow, -1 = unpaired
+  float fWarnLimit;       //A, 0 = off
+  float fOpenLoadLimit;   //A, 0 = off
+  uint16_t nOpenLoadTime; //ms
+  float fUnderLimit;      //A, 0 = off
+  uint16_t nUnderTime;    //ms
+  bool bUnderTrip;        //false = report only, true = trip to Fault
+  bool bStayAlive;        //left on while asleep
 
   Config_PwmOutput stPwm;
 
-  float fWarnLimit;      //A — warn (report only) when current exceeds this but is below fCurrentLimit. 0 = disabled
-  float fOpenLoadLimit;  //A — open-load/broken-bulb floor: On + past inrush + current below this = OpenLoad. 0 = disabled
-  uint16_t nOpenLoadTime;//ms current must stay below the floor before flagging OpenLoad
+  bool bClearOnReassert; //latched fault clears when the input goes off
+  float fHardShortLimit; //A, 0 = off, above it trips to Fault at once
+  uint16_t nSoftStartTimeout; //ms, 0 = off, soft start held above the inrush limit, trips if not done in time
+  uint16_t nSoftStopTime; //ms, 0 = off, PWM duty ramps down to 0 on turn off
+  bool bShed; //held off while the device shed input is true
+  uint16_t nThermalTau; //s, 0 = off, wire load time constant
 };
 
 //=============================================================================
@@ -37,6 +48,9 @@ struct Config_Output{
 // ADC conversion = 20us
 // Rise time = 20us
 // 140us + 20us + 20us = 180us
+// DSEL changeover takes max ~60us
+#define DSEL_SETTLE_US 60
+
 #define PWM_READ_DELAY_SINGLE_CH 180
 // Min duty cycle @ 100Hz = 180us / 10ms  = 1.8%
 // Min duty cycle @ 200Hz = 180us / 5ms   = 3.6%
@@ -93,42 +107,74 @@ public:
         pwm.SetConfig(&config->stPwm);
     }
 
-    void Update(bool bOutEnabled);
-    // Sleep entry: switch the load off now. The control loop stops in stop mode, so an output left on
-    // (a forced sleep can arrive with outputs on) would run with no current protection.
-    void ForceOff();
+    // The ignition switches an output it has a role for from its own signal
+    void SetInput(float *pIn) { pInput = pIn; }
 
-    float GetCurrent() { return fCurrent; }
-    ProfetState GetState() { return eState; }              // raw machine state (Off/On/Overcurrent/Fault)
-    ProfetState GetReportedState() { return eReported; }   // state shown to CAN/tool, overlays Warning/OpenLoad
-    // Peak current since the last read. Read-and-clear so each CAN frame / log sample
-    // reports the max seen since it last looked — catches sub-frame inrush/short spikes.
-    float GetPeakReset() { float p = fPeak; fPeak = fCurrent; return p; }
+    void Update(bool bOutEnabled);
+
+    // Bench test: force on (mode 1) or PWM (mode 2) for nHoldSec, limits and fault handling stay active
+    bool SetTest(uint8_t nMode, uint8_t nDuty, uint16_t nFreq, uint8_t nHoldSec);
+
+    // Dual-channel devices share one IS pin, DSEL picks which channel it reports.
+    // Outputs are updated in two passes so DSEL only settles twice per cycle:
+    // pass 0 = single-channel and CH1, pass 1 = CH2
+    uint8_t GetDselPass() const { return (m_model == ProfetModel::BTS7008_2EPA_CH2) ? 1 : 0; }
+    bool IsDualChannel() const
+    {
+        return (m_model == ProfetModel::BTS7008_2EPA_CH1) || (m_model == ProfetModel::BTS7008_2EPA_CH2);
+    }
+    void SelectDsel();
+
+    // Immediately de-energize the output, used before entering a fatal error
+    // bDiagOff: also drop DEN (sleep only), an off Profet with DEN high still draws diagnostic current
+    void ForceOff(bool bDiagOff = false)
+    {
+        pwm.Off();
+        palClearLine(m_in);
+        if (bDiagOff)
+            palClearLine(m_den);
+        eState = ProfetState::Off;
+        fOutput = 0;
+    }
+
+    void ClearFault();
+    // Asleep with the output on: solid on, the PWM timers stop in STOP.
+    // No firmware current protection until the wake reset, only the Profet's own
+    void StayOn()
+    {
+        pwm.Off();
+        palSetLine(m_in);
+    }
+
+    float GetCurrent() { return *const_cast<volatile float*>(&fCurrent); }
+    ProfetState GetState() { return eState; }
+    // Warning/OpenLoad/Undercurrent are reported on top of On only, protection uses eState
+    ProfetState GetReportedState() { return eState == ProfetState::On ? eOverlay : eState; }
     uint16_t GetOcCount() { return nOcCount; }
     uint8_t GetDutyCycle()
     {
-        if (eState != ProfetState::On)
-            return 0;
+        if (eState == ProfetState::On && nTestMode)
+            return (nTestMode == 2) ? nTestDuty : 100;
+        if (eState == ProfetState::On)
+            return pwm.GetDutyCycle();
 
-        return bTestPwm ? nTestDuty : pwm.GetDutyCycle();
+        return 0;
     };
 
     Profet *pPrimary = nullptr;   // non-null if this output is a follower
     Profet *pFollower = nullptr;  // non-null if this output is a primary with a follower
 
     bool IsPwmEnabled() { return pwm.IsEnabled(); }
-    uint16_t GetFrequency() { return pConfig->stPwm.nFreq; }
-
-    // Bench test override (MsgCmd::OutputTest): force the output on (mode 1) or PWM at a duty +
-    // frequency (mode 2) for nHoldSec, ignoring its input. Protection (limits, fault) stays active.
-    // Expires on its own; mode 0 releases early.
-    void SetTest(uint8_t nMode, uint8_t nDuty, uint16_t nFreq, uint8_t nHoldSec);
-    bool TestActive();
+    uint16_t GetFrequency() { return pwm.GetFrequency(); }
 
     float fOutput;
     float fCurrent;
     float fOvercurrent;
     float fFault;
+    float fWarning;
+    float fOpenLoad;
+    float fUndercurrent;
+    float fLoad;  // wire load %, 100 = steady current at the limit
 
 private:
     const uint16_t m_num;
@@ -145,14 +191,15 @@ private:
 
     float *pInput;
 
-    ProfetState eState;
+    // eState/nOcCount are written by DeviceThread's Update() and read by
+    // CanCyclicTxThread via GetState()/GetOcCount() - volatile so the reader
+    // thread can't have the value cached/hoisted by the compiler.
+    volatile ProfetState eState;
     ProfetState eReqState;
     ProfetState eLastState;
-    ProfetState eReported;     // eState with Warning/OpenLoad overlaid (reported to CAN)
-    ProfetState eLastReported = ProfetState::Off;   // to log Warning / OpenLoad once per entry (5.6)
-
-    float fPeak;               // max current since last GetPeakReset()
-    uint32_t nOpenLoadStart;   // time current first dropped below the open-load floor (ms), 0 = not low
+    volatile ProfetState eOverlay = ProfetState::On;
+    uint32_t nOpenLoadStart;
+    uint32_t nUnderStart;
 
     uint16_t nIS;         // Raw analog current value
     uint16_t nLastIS = 0; // Last analog current value
@@ -161,23 +208,26 @@ private:
     bool bInRushActive;
     uint32_t nInRushOnTime;
 
-    uint16_t nOcCount;       // Number of overcurrents
+    bool bSoftStopping;
+    uint32_t nSoftStopStart;
+    uint8_t nSoftStopDuty;  // duty when the soft stop began
+    float fI2;            // filtered current squared
+    uint32_t nLoadTime;
+
+    volatile uint16_t nOcCount;       // Number of overcurrents
     uint32_t nOcTriggerTime; // Time of overcurrent
 
     Pwm pwm;
     uint16_t nPwmReadDelay = 0;
 
-    // Bench test state (see SetTest). nTestMode is written last from the CAN RX thread and read by the
-    // 500 Hz control loop; a single torn cycle is harmless for a test.
-    uint8_t nTestMode = 0;     // 0 none, 1 on, 2 pwm
-    uint8_t nTestDuty = 0;
-    uint16_t nTestFreq = 100;
-    uint32_t nTestEnd = 0;     // ms (SYS_TIME) at which the override expires
-    bool bTest = false;        // override active this cycle
-    bool bTestPwm = false;     // override is PWM (also selects the synchronized current read)
+    // Bench test, set by the param thread under the config lock
+    uint8_t nTestMode;  // 0 none, 1 on, 2 pwm
+    uint8_t nTestDuty;
+    uint16_t nTestFreq;
+    uint32_t nTestEnd;
+    bool PwmRunning() { return (nTestMode == 2) || (nTestMode == 0 && pwm.IsEnabled()); }
 
     void FollowerUpdate();
-    void HandleDsel();
     void MeasureCurrent();
     void CalculateCurrent();
 };

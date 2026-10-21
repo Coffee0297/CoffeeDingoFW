@@ -5,9 +5,10 @@
 #include "port.h"
 
 #define PWM_UPDATE_TIME 2.0 //ms
+// 1 MHz timer clock, 16-bit period: below 16 Hz the period doesn't fit, 1-15 Hz run at 16 Hz
+#define PWM_MIN_FREQ 16 //Hz
 
-// Compiled for boards with Profet outputs (PDM) OR digital-output PWM (CanBoard).
-#if (NUM_OUTPUTS > 0) || HAS_DIG_PWM
+#if (NUM_OUTPUTS > 0) || (NUM_DIG_OUTPUTS > 0)
 
 extern float *pVarMap[VAR_MAP_SIZE];
 
@@ -21,10 +22,10 @@ struct Config_PwmOutput{
   uint16_t nSoftStartRampTime; //ms
   uint16_t nDutyCycleInputDenom;
   uint16_t nMinDutyCycle;
-  bool bVariableFreq;          // PWM frequency follows a signal instead of nFreq
-  uint16_t nFreqInput;         // VarMap index of the frequency source
-  uint16_t nFreqInputDenom;    // Hz = signal / denom, clamped to 15..400
-  bool bRampDutyChanges;       // with soft-start: ramp ongoing duty changes (slew) at the soft-start rate
+  bool bVariableFreq;
+  uint16_t nFreqInput;
+  uint16_t nFreqInputDenom;
+  bool bRampDutyChanges;
 };
 
 class Pwm
@@ -47,9 +48,11 @@ public:
             Init();
     }
 
-    void Update();
+    void Update(bool bHoldSoftStart);
 
     bool IsEnabled(){return pConfig->bEnabled;};
+    uint16_t GetFrequency(){return nLastFreq;};
+    bool IsSoftStarting(){return pConfig->bEnabled && pConfig->bSoftStart && !bSoftStartComplete;};
 
     uint8_t GetDutyCycle()
     {
@@ -91,18 +94,20 @@ private:
     uint16_t GetTargetFreq();
     void InitSoftStart();
     void UpdateSoftStart();
+    void UpdateDutyRamp();
     void UpdateFrequency();
 
-    uint16_t nDutyCycle;
-    float fDutyActual;        // slew accumulator for ramped variable-duty changes
+    volatile uint16_t nDutyCycle;
     uint16_t nLastFreq;
 
     bool bChannelEnabled;
     bool bLastChannelEnabled;
     bool bSoftStartComplete;
     float fSoftStartStep;
+    float fDutyRamp;
     
     uint32_t nSoftStartTime;
     uint32_t nSoftStartEndTime;
+    uint32_t nLastUpdateTime;
 };
 #endif

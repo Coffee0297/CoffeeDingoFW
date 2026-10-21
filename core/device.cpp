@@ -5,6 +5,7 @@
 #include "mcu_utils.h"
 #include "device_config.h"
 #include "config.h"
+#include "config_ext.h"
 #include "param_protocol.h"
 #include "config_handler.h"
 #include "hw_devices.h"
@@ -16,33 +17,31 @@
 #include "counter.h"
 #include "condition.h"
 #include "timer.h"
-#if NUM_TABLES > 0
-#include "table.h"
-#endif
-#if NUM_MATH > 0
 #include "math_block.h"
-#endif
-#include "ignition.h"
-#include "comfort_blink.h"
-#if NUM_CAN_MSGS > 0
 #include "can_msg.h"
-#endif
+#include "table.h"
+#include "curve.h"
+#include "latch_gate.h"
+#include "pid.h"
+#include "lua_script.h"
 #include "mailbox.h"
 #include "msg.h"
 #include "error.h"
 #include "request_msg.h"
 #include "infomsg.h"
 #include "status.h"
-#include "overload_log.h"
-#include <cstring>   // memset (Lua CAN bridge)
-#if HAS_LUA
-#include "lua_port.h"
-#endif
+#include "fault_log.h"
 #if HAS_WIPERS > 0
 #include "wiper/wiper.h"
 #endif
 #if HAS_STARTER_DISABLE > 0
 #include "starter.h"
+#endif
+#if HAS_COMFORT_BLINK
+#include "comfort_blink.h"
+#endif
+#if HAS_IGNITION
+#include "ignition.h"
 #endif
 #if HAS_USB
 #include "usb.h"
@@ -53,14 +52,16 @@
 #if CAN_SLEEP
 #include "sleep.h"
 #endif
+#if NUM_OUTPUTS > 0
+#include "overload_log.h"
+#endif
 
-// Board marker for flash tools: flash-dingo.ps1 reads it back to tell a dingoPDM v7 from a -Max,
-// which share the MCU. Kept alive by InitDevice() referencing it (--gc-sections would drop it).
-extern const char kDingoBoard[] = "DINGO_BOARD=" BOARD_NAME;
-// Version marker, same idea: the tool reads the version from the image itself, whatever the file is called.
-#define DINGO_STR_(x) #x
-#define DINGO_STR(x) DINGO_STR_(x)
-extern const char kDingoVersion[] = "DINGO_FW=" DINGO_STR(MAJOR_VERSION) "." DINGO_STR(MINOR_VERSION) "." DINGO_STR(BUILD);
+// Flash tools read these from the image file to tell which board (board.h) and version it is for.
+// InitDevice reads them once, or --gc-sections drops them.
+#define STR_(x) #x
+#define STR(x) STR_(x)
+static const char kDingoBoard[] = "DINGO_BOARD=" BOARD_NAME;
+static const char kDingoFw[] = "DINGO_FW=" STR(MAJOR_VERSION) "." STR(MINOR_VERSION) "." STR(BUILD);
 
 CanInput canIn[NUM_CAN_INPUTS];
 CanOutputs canOutputs;
@@ -68,16 +69,26 @@ VirtualInput virtIn[NUM_VIRT_INPUTS];
 Flasher flasher[NUM_FLASHERS];
 Counter counter[NUM_COUNTERS];
 Condition condition[NUM_CONDITIONS];
+#if NUM_TIMERS > 0
 Timer timer[NUM_TIMERS];
+#endif
 #if NUM_MATH > 0
 MathBlock mathBlock[NUM_MATH];
 #endif
-Ignition ignition;
 #if NUM_CAN_MSGS > 0
 CanMsg canMsg[NUM_CAN_MSGS];
 #endif
 #if NUM_TABLES > 0
 Table table[NUM_TABLES];
+#endif
+#if NUM_CURVES > 0
+Curve curve[NUM_CURVES];
+#endif
+#if NUM_LATCH_GATES > 0
+LatchGate latchGate[NUM_LATCH_GATES];
+#endif
+#if NUM_PIDS > 0
+Pid pid[NUM_PIDS];
 #endif
 #if HAS_WIPERS > 0
 Wiper wiper;
@@ -85,37 +96,38 @@ Wiper wiper;
 #if HAS_STARTER_DISABLE > 0
 Starter starter;
 #endif
+#if HAS_COMFORT_BLINK
+ComfortBlink comfortBlink;
+#endif
+#if HAS_IGNITION
+Ignition ignition;
+#endif
 #if NUM_KEYPADS > 0
 Keypad keypad[NUM_KEYPADS];
 #endif
 
-DeviceState eState = DeviceState::Run;
+volatile DeviceState eState = DeviceState::Run;
 float fState; //For var map
 FatalErrorType eError = FatalErrorType::NoError;
 #ifndef CCM_BSS
-#define CCM_BSS   // boards without CCM keep these buffers in normal RAM
+#define CCM_BSS
 #endif
-DeviceConfig stConfig;
-DeviceConfig stConfigTemp CCM_BSS; // staging buffer for new config before applying (CCM on CanBoard)
-ComfortBlink comfortBlink CCM_BSS;   // CPU-only state; CCM on the CanBoard (its main RAM is full); the constructor initialises it
+DeviceConfig stConfig CCM_BSS;
+DeviceConfig stConfigTemp CCM_BSS; // Used for staging new config before applying
 float *pVarMap[VAR_MAP_SIZE];
-#if HAS_LUA
-float fLuaOut[NUM_LUA_OUTPUTS];   // Lua output slots, written by setLuaOut(n,v)
-volatile bool gLuaReload = false; // set by the upload handler; LuaThread reloads
-#endif
 
 float fBattVolt;
 float fTempSensor;
-bool bDeviceOverTemp;
-volatile uint32_t nIdentifyUntil = 0;
-bool bDeviceCriticalTemp;
-bool bSleepRequest;
+volatile bool bDeviceOverTemp;
+volatile bool bDeviceCriticalTemp;
 bool bBootloaderRequest;
+uint8_t nResetCause; // RCC->CSR reset flags (bits 24-31)
+volatile uint32_t nIdentifyStart;
+volatile uint32_t nIdentifyMs;
 
 void InitVarMap();
 void CyclicUpdate();
 void States();
-void LuaBridgeCanRxFeed(const CANRxFrame *f);   // defined below; fed from the RX drain
 
 struct DeviceThread : chibios_rt::BaseStaticThread<DEVICE_THREAD_STACK>
 {
@@ -125,17 +137,10 @@ struct DeviceThread : chibios_rt::BaseStaticThread<DEVICE_THREAD_STACK>
 
         while (true)
         {
-            // Apply a committed CAN filter / bitrate change without a power cycle.
-            if (gReinitCanRequested)
-            {
-                gReinitCanRequested = false;
-                chThdSleepMilliseconds(50);          // let the Burn reply transmit first
-                ApplyConfig(CanInput::nBaseIndex);   // rebuild the filter-ID table
-                InitCan(&stConfig.stDevice);         // restart CAN: re-applies filters + bitrate
-            }
-
+            LockConfig();
             CyclicUpdate();
             States();
+            UnlockConfig();
             chThdSleepMilliseconds(2);
         }
     }
@@ -162,6 +167,14 @@ struct SlowThread : chibios_rt::BaseStaticThread<256>
             bDeviceOverTemp = tempSensor.OverTempLimit();
             bDeviceCriticalTemp = tempSensor.CritTempLimit();
 
+            #if HAS_EXT_MEMORY && (NUM_OUTPUTS > 0)
+            WriteFaultLog();
+            #endif
+
+            #if HAS_EXT_MEMORY
+            WriteRetained();
+            #endif
+
             // palToggleLine(LINE_E2);
             chThdSleepMilliseconds(250);
         }
@@ -171,87 +184,55 @@ static SlowThread slowThread;
 static chibios_rt::ThreadReference slowThreadRef;
 #endif
 
-//=============================================================================
-// Lua thread: runs the single embedded program's tick() at a fixed rate, well
-// below the 2 ms control loop. A runaway script is bounded by the instruction
-// hook inside LuaRunTick(), so it can never stall DeviceThread or the CAN stack.
-//=============================================================================
-#if HAS_LUA
-extern volatile bool gLuaReload;
-
-// No stored program: clear what a previous one left (its callbacks and slot values), so an
-// emptied script stops instead of running on. Was a 1 Hz demo square wave on slot 0.
-static const char LUA_EMPTY_SCRIPT[] = "onTick = nil onCanRx = nil";
-
-// Load the stored program if present, else clear the old one. Runs on the LuaThread so
-// the (stack-hungry) parser uses the LuaThread's stack.
-static void LuaLoadFromConfig()
-{
-    if (stConfig.stLua.bEnabled && stConfig.stLua.nLength > 0 &&
-        stConfig.stLua.nLength < LUA_SCRIPT_MAX) {
-        stConfig.stLua.acScript[stConfig.stLua.nLength] = '\0';
-        LuaLoadString(stConfig.stLua.acScript);
-    } else {
-        LuaLoadString(LUA_EMPTY_SCRIPT);
-        for (uint16_t i = 0; i < NUM_LUA_OUTPUTS; i++) fLuaOut[i] = 0;
-    }
-}
-
-struct LuaThread : chibios_rt::BaseStaticThread<12288>   // Lua compiler/VM is stack-hungry; 4K overflowed on larger scripts
-{
-    void main()
-    {
-        setName("LuaThread");
-        // Let USB/CAN fully come up before touching Lua, so even if a stored script
-        // misbehaves the device has already enumerated and stays re-flashable.
-        chThdSleepMilliseconds(2000);
-        LuaPortInit();
-        LuaLoadFromConfig();
-        while (true)
-        {
-            if (gLuaReload) { gLuaReload = false; LuaLoadFromConfig(); }
-            LuaService();
-            chThdSleepMilliseconds(2);   // service base rate; onTick gated by setTickRate
-        }
-    }
-};
-static LuaThread luaThread;
-#endif // HAS_LUA
-
 void InitDevice()
 {
-    __asm__ volatile("" :: "r"(kDingoBoard), "r"(kDingoVersion));
+    nResetCause = RCC->CSR >> 24;
+    RCC->CSR |= RCC_CSR_RMVF;
+    (void)*(volatile const char *)kDingoBoard;
+    (void)*(volatile const char *)kDingoFw;
 
     #if HAS_SE_LEDS
     Error::Initialize(&statusLed, &errorLed);
     #endif
 
     #if CAN_SLEEP
-    ReadWakeAtBoot();   // 5.6: what woke it (MsgCmd::SleepInfo)
+    InitSleep(); // why it woke, before anything is sent
     #endif
 
     InitVarMap(); // Set val pointers
 
     #if HAS_I2C
-    if (!i2cStart(&I2CD1, &i2cConfig) == HAL_RET_SUCCESS)
+    if (i2cStart(&I2CD1, &i2cConfig) != HAL_RET_SUCCESS)
         Error::SetFatalError(FatalErrorType::ErrI2C, MsgSrc::Init);
     #endif
 
     InitConfig();
 
+    #if HAS_EXT_MEMORY && (NUM_OUTPUTS > 0)
+    InitFaultLog();
+    #endif
+
     ApplyAllConfig();
 
-    if(!InitAdc() == HAL_RET_SUCCESS)
+    #if HAS_EXT_MEMORY
+    RestoreRetained();
+    #endif
+
+    InitParamThread();
+
+    if (InitAdc() != HAL_RET_SUCCESS)
         Error::SetFatalError(FatalErrorType::ErrADC, MsgSrc::Init);
         
-    if(!InitCan(&stConfig.stDevice) == HAL_RET_SUCCESS) // Starts CAN threads
+    if (InitCan(&stConfig.stDevice) != HAL_RET_SUCCESS) // Starts CAN threads
         Error::SetFatalError(FatalErrorType::ErrCAN, MsgSrc::Init);
+
     #if CAN_SLEEP
-    if (!QuietWake()) SendSleepInfo();   // 5.6.3: tell the bus why it is awake (a quiet CAN wake says so when it ends)
+    if (!QuietWake()) // a quiet wake says so when it ends
+        SendSleepInfo(); // tell the bus why it is awake
     #endif
 
     #if HAS_USB
-    if (!InitUsb() == HAL_RET_SUCCESS) // Starts USB threads
+    if (InitUsb() != HAL_RET_SUCCESS) // Starts USB threads
         Error::SetFatalError(FatalErrorType::ErrUSB, MsgSrc::Init);
     #endif
 
@@ -266,10 +247,6 @@ void InitDevice()
 
     InitInfoMsgs();
 
-    #if NUM_OUTPUTS > 0
-    OvlLogInit();
-    #endif
-
     #if CAN_SLEEP && defined(LINE_CAN_STANDBY)
     palClearLine(LINE_CAN_STANDBY);
     #endif
@@ -278,12 +255,11 @@ void InitDevice()
     slowThreadRef = slowThread.start(NORMALPRIO);
     #endif
 
-    #if HAS_LUA
-    // Below the control loop so a Lua tick can never preempt safety-critical work.
-    luaThread.start(NORMALPRIO - 1);
-    #endif
-
     deviceThread.start(NORMALPRIO);
+
+    #if HAS_LUA
+    InitLua();
+    #endif
 }
 
 void States()
@@ -294,7 +270,7 @@ void States()
         #if NUM_OUTPUTS > 0
         //Turn off all outputs
         for (uint8_t i = 0; i < NUM_OUTPUTS; i++)
-            pf[i].Update(false);
+            pf[i].ForceOff();
         #endif
 
         Error::SetFatalError(FatalErrorType::ErrTemp, MsgSrc::State_Overtemp);
@@ -341,12 +317,12 @@ void States()
     #endif
 
     #if HAS_SE_LEDS
-    // Identify (5.6): the two LEDs take turns, 4 Hz, over whatever the state set above, until the time is up
-    if ((int32_t)(nIdentifyUntil - SYS_TIME) > 0)
+    // Identify: over whatever the state set, the LEDs alternate at 4 Hz
+    if ((SYS_TIME - nIdentifyStart) < nIdentifyMs)
     {
-        bool phase = (SYS_TIME / 125U) & 1U;
-        statusLed.Solid(phase);
-        errorLed.Solid(!phase);
+        bool bPhase = (SYS_TIME / 125) & 1;
+        statusLed.Solid(bPhase);
+        errorLed.Solid(!bPhase);
     }
     #endif
 
@@ -362,36 +338,6 @@ void States()
 
     if (eState == DeviceState::Sleep)
     {
-        bSleepRequest = false;
-        // A forced sleep (FW #52) can arrive with outputs on. In stop mode the control loop is halted,
-        // so a load left switched on would run with no current protection — shut everything off first.
-        #if NUM_OUTPUTS > 0
-        for (uint8_t i = 0; i < NUM_OUTPUTS; i++)
-            pf[i].ForceOff();
-        #endif
-        #if NUM_DIG_OUTPUTS > 0
-        for (uint8_t i = 0; i < NUM_DIG_OUTPUTS; i++)
-            digOut[i].ForceOff();
-        #endif
-        // 5.6: say so before going quiet, so the tool tells "asleep" from "unplugged" (not from a quiet wake:
-        // its goodbye would wake the others again)
-        if (!QuietWake())
-        {
-            CANTxFrame tx;
-            tx.SID = stConfig.stDevice.nBaseId + CONFIG_TX_OFFSET;
-            tx.IDE = CAN_IDE_STD;
-            tx.DLC = 8;
-            tx.data8[0] = static_cast<uint8_t>(MsgCmd::Sleep);
-            tx.data8[1] = 'Z'; tx.data8[2] = 'Z'; tx.data8[3] = 'Z';
-            tx.data8[4] = SleepWhy(); tx.data8[5] = 0; tx.data8[6] = 0; tx.data8[7] = 0;
-            PostTxFrame(&tx);
-        }
-        // Let CanTxThread flush the frames already queued (the last status round) before the
-        // transceiver goes to standby, otherwise they are lost or half-sent.
-        chThdSleepMilliseconds(100);
-        #ifdef LINE_CAN_STANDBY
-        palSetLine(LINE_CAN_STANDBY); // CAN disabled (no standby pin: the transceiver stays powered)
-        #endif
         EnterSleep();
     }
     #endif
@@ -403,7 +349,7 @@ void States()
         #if NUM_OUTPUTS > 0
         //Turn off all outputs
         for (uint8_t i = 0; i < NUM_OUTPUTS; i++)
-            pf[i].Update(false);
+            pf[i].ForceOff();
         #endif
 
         Error::SetFatalError(eError, MsgSrc::State_Error);
@@ -418,74 +364,31 @@ void CyclicUpdate()
 {
     CANRxFrame rxMsg;
 
-    while (!RxFramesEmpty())
+    while (FetchRxFrame(&rxMsg) == MSG_OK)
     {
-        msg_t res = FetchRxFrame(&rxMsg);
-        if (res == MSG_OK)
-        {
-            for (uint8_t i = 0; i < NUM_CAN_INPUTS; i++)
-                canIn[i].CheckMsg(rxMsg);
-            ignition.CheckMsg(rxMsg.SID, rxMsg.data8, rxMsg.DLC, SYS_TIME);   // follower link (5.6)
+        for (uint8_t i = 0; i < NUM_CAN_INPUTS; i++)
+            canIn[i].CheckMsg(rxMsg);
 
-            #if HAS_LUA
-            LuaBridgeCanRxFeed(&rxMsg);   // queue for onCanRx() if id was registered
-            #endif
+        #if NUM_KEYPADS > 0
+        for (uint8_t i = 0; i < NUM_KEYPADS; i++)
+            keypad[i].CheckMsg(rxMsg);
+        #endif
 
-            #if NUM_KEYPADS > 0
-            for (uint8_t i = 0; i < NUM_KEYPADS; i++)
-                keypad[i].CheckMsg(rxMsg);
-            #endif
+        #if HAS_IGNITION
+        ignition.CheckMsg(rxMsg, SYS_TIME);
+        #endif
 
-            CheckRequestMsgs(&rxMsg);
-            
-            uint16_t nIndex = 0;
-            MsgCmd cmd = ProcessParamMsg(&rxMsg, &nIndex);
-            if (cmd == MsgCmd::WriteAllComplete)
-            {
-                ApplyAllConfig();
-            }
-            if (cmd == MsgCmd::Write)
-            {
-                ApplyConfig(nIndex & 0xFF00); // Mask instance, only base index is needed
-            }
-        }
+        #if HAS_LUA
+        LuaCanRx(rxMsg);
+        #endif
     }
 
-    #if NUM_OUTPUTS > 0
-    for (uint8_t i = 0; i < NUM_OUTPUTS; i++)
-        pf[i].Update(starter.fVal[i]);
-
-    // Overload log: decimate the 500Hz loop to one OVL_SAMPLE_MS waveform point (the
-    // peak over the bucket, via GetPeakReset), and log a trip on the rising edge into
-    // Overcurrent/Fault. Raw GetState() is used so Warning/OpenLoad don't count as trips.
-    {
-        static uint8_t nOvlDiv = 0;
-        static ProfetState ePrevRaw[NUM_OUTPUTS];
-        bool bSample = (++nOvlDiv >= (OVL_SAMPLE_MS / 2));
-        if (bSample) nOvlDiv = 0;
-        for (uint8_t i = 0; i < NUM_OUTPUTS; i++)
-        {
-            if (bSample)
-                OvlLogSample(i, pf[i].GetPeakReset());
-
-            ProfetState raw = pf[i].GetState();
-            bool bTrip = (raw == ProfetState::Overcurrent || raw == ProfetState::Fault);
-            bool bWasTrip = (ePrevRaw[i] == ProfetState::Overcurrent || ePrevRaw[i] == ProfetState::Fault);
-            if (bTrip && !bWasTrip)
-                OvlLogTrigger(i, raw, stConfig.stOutput[i].fCurrentLimit);
-            ePrevRaw[i] = raw;
-        }
-    }
-    #endif
-
+    //=========================================================================
+    // Inputs, then logic, then outputs
+    //=========================================================================
     #if NUM_DIG_INPUTS > 0
     for (uint8_t i = 0; i < NUM_DIG_INPUTS; i++)
         digIn[i].Update();
-    #endif
-
-    #if NUM_DIG_OUTPUTS > 0
-    for (uint8_t i = 0; i < NUM_DIG_OUTPUTS; i++)
-        digOut[i].Update();
     #endif
 
     #if NUM_ANALOG_INPUTS > 0
@@ -496,10 +399,6 @@ void CyclicUpdate()
     #if NUM_CAN_INPUTS > 0
     for (uint8_t i = 0; i < NUM_CAN_INPUTS; i++)
         canIn[i].CheckTimeout();
-    #endif
-
-    #if NUM_CAN_OUTPUTS > 0
-    canOutputs.Update();
     #endif
 
     #if NUM_VIRT_INPUTS > 0
@@ -525,14 +424,27 @@ void CyclicUpdate()
         counter[i].Update();
     #endif
 
-    #if NUM_CONDITIONS > 0
+    // Before the conditions, so a condition can compare a math result
+    #if NUM_MATH > 0
+    for (uint8_t i = 0; i < NUM_MATH; i++)
+        mathBlock[i].Update();
+    #endif
+
+    // Before the conditions, so a condition can compare a curve result
+    #if NUM_CURVES > 0
+    for (uint8_t i = 0; i < NUM_CURVES; i++)
+        curve[i].Update();
+    #endif
+
+    #if NUM_CONDITIONS > 0    
     for (uint8_t i = 0; i < NUM_CONDITIONS; i++)
         condition[i].Update();
     #endif
 
+    // After the conditions, so a timer can be driven by one
     #if NUM_TIMERS > 0
     for (uint8_t i = 0; i < NUM_TIMERS; i++)
-        timer[i].Update(SYS_TIME);
+        timer[i].Update();
     #endif
 
     #if NUM_TABLES > 0
@@ -540,40 +452,32 @@ void CyclicUpdate()
         table[i].Update();
     #endif
 
-    #if NUM_MATH > 0
-    for (uint8_t i = 0; i < NUM_MATH; i++)
-        mathBlock[i].Update();
+    // After the conditions and timers, so either can drive a latch or gate
+    #if NUM_LATCH_GATES > 0
+    for (uint8_t i = 0; i < NUM_LATCH_GATES; i++)
+        latchGate[i].Update();
     #endif
 
-    ignition.Update(SYS_TIME);
+    #if HAS_COMFORT_BLINK
     comfortBlink.Update(SYS_TIME);
+    #endif
+
+    #if HAS_IGNITION
+    #if HAS_USB
+    ignition.Update(SYS_TIME, stConfig.stDevice.nBaseId, GetUsbConnected() || IsParamOpInProgress());
+    #else
+    ignition.Update(SYS_TIME, stConfig.stDevice.nBaseId, IsParamOpInProgress());
+    #endif
     {
+        // Not held back during config reads/writes: a follower would drop its starter
         CANTxFrame tx;
-        // muted (sleep on cue): the state frame repeats and would keep the bus, and with it the car, awake
-        if (ignition.StateFrame(SYS_TIME, tx.data8) && !CanTxMuted())
+        if (ignition.SyncFrame(tx.data8, SYS_TIME) && !CanTxMuted())
         {
-            tx.SID = stConfig.stDevice.nBaseId + IGN_STATE_OFFSET;
             tx.IDE = CAN_IDE_STD;
-            tx.RTR = CAN_RTR_DATA;
-            tx.DLC = 8;
+            tx.SID = ignition.nSyncSid;
+            tx.DLC = 2;
             PostTxFrame(&tx);
         }
-    }
-
-    #if NUM_CAN_MSGS > 0
-    for (uint8_t i = 0; i < NUM_CAN_MSGS; i++)
-    {
-        if (!canMsg[i].Due(SYS_TIME)) continue;
-        const Config_CanMsg *c = canMsg[i].Config();
-        // muted (sleep on cue): a repeating message is periodic and would keep the bus awake; a one-shot still goes
-        if (c->eMode == CanMsgMode::Repeat && CanTxMuted()) continue;
-        CANTxFrame tx;
-        tx.IDE = c->nIDE ? CAN_IDE_EXT : CAN_IDE_STD;
-        if (c->nIDE) tx.EID = c->nID; else tx.SID = c->nID;
-        tx.RTR = CAN_RTR_DATA;
-        tx.DLC = c->nDLC > 8 ? 8 : c->nDLC;
-        for (uint8_t b = 0; b < 8; b++) tx.data8[b] = c->nData[b];
-        PostTxFrame(&tx);
     }
     #endif
 
@@ -581,6 +485,120 @@ void CyclicUpdate()
     for (uint8_t i = 0; i < NUM_KEYPADS; i++)
         keypad[i].Update();
     #endif
+
+    // Last of the logic, so a PID can use any of it, and before the outputs
+    // so a duty it drives is this cycle's
+    #if NUM_PIDS > 0
+    for (uint8_t i = 0; i < NUM_PIDS; i++)
+        pid[i].Update();
+    #endif
+
+    //=========================================================================
+    // Outputs last, so they act on this cycle's inputs and logic
+    //=========================================================================
+    #if NUM_OUTPUTS > 0
+    // Retry all on a rising edge, at most every 2 s so a held or hammered button can't keep re-energising a short
+    static bool bLastRetryAll = false;
+    static uint32_t nRetryAllTime = 0;
+    bool bRetryAll = *pVarMap[stConfig.stDevice.nRetryAllInput];
+    if (bRetryAll && !bLastRetryAll && (SYS_TIME - nRetryAllTime) >= 2000)
+    {
+        nRetryAllTime = SYS_TIME;
+        for (uint8_t i = 0; i < NUM_OUTPUTS; i++)
+            pf[i].ClearFault();
+    }
+    bLastRetryAll = bRetryAll;
+    bool bShed = *pVarMap[stConfig.stDevice.nShedInput];
+
+    // Two passes so dual-channel DSEL settles once per pass instead of once per output
+    for (uint8_t nPass = 0; nPass < 2; nPass++)
+    {
+        bool bDual = false;
+        for (uint8_t i = 0; i < NUM_OUTPUTS; i++)
+        {
+            if (pf[i].GetDselPass() == nPass && pf[i].IsDualChannel())
+            {
+                pf[i].SelectDsel();
+                bDual = true;
+            }
+        }
+
+        if (bDual)
+            chThdSleepMicroseconds(DSEL_SETTLE_US);
+
+        for (uint8_t i = 0; i < NUM_OUTPUTS; i++)
+        {
+            if (pf[i].GetDselPass() == nPass)
+                pf[i].Update(starter.fVal[i] && !(bShed && stConfig.stOutput[i].bShed));
+        }
+    }
+
+    static uint32_t nOvlSampleTime = 0;
+    bool bOvlSample = (SYS_TIME - nOvlSampleTime) >= OVL_SAMPLE_MS;
+    if (bOvlSample)
+        nOvlSampleTime = SYS_TIME;
+    for (uint8_t i = 0; i < NUM_OUTPUTS; i++)
+        OvlLogUpdate(i, pf[i].GetCurrent(), pf[i].GetState(), stConfig.stOutput[i].fCurrentLimit, bOvlSample);
+    #endif
+
+    #if HAS_EXT_MEMORY && (NUM_OUTPUTS > 0)
+    UpdateFaultLog();
+    #endif
+
+    #if NUM_DIG_OUTPUTS > 0
+    for (uint8_t i = 0; i < NUM_DIG_OUTPUTS; i++)
+        digOut[i].Update();
+    #endif
+
+    #if NUM_CAN_OUTPUTS > 0
+    canOutputs.Update();
+    #endif
+
+    #if NUM_CAN_MSGS > 0
+    for (uint8_t i = 0; i < NUM_CAN_MSGS; i++)
+    {
+        if (!canMsg[i].Due(CanTxMuted()))
+            continue;
+
+        const Config_CanMsg &c = stConfig.stCanMsg[i];
+        CANTxFrame tx;
+        tx.IDE = c.nIDE ? CAN_IDE_EXT : CAN_IDE_STD;
+        if (c.nIDE)
+            tx.EID = c.nID;
+        else
+            tx.SID = c.nID;
+        tx.DLC = c.nDLC;
+        canMsg[i].Fill(tx.data8);
+        PostTxFrame(&tx);
+    }
+    #endif
+
+    #if HAS_NEOPIXELS
+    UpdateNeopixels();
+    #endif
+}
+
+bool SetOutputTest(uint8_t nOutput, uint8_t nMode, uint8_t nDuty, uint16_t nFreq, uint8_t nHoldSec)
+{
+    (void)nDuty;
+    (void)nFreq;
+    bool bOk = false;
+
+    // Outside Run (overtemp) a test can only be released
+    if (nMode != 0 && eState != DeviceState::Run)
+        return false;
+
+    LockConfig();
+    #if NUM_OUTPUTS > 0
+    if (nOutput < NUM_OUTPUTS)
+        bOk = pf[nOutput].SetTest(nMode, nDuty, nFreq, nHoldSec);
+    #elif NUM_DIG_OUTPUTS > 0
+    if (nOutput < NUM_DIG_OUTPUTS)
+        bOk = digOut[nOutput].SetTest(nMode, nHoldSec);
+    #endif
+    UnlockConfig();
+
+    return bOk;
 }
 
 void InitVarMap()
@@ -615,7 +633,6 @@ void InitVarMap()
         pVarMap[index++] = &analogIn[i].fValMillivolts;
         pVarMap[index++] = &analogIn[i].fRotaryPos;
         pVarMap[index++] = &analogIn[i].fSwitchVal;
-        pVarMap[index++] = &analogIn[i].fScaledVal;
     }
     #endif
 
@@ -700,29 +717,17 @@ void InitVarMap()
     }
     #endif
 
-    #if HAS_LUA
-    // Lua output slots (written by setLuaOut(n,v) from the Lua program). An output,
-    // virtual input, CAN output, etc. is driven by Lua by setting its nInput to one
-    // of these indices. Kept after every pre-Lua block so those indices stay stable.
-    for (uint16_t i = 0; i < NUM_LUA_OUTPUTS; i++)
-        pVarMap[index++] = &fLuaOut[i];
-    #endif
-
-    // Timers (FW #61) and tables (#58) are appended AFTER the Lua slots on purpose: every
-    // index that existed before them — including saved "Lua Out N" output bindings — is unchanged.
-    // New function blocks go after these. dingoConfig's VarMap mirrors this order.
+    // Timers are added last on purpose: appending keeps every existing
+    // variable index the same, so configs written before they existed still
+    // point at the same variables.
     #if NUM_TIMERS > 0
     for (uint8_t i = 0; i < NUM_TIMERS; i++)
+    {
         pVarMap[index++] = &timer[i].fVal;
+    }
     #endif
 
-    #if NUM_TABLES > 0
-    for (uint8_t i = 0; i < NUM_TABLES; i++)
-        pVarMap[index++] = &table[i].fVal;
-    #endif
-
-    // Digital-input PWM measurement (duty %, Hz), appended after the tables for the same reason.
-    #if NUM_DIG_INPUTS > 0
+    #if DI_PWM_MAX_FREQ > 0
     for (uint8_t i = 0; i < NUM_DIG_INPUTS; i++)
     {
         pVarMap[index++] = &digIn[i].fDuty;
@@ -730,16 +735,24 @@ void InitVarMap()
     }
     #endif
 
-    // Math and CAN Message blocks (5.6), appended last so every older index is unchanged
+    #if NUM_ANALOG_INPUTS > 0
+    for (uint8_t i = 0; i < NUM_ANALOG_INPUTS; i++)
+        pVarMap[index++] = &analogIn[i].fScaledVal;
+    #endif
+
+    // Appended after the timers for the same reason
     #if NUM_MATH > 0
     for (uint8_t i = 0; i < NUM_MATH; i++)
         pVarMap[index++] = &mathBlock[i].fVal;
     #endif
-    #if NUM_CAN_MSGS > 0
-    for (uint8_t i = 0; i < NUM_CAN_MSGS; i++)
-        pVarMap[index++] = &canMsg[i].fVal;
+
+    #if NUM_TABLES > 0
+    for (uint8_t i = 0; i < NUM_TABLES; i++)
+        pVarMap[index++] = &table[i].fVal;
     #endif
-    // Ignition (5.6): the roles an output can follow
+
+    // Appended after the timers for the same reason
+    #if HAS_IGNITION
     pVarMap[index++] = &ignition.fIgnition;
     pVarMap[index++] = &ignition.fAccessory;
     pVarMap[index++] = &ignition.fCranking;
@@ -747,97 +760,69 @@ void InitVarMap()
     pVarMap[index++] = &ignition.fReady;
     pVarMap[index++] = &ignition.fDash;
     pVarMap[index++] = &ignition.fLinkOk;
-    // Comfort blink (5.6.1): indicator on, per side
+    #endif
+
+    // Appended after the timers for the same reason
+    #if HAS_COMFORT_BLINK
     pVarMap[index++] = &comfortBlink.fLeft;
     pVarMap[index++] = &comfortBlink.fRight;
+    #endif
+
+    #if NUM_PIDS > 0
+    for (uint8_t i = 0; i < NUM_PIDS; i++)
+    {
+        pVarMap[index++] = &pid[i].fVal;
+        pVarMap[index++] = &pid[i].fP;
+        pVarMap[index++] = &pid[i].fI;
+        pVarMap[index++] = &pid[i].fD;
+    }
+    #endif
+
+    // Appended after the timers for the same reason
+    #if NUM_CURVES > 0
+    for (uint8_t i = 0; i < NUM_CURVES; i++)
+        pVarMap[index++] = &curve[i].fVal;
+    #endif
+
+    // Appended after the timers for the same reason
+    #if NUM_LATCH_GATES > 0
+    for (uint8_t i = 0; i < NUM_LATCH_GATES; i++)
+    {
+        pVarMap[index++] = &latchGate[i].fVal;
+    }
+    #endif
+
+    #if NUM_OUTPUTS > 0
+    for (uint8_t i = 0; i < NUM_OUTPUTS; i++)
+    {
+        pVarMap[index++] = &pf[i].fWarning;
+        pVarMap[index++] = &pf[i].fOpenLoad;
+    }
+
+    for (uint8_t i = 0; i < NUM_OUTPUTS; i++)
+    {
+        pVarMap[index++] = &pf[i].fUndercurrent;
+    }
+
+    // Output wire load %
+    for (uint8_t i = 0; i < NUM_OUTPUTS; i++)
+    {
+        pVarMap[index++] = &pf[i].fLoad;
+    }
+    #endif
+
+    #if HAS_LUA
+    for (uint8_t i = 0; i < NUM_LUA_OUTPUTS; i++)
+        pVarMap[index++] = &fLuaOut[i];
+    #endif
+
+    // Appended last, so every index above keeps its meaning
+    #if HAS_IGNITION
+    pVarMap[index++] = &ignition.fDashShutdown;
+    #endif
 
     //VarMap size must match the expected size
     if (index != VAR_MAP_SIZE)
         Error::SetFatalError(FatalErrorType::ErrVarMap, MsgSrc::Init);
 
 }
-
-//=============================================================================
-// Lua bridge: lets the Lua port (lua_port.cpp) read any signal and drive the
-// Lua output slots, without exposing the var-map internals to C.
-//=============================================================================
-#if HAS_LUA
-extern "C" float LuaBridgeReadVar(int idx)
-{
-    if (idx < 0 || idx >= VAR_MAP_SIZE || pVarMap[idx] == nullptr) return 0.0f;
-    return *pVarMap[idx];
-}
-
-extern "C" void LuaBridgeSetOut(int slot, float val)
-{
-    if (slot >= 0 && slot < NUM_LUA_OUTPUTS) fLuaOut[slot] = val;
-}
-
-extern "C" uint32_t LuaBridgeMillis() { return (uint32_t)SYS_TIME; }
-
-//-----------------------------------------------------------------------------
-// Lua CAN bridge. Producer = DeviceThread (CyclicUpdate RX drain); consumer =
-// LuaThread. Single-producer/single-consumer ring, so volatile head/tail indices
-// are sufficient without locks.
-//-----------------------------------------------------------------------------
-#define LUA_CANRX_REG_MAX 16
-#define LUA_CANRX_QUEUE   16
-static volatile uint32_t luaRxIds[LUA_CANRX_REG_MAX];
-static volatile uint8_t  luaRxIdCount = 0;
-struct LuaRxFrame { uint32_t id; uint8_t ext; uint8_t dlc; uint8_t data[8]; };
-static LuaRxFrame        luaRxQ[LUA_CANRX_QUEUE];
-static volatile uint8_t  luaRxHead = 0;   // producer
-static volatile uint8_t  luaRxTail = 0;   // consumer
-
-extern "C" void LuaBridgeCanRxRegister(uint32_t id)
-{
-    for (uint8_t i = 0; i < luaRxIdCount; i++)
-        if (luaRxIds[i] == id) return;
-    if (luaRxIdCount < LUA_CANRX_REG_MAX) luaRxIds[luaRxIdCount++] = id;
-}
-
-// Called from CyclicUpdate for every RX frame; queues it only if its id was
-// registered via canRxAdd().
-void LuaBridgeCanRxFeed(const CANRxFrame *f)
-{
-    uint32_t id = (f->IDE == CAN_IDE_EXT) ? f->EID : f->SID;
-    bool match = false;
-    for (uint8_t i = 0; i < luaRxIdCount; i++)
-        if (luaRxIds[i] == id) { match = true; break; }
-    if (!match) return;
-
-    uint8_t next = (uint8_t)((luaRxHead + 1) % LUA_CANRX_QUEUE);
-    if (next == luaRxTail) return;   // full — drop oldest-policy: just drop new
-    LuaRxFrame *d = &luaRxQ[luaRxHead];
-    d->id = id;
-    d->ext = (f->IDE == CAN_IDE_EXT);
-    d->dlc = f->DLC;
-    for (int i = 0; i < 8; i++) d->data[i] = f->data8[i];
-    luaRxHead = next;
-}
-
-extern "C" int LuaBridgeCanRxPop(uint32_t *id, int *ext, uint8_t *data, int *dlc)
-{
-    if (luaRxTail == luaRxHead) return 0;
-    LuaRxFrame *s = &luaRxQ[luaRxTail];
-    *id = s->id;
-    *ext = s->ext;
-    *dlc = s->dlc;
-    for (int i = 0; i < 8; i++) data[i] = s->data[i];
-    luaRxTail = (uint8_t)((luaRxTail + 1) % LUA_CANRX_QUEUE);
-    return 1;
-}
-
-extern "C" void LuaBridgeTxCan(uint32_t id, int ext, const uint8_t *data, int dlc)
-{
-    CANTxFrame f;
-    memset(&f, 0, sizeof(f));
-    f.IDE = ext ? CAN_IDE_EXT : CAN_IDE_STD;
-    if (ext) f.EID = id; else f.SID = id;
-    f.RTR = CAN_RTR_DATA;
-    if (dlc > 8) dlc = 8;
-    f.DLC = (uint8_t)dlc;
-    for (int i = 0; i < dlc; i++) f.data8[i] = data[i];
-    PostTxFrame(&f);
-}
-#endif // HAS_LUA

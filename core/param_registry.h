@@ -3,10 +3,10 @@
 #include <cstdint>
 #include <bit>
 
-// 0x0000 - 0x0FFF: System
+// 0x0000 - 0x0FFF: System (0x0200: config lock)
 // 0x1000 - 0x10FF: Outputs
 // 0x1100 - 0x11FF: PWM
-// 0x1200 - 0x12FF: Inputs
+// 0x1200 - 0x12FF: Digital Inputs
 // 0x1300 - 0x13FF: CAN Inputs
 // 0x1400 - 0x14FF: Virtual Inputs
 // 0x1500 - 0x15FF: Conditions
@@ -14,9 +14,18 @@
 // 0x1700 - 0x17FF: Flasher
 // 0x1800 - 0x18FF: Starter Disable
 // 0x1900 - 0x19FF: Wipers
-// 0x1A00 - 0x1AFF: Tables
-// 0x1B00 - 0x1BFF: Timers
+// 0x1A00 - 0x1AFF: Timers
+// 0x1C00 - 0x1CFF: Math
+// 0x1D00 - 0x1DFF: CAN Messages
+// 0x1B00 - 0x1BFF: Tables
+// 0x1F00 - 0x1FFF: Comfort Blink
+// 0x1E00 - 0x1EFF: Ignition
 // 0x2000 - 0x20FF: CAN Outputs
+// 0x2100 - 0x21FF: Digital Outputs
+// 0x2200 - 0x22FF: Analog Inputs
+// 0x2400 - 0x24FF: Curves
+// 0x2600 - 0x26FF: Latch / Gate
+// 0x2300 - 0x23FF: PIDs
 // 0x3000 - 0x30FF: Keypads
 // 0x3100 - 0x31FF: Keypad Buttons
 // 0x3200 - 0x32FF: Keypad Dials
@@ -34,8 +43,8 @@ enum class ParamType : uint8_t
     Enum = 8
 };
 
-// eType sits next to nSubIndex (24 bytes, not 28: ~2.8 KB of flash over the table, which the CANBoard needs);
-// the constructor keeps the initialiser order {index, sub, val, temp, type, default, min, max}.
+// eType sits next to nSubIndex so the entry packs to 24 bytes instead of 28; the constructor keeps the
+// initialiser order used in param_defs.h
 struct ParamInfo
 {
     uint16_t nIndex;
@@ -52,6 +61,7 @@ struct ParamInfo
         : nIndex(index), nSubIndex(sub), eType(type), pVal(val), pTempVal(temp),
           nDefaultVal(def), nMinVal(min), nMaxVal(max) {}
 };
+static_assert(sizeof(void*) != 4 || sizeof(ParamInfo) == 24);
 
 // Helpers: encode signed values as sign-extended uint32_t (wire format)
 constexpr uint32_t I8 (int8_t  v) { return static_cast<uint32_t>(v); }
@@ -68,3 +78,18 @@ const ParamInfo* FindParam(uint16_t index, uint8_t subindex);
 uint32_t ReadParam(const ParamInfo* param, bool temp = false);
 bool WriteParam(const ParamInfo* param, uint32_t value, bool temp = false);
 bool IsDefaultValue(const ParamInfo* param);
+
+// Tracks which params have been received during the current full WriteAll, so a failed
+// WriteAllComplete can report exactly what's missing instead of forcing a full resend.
+// Only meaningful for full WriteAll (WriteAllModified sends a host-chosen subset, so
+// firmware can't tell "never sent" from "dropped").
+void ResetWriteReceivedMask();
+void MarkParamReceived(const ParamInfo* param);
+bool IsParamReceived(uint16_t i);
+uint16_t CountReceivedParams();
+
+// CRC32 over all NUM_PARAMS values in canonical table order, reading either the live
+// (temp=false) or staged temp (temp=true) value for each. Order-independent by construction,
+// so it verifies correctly regardless of what order WriteAllVal frames actually arrived in
+// (including across a missing-param patch round).
+uint32_t CalcParamsCrc(bool temp = false);

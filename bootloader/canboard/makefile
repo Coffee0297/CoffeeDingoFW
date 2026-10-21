@@ -23,6 +23,10 @@
 #| should be located in ".\Doc\license.html". If not, contact Feaser to obtain a copy.
 #|
 #****************************************************************************************
+# dingoFW: OpenBLT XCP-over-CAN bootloader for the CANBoard (STM32F303K8). Build with arm-none-eabi-gcc
+# on the PATH:  cd bootloader/canboard && make   ->  bin/canboard_blt.hex (and .srec, .elf)
+# Program it once at 0x08000000 over SWD, then the application, which is linked at 0x08002000.
+# Reflash the application over CAN afterwards.
 SHELL = sh
 
 #|--------------------------------------------------------------------------------------|
@@ -94,6 +98,7 @@ PROJ_CSRCS  = $(filter %.c,$(foreach file,$(PROJ_FILES),$(notdir $(file))))
 VPATH    = $(foreach path,$(sort $(foreach file,$(PROJ_FILES),$(dir $(file)))) $(subst \,/,$(OBJ_PATH)),$(path) :)
 OBJ_PATH = obj
 BIN_PATH = bin
+$(shell mkdir -p $(OBJ_PATH) $(BIN_PATH))
 INC_PATH = $(patsubst %/,%,$(patsubst %,-I%,$(sort $(foreach file,$(filter %.h,$(PROJ_FILES)),$(dir $(file))))))
 LIB_PATH  = 
 
@@ -103,7 +108,8 @@ LIB_PATH  =
 #|--------------------------------------------------------------------------------------|
 STDFLAGS    = -mcpu=cortex-m4 -mthumb -mfloat-abi=hard -mfpu=fpv4-sp-d16 -fno-strict-aliasing
 STDFLAGS   += -fdata-sections -ffunction-sections -Wall -g3
-OPTFLAGS    = -Og
+# dingoFW: -Os, as the bootloaders already on CANBoards were built (byte-identical to the fork's canboard_blt.hex)
+OPTFLAGS    = -Os
 DEPFLAGS    = -MT $@ -MMD -MP -MF $(OBJ_PATH)/$*.d
 CFLAGS      = $(STDFLAGS) $(OPTFLAGS)
 CFLAGS     += -DUSE_HAL_DRIVER -DUSE_FULL_LL_DRIVER -DSTM32F303x8

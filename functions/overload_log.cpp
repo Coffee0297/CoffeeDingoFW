@@ -4,132 +4,118 @@
 
 struct OvlEvent
 {
-    bool     bUsed;
-    uint8_t  nOut;
-    uint8_t  nState;
-    uint8_t  nPeakByte;                  // max waveform byte in this event
-    float    fLimitA;
-    uint32_t nTime;                      // ms since power-on when it tripped (5.6)
-    uint8_t  acSamples[OVL_TOTAL_SAMPLES];
+    uint8_t nOut;
+    uint8_t nState;
+    uint8_t nPeak;  // highest sample byte
+    float fLimitA;
+    uint32_t nTime;
+    uint8_t nSamples[OVL_TOTAL_SAMPLES];
 };
 
-static OvlEvent     events[OVL_EVENTS];
-static uint8_t      preRing[NUM_OUTPUTS][OVL_PRE_SAMPLES];
-static uint16_t     preHead[NUM_OUTPUTS]; // next write index (oldest sample)
-static int8_t       capSlot[NUM_OUTPUTS]; // event slot currently capturing post-window, -1 = none
-static uint16_t     capRemain[NUM_OUTPUTS];
-static uint8_t      nWriteSlot;           // next event slot to allocate
-static uint8_t      nUsed;                // valid events, capped at OVL_EVENTS
-
-static inline uint8_t AmpToByte(float a)
+static struct
 {
-    int v = (int)(a / OVL_AMP_STEP + 0.5f);
-    if (v < 0) v = 0;
-    if (v > 255) v = 255;
-    return (uint8_t)v;
+    OvlEvent events[OVL_EVENTS];
+    uint8_t nNext;                              // next slot to write
+    uint8_t nUsed;
+    uint8_t nPre[NUM_OUTPUTS][OVL_PRE_SAMPLES]; // ring, nPreHead = oldest
+    uint16_t nPreHead[NUM_OUTPUTS];
+    uint8_t nCapSlot[NUM_OUTPUTS];
+    uint16_t nCapLeft[NUM_OUTPUTS];             // post-trip samples still to capture, 0 = none
+    float fPeak[NUM_OUTPUTS];
+} st;
+static bool bWasTrip[NUM_OUTPUTS]; // outside st: a Clear doesn't re-log an output that is still tripped
+
+static uint8_t AmpToByte(float fAmps)
+{
+    float f = fAmps / OVL_AMP_STEP + 0.5f;
+    return f <= 0 ? 0 : (f >= 255 ? 255 : (uint8_t)f);
 }
 
-void OvlLogInit()
+static void Push(OvlEvent &ev, uint16_t nIdx, uint8_t nVal)
 {
-    nWriteSlot = 0;
-    nUsed = 0;
-    for (uint8_t i = 0; i < NUM_OUTPUTS; i++)
-    {
-        preHead[i] = 0;
-        capSlot[i] = -1;
-        capRemain[i] = 0;
-    }
-    for (uint8_t e = 0; e < OVL_EVENTS; e++)
-        events[e].bUsed = false;
+    ev.nSamples[nIdx] = nVal;
+    if (nVal > ev.nPeak)
+        ev.nPeak = nVal;
 }
 
-void OvlLogSample(uint8_t nOut, float fAmps)
+void OvlLogUpdate(uint8_t nOut, float fAmps, ProfetState eState, float fLimitA, bool bSample)
 {
-    if (nOut >= NUM_OUTPUTS) return;
-    uint8_t b = AmpToByte(fAmps);
+    if (fAmps > st.fPeak[nOut])
+        st.fPeak[nOut] = fAmps;
 
-    // Roll into the pre-trip ring.
-    preRing[nOut][preHead[nOut]] = b;
-    preHead[nOut] = (preHead[nOut] + 1) % OVL_PRE_SAMPLES;
-
-    // Feed an in-progress post-trip capture for this output.
-    if (capSlot[nOut] >= 0)
+    if (bSample)
     {
-        OvlEvent *ev = &events[capSlot[nOut]];
-        uint16_t idx = OVL_PRE_SAMPLES + (OVL_POST_SAMPLES - capRemain[nOut]);
-        if (idx < OVL_TOTAL_SAMPLES)
+        uint8_t nVal = AmpToByte(st.fPeak[nOut]);
+        st.fPeak[nOut] = 0;
+
+        st.nPre[nOut][st.nPreHead[nOut]] = nVal;
+        st.nPreHead[nOut] = (st.nPreHead[nOut] + 1) % OVL_PRE_SAMPLES;
+
+        if (st.nCapLeft[nOut] > 0)
         {
-            ev->acSamples[idx] = b;
-            if (b > ev->nPeakByte) ev->nPeakByte = b;
+            Push(st.events[st.nCapSlot[nOut]], OVL_TOTAL_SAMPLES - st.nCapLeft[nOut], nVal);
+            st.nCapLeft[nOut]--;
         }
-        if (--capRemain[nOut] == 0)
-            capSlot[nOut] = -1;          // event committed
     }
-}
 
-void OvlLogTrigger(uint8_t nOut, ProfetState eState, float fLimitA)
-{
-    if (nOut >= NUM_OUTPUTS) return;
-    if (capSlot[nOut] >= 0) return;      // already logging a trip for this output
+    // Log the edge into Overcurrent/Fault; Overcurrent -> Fault is the same trip
+    bool bTrip = (eState == ProfetState::Overcurrent) || (eState == ProfetState::Fault);
+    bool bNew = bTrip && !bWasTrip[nOut] && (st.nCapLeft[nOut] == 0);
+    bWasTrip[nOut] = bTrip;
+    if (!bNew)
+        return;
 
-    uint8_t slot = nWriteSlot;
-    nWriteSlot = (nWriteSlot + 1) % OVL_EVENTS;
-    if (nUsed < OVL_EVENTS) nUsed++;
+    uint8_t nSlot = st.nNext;
+    st.nNext = (st.nNext + 1) % OVL_EVENTS;
+    if (st.nUsed < OVL_EVENTS)
+        st.nUsed++;
 
-    OvlEvent *ev = &events[slot];
-    ev->bUsed = true;
-    ev->nOut = nOut;
-    ev->nState = (uint8_t)eState;
-    ev->fLimitA = fLimitA;
-    ev->nPeakByte = 0;
-    ev->nTime = SYS_TIME;
+    // A slot still capturing for another output is overwritten: stop that capture
+    for (uint8_t i = 0; i < NUM_OUTPUTS; i++)
+        if (st.nCapLeft[i] > 0 && st.nCapSlot[i] == nSlot)
+            st.nCapLeft[i] = 0;
 
-    // Copy the pre-trip ring in chronological order (oldest first) into samples[0..PRE-1].
-    uint16_t h = preHead[nOut];
+    OvlEvent &ev = st.events[nSlot];
+    ev = {};
+    ev.nOut = nOut;
+    ev.nState = (uint8_t)eState;
+    ev.fLimitA = fLimitA;
+    ev.nTime = SYS_TIME;
     for (uint16_t k = 0; k < OVL_PRE_SAMPLES; k++)
-    {
-        uint8_t b = preRing[nOut][(h + k) % OVL_PRE_SAMPLES];
-        ev->acSamples[k] = b;
-        if (b > ev->nPeakByte) ev->nPeakByte = b;
-    }
-    // Post-window fills in as samples arrive; zero it meanwhile.
-    for (uint16_t k = OVL_PRE_SAMPLES; k < OVL_TOTAL_SAMPLES; k++)
-        ev->acSamples[k] = 0;
+        Push(ev, k, st.nPre[nOut][(st.nPreHead[nOut] + k) % OVL_PRE_SAMPLES]);
 
-    capSlot[nOut] = slot;
-    capRemain[nOut] = OVL_POST_SAMPLES;
+    st.nCapSlot[nOut] = nSlot;
+    st.nCapLeft[nOut] = OVL_POST_SAMPLES;
 }
 
-uint8_t OvlLogCount() { return nUsed; }
+uint8_t OvlLogCount() { return st.nUsed; }
 
-// Map a newest-first index to a physical slot.
 static OvlEvent *EventAt(uint8_t idx)
 {
-    if (idx >= nUsed) return nullptr;
-    uint8_t slot = (nWriteSlot + OVL_EVENTS - 1 - idx) % OVL_EVENTS;
-    OvlEvent *ev = &events[slot];
-    return ev->bUsed ? ev : nullptr;
+    if (idx >= st.nUsed)
+        return nullptr;
+    return &st.events[(st.nNext + OVL_EVENTS - 1 - idx) % OVL_EVENTS];
 }
 
 bool OvlLogGetHeader(uint8_t idx, uint8_t &nOut, uint8_t &nState, float &fPeakA, float &fLimitA)
 {
     OvlEvent *ev = EventAt(idx);
-    if (!ev) return false;
+    if (!ev)
+        return false;
     nOut = ev->nOut;
     nState = ev->nState;
-    fPeakA = ev->nPeakByte * OVL_AMP_STEP;
+    fPeakA = ev->nPeak * OVL_AMP_STEP;
     fLimitA = ev->fLimitA;
     return true;
 }
 
-uint8_t OvlLogGetData(uint8_t idx, uint16_t off, uint8_t *pBuf, uint8_t nMax)
+uint8_t OvlLogGetData(uint8_t idx, uint16_t nOff, uint8_t *pBuf, uint8_t nMax)
 {
     OvlEvent *ev = EventAt(idx);
-    if (!ev || off >= OVL_TOTAL_SAMPLES) return 0;
     uint8_t n = 0;
-    while (n < nMax && (off + n) < OVL_TOTAL_SAMPLES)
+    while (ev && n < nMax && nOff + n < OVL_TOTAL_SAMPLES)
     {
-        pBuf[n] = ev->acSamples[off + n];
+        pBuf[n] = ev->nSamples[nOff + n];
         n++;
     }
     return n;
@@ -141,25 +127,9 @@ uint32_t OvlLogTime(uint8_t idx)
     return ev ? ev->nTime : 0;
 }
 
-struct OvlNoticeRec { uint32_t nTime; uint8_t nOut; uint8_t nKind; };
-static OvlNoticeRec notices[OVL_NOTICES];
-static uint8_t nNoticeHead, nNoticeUsed;
-
-void OvlNotice(uint8_t nOut, uint8_t nKind)
+void OvlLogClear()
 {
-    notices[nNoticeHead] = { SYS_TIME, nOut, nKind };
-    nNoticeHead = (nNoticeHead + 1) % OVL_NOTICES;
-    if (nNoticeUsed < OVL_NOTICES) nNoticeUsed++;
+    st = {};
 }
-uint8_t OvlNoticeCount() { return nNoticeUsed; }
-bool OvlNoticeGet(uint8_t idx, uint8_t &nOut, uint8_t &nKind, uint32_t &nTime)
-{
-    if (idx >= nNoticeUsed) return false;
-    const OvlNoticeRec &n = notices[(nNoticeHead + OVL_NOTICES - 1 - idx) % OVL_NOTICES];
-    nOut = n.nOut; nKind = n.nKind; nTime = n.nTime;
-    return true;
-}
-
-void OvlLogClear() { OvlLogInit(); nNoticeHead = 0; nNoticeUsed = 0; }
 
 #endif

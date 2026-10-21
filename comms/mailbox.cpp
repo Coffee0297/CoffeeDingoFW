@@ -2,32 +2,31 @@
 #include "can.h"
 #include "ch.hpp"
 #include "port.h"
+#ifndef CAN_RX_MAILBOX_SIZE
+#define CAN_RX_MAILBOX_SIZE MAILBOX_SIZE
+#endif
+#ifndef CAN_TX_MAILBOX_SIZE
+#define CAN_TX_MAILBOX_SIZE MAILBOX_SIZE
+#endif
 
-// The RX side can be deeper than TX: a busy bus delivers frames in bursts faster than the device thread
-// (2 ms loop) drains them. Boards short on SRAM put the RX buffers in CCM (CPU-only, which they are).
-#ifndef RX_MAILBOX_SIZE
-#define RX_MAILBOX_SIZE MAILBOX_SIZE
-#endif
-#ifndef CCM_BSS
-#define CCM_BSS
-#endif
-static chibios_rt::Mailbox<CANRxFrame*, RX_MAILBOX_SIZE> rxMb CCM_BSS;   // the constructor initialises it
-static chibios_rt::Mailbox<CANTxFrame*, MAILBOX_SIZE> txMb;
+
+static chibios_rt::Mailbox<CANRxFrame*, CAN_RX_MAILBOX_SIZE> rxMb;
+static chibios_rt::Mailbox<CANTxFrame*, CAN_TX_MAILBOX_SIZE> txMb;
 #if HAS_USB
 static chibios_rt::Mailbox<CANTxFrame*, MAILBOX_SIZE> txUsbMb;
 #endif
 
 //Mailbox buffer of CAN frames
 //Not managed by mailbox
-CANRxFrame rxFrames[RX_MAILBOX_SIZE] CCM_BSS;   // contents only valid while rxMsgUsed[i]
-CANTxFrame txFrames[MAILBOX_SIZE];
+CANRxFrame rxFrames[CAN_RX_MAILBOX_SIZE];
+CANTxFrame txFrames[CAN_TX_MAILBOX_SIZE];
 #if HAS_USB
-CANTxFrame txUsbFrames[MAILBOX_SIZE];   // a board without USB has nobody to fetch them
+CANTxFrame txUsbFrames[MAILBOX_SIZE];
 #endif
 
 //Used to manage the memory used by the mailbox
-bool rxMsgUsed[RX_MAILBOX_SIZE];   // zeroed .bss: must not live in NOLOAD CCM
-bool txMsgUsed[MAILBOX_SIZE];
+bool rxMsgUsed[CAN_RX_MAILBOX_SIZE];
+bool txMsgUsed[CAN_TX_MAILBOX_SIZE];
 #if HAS_USB
 bool txUsbMsgUsed[MAILBOX_SIZE];
 #endif
@@ -43,13 +42,16 @@ static chibios_rt::Mutex txUsbMutex;
 
 msg_t PostTxFrame(CANTxFrame *frame)
 {
-    // No CAN peer is ACKing (can.cpp backs off): a CAN frame would only sit retransmitting in a full queue, and
-    // senders that retry until it's taken (the ReadAll dump) would stall. The USB host still needs it —
-    // dingoConfig over USB with the module alone on a bench — so hand it to USB once and report it sent.
+    // No CAN peer ACKing: the frame would only sit in a full queue (and stall PostTxFrameWithRetry senders),
+    // but a USB host alone with the module on a bench still wants it
     if (CanNoPeer())
-        return PostTxUsbFrame(frame), MSG_OK;
+    {
+        PostTxUsbFrame(frame);
+        return MSG_OK;
+    }
+
     txMutex.lock();
-    for (int i = 0; i < MAILBOX_SIZE; i++) {
+    for (int i = 0; i < CAN_TX_MAILBOX_SIZE; i++) {
         if (!txMsgUsed[i]) {
             txFrames[i] = *frame;
             txMsgUsed[i] = true;
@@ -75,25 +77,17 @@ msg_t FetchTxFrame(CANTxFrame *frame, sysinterval_t timeout)
     CANTxFrame *txFrame;
     msg_t result = txMb.fetch(&txFrame, timeout);
     if (result == MSG_OK) {
+        *frame = *txFrame; // Copy before freeing the slot so a producer can't overwrite it
         txMutex.lock();
-        for (int i = 0; i < MAILBOX_SIZE; i++) {
-            if (txFrame == &txFrames[i]) {
-                txMsgUsed[i] = false;
-                break;
-            }
-        }
+        txMsgUsed[txFrame - txFrames] = false;
         txMutex.unlock();
-        *frame = *txFrame;
     }
     return result;
 }
 
+#if HAS_USB
 msg_t PostTxUsbFrame(CANTxFrame *frame)
 {
-#if !HAS_USB
-    (void)frame;
-    return MSG_OK;   // no USB link: nothing to queue
-#else
     txUsbMutex.lock();
     for (int i = 0; i < MAILBOX_SIZE; i++) {
         if (!txUsbMsgUsed[i]) {
@@ -110,36 +104,28 @@ msg_t PostTxUsbFrame(CANTxFrame *frame)
 
     txUsbMutex.unlock();
     return MSG_TIMEOUT;  // No free slots
-#endif
 }
 
 msg_t FetchTxUsbFrame(CANTxFrame *frame, sysinterval_t timeout)
 {
-#if !HAS_USB
-    (void)frame; (void)timeout;
-    return MSG_TIMEOUT;
-#else
     CANTxFrame *txFrame;
     msg_t result = txUsbMb.fetch(&txFrame, timeout);
     if (result == MSG_OK) {
+        *frame = *txFrame; // Copy before freeing the slot so a producer can't overwrite it
         txUsbMutex.lock();
-        for (int i = 0; i < MAILBOX_SIZE; i++) {
-            if (txFrame == &txUsbFrames[i]) {
-                txUsbMsgUsed[i] = false;
-                break;
-            }
-        }
+        txUsbMsgUsed[txFrame - txUsbFrames] = false;
         txUsbMutex.unlock();
-        *frame = *txFrame;
     }
     return result;
-#endif
 }
+#else
+msg_t PostTxUsbFrame(CANTxFrame *) { return MSG_OK; } // no USB: nothing would ever fetch it
+#endif
 
 msg_t PostRxFrame(CANRxFrame *frame)
 {
     rxMutex.lock();
-    for (int i = 0; i < RX_MAILBOX_SIZE; i++) {
+    for (int i = 0; i < CAN_RX_MAILBOX_SIZE; i++) {
         if (!rxMsgUsed[i]) {
             rxFrames[i] = *frame;
             rxMsgUsed[i] = true;
@@ -161,20 +147,10 @@ msg_t FetchRxFrame(CANRxFrame *frame)
     CANRxFrame *rxFrame;
     msg_t result = rxMb.fetch(&rxFrame, TIME_IMMEDIATE);
     if (result == MSG_OK) {
+        *frame = *rxFrame; // Copy before freeing the slot so a producer can't overwrite it
         rxMutex.lock();
-        for (int i = 0; i < RX_MAILBOX_SIZE; i++) {
-            if (rxFrame == &rxFrames[i]) {
-                rxMsgUsed[i] = false;
-                break;
-            }
-        }
+        rxMsgUsed[rxFrame - rxFrames] = false;
         rxMutex.unlock();
-        *frame = *rxFrame;
     }
     return result;
-}
-
-bool RxFramesEmpty()
-{
-    return (rxMb.getUsedCountI() == 0);
 }

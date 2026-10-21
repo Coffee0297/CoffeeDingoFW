@@ -14,7 +14,3 @@ __pycache__/
 *$py.class
 
 .idea/
-
-# local release staging and tool caches
-dist/
-.playwright-mcp/

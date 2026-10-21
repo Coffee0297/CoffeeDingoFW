@@ -4,19 +4,18 @@
 
 // Duty/period accumulator for a PWM input, fed one edge at a time with free-running cycle-counter
 // timestamps (wrap-safe unsigned differences). A period closes at each rising edge; its high time is the
-// fall in between. Take() hands over everything since the last call. Pure, so tests/host_selftest.cpp
-// drives it with synthetic edges.
+// fall in between. Take() hands over everything since the last call.
 //
 // Glitch filter (nMinCycles > 0): each edge is held until the next one; if that comes sooner than
-// nMinCycles, the two form a spike and both are dropped, whichever phase the spike lands in. A real pulse
-// narrower than the filter is dropped the same way (the signal reads as its steady level).
+// nMinCycles, the two form a spike and both are dropped. A real pulse narrower than the filter is
+// dropped the same way (the signal reads as its steady level).
 struct PwmMeter
 {
     uint32_t nRiseAt, nFallAt;
     uint32_t nSumHigh, nSumPeriod, nPeriods;
     uint32_t nLastPeriod;
     bool bSeenRise, bSeenFall;
-    uint32_t nMinCycles;        // glitch filter, 0 = off (kept by Reset)
+    uint32_t nMinCycles; // glitch filter, 0 = off (kept by Reset)
     bool bHeld, bHeldHigh;
     uint32_t nHeldAt;
 
@@ -30,7 +29,7 @@ struct PwmMeter
         if (bHeld)
         {
             bHeld = false;
-            if (now - nHeldAt < nMinCycles) return false;   // spike: drop the held edge and this one
+            if (now - nHeldAt < nMinCycles) return false; // spike: drop the held edge and this one
             Commit(bHeldHigh, nHeldAt);
             passed = true;
         }

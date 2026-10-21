@@ -1,9 +1,5 @@
 MCU = cortex-m4
-MCUDIR = boards/cortex-m4
-# dingoFW: size-optimise. Relocating the app above the 16 KB OpenBLT bootloader leaves sectors
-# 1..6 (368 KB) for the application (sector 7 is reserved for config / left for FRAM). The -O0
-# default image (~400 KB) does not fit; -Os brings it well under 368 KB. No FPU/float-ABI change.
-USE_OPT = -Os -ggdb -fomit-frame-pointer -falign-functions=16 -fsingle-precision-constant
+MCUDIR = boards/stm32f446
 
 # List of all the board related files.
 BOARDSRC = ./boards/dingopdm_v7/board.c
@@ -19,13 +15,9 @@ include $(CHIBIOS)/os/common/startup/ARMCMx/compilers/GCC/mk/startup_stm32f4xx.m
 include $(CHIBIOS)/os/hal/ports/STM32/STM32F4xx/platform.mk
 include $(CHIBIOS)/os/common/ports/ARMv7-M/compilers/GCC/mk/port.mk
 
-# dingoFW: enter_bootloader.S (the reset-handler USB-DFU trampoline) is no longer linked - the
-# OpenBLT bootloader owns the reset vector and dispatches both USB-DFU (magic 0xDEADBEEF) and CAN
-# updates from its own clean state. The app uses ChibiOS's default Reset_Handler (crt0 sets VTOR
-# from the relocated _vectors). See bootloader/dingopdm/main.c + boards/cortex-m4/mcu_utils.cpp.
-
 CPPSRC_BOARD += comms/usb.cpp \
 				core/sleep.cpp \
+				core/lua_script.cpp \
 				functions/profet.cpp \
 				functions/overload_log.cpp \
 				functions/pwm.cpp \
@@ -50,3 +42,9 @@ UINC_BOARD += 	./functions/wiper \
 				./functions/keypad/blink \
 				./functions/keypad/grayhill \
 				./functions/keypad
+
+# Embedded Lua 5.5, vendored in lua/
+ALLCSRC += $(wildcard ./lua/*.c)
+USE_COPT += -D'luai_makeseed()=0u' # no clock for time() on the module
+USE_COPT += -DLUAI_MAXCCALLS=32 # C stack depth (parser nesting, nested pcall/metamethods): ~200 B a level at -O0 in the 12 KB Lua stack
+UINC_BOARD += ./lua

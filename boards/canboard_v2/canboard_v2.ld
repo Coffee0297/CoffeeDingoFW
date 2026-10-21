@@ -19,11 +19,8 @@
  */
 MEMORY
 {
-    /* dingoFW: application relocated above the 16 KB OpenBLT bootloader (sectors 0..7).
-     * App now lives at 0x08004000 (sector 8) .. 0x0800F800 = 46 KB. ChibiOS crt0 sets
-     * VTOR from _vectors, so the vector table follows flash0's origin automatically.
-     * flash_config (the persistent config sector) is unchanged so settings survive. */
-    flash0 (rx) : org = 0x08004000, len = 46k
+    /* OpenBLT bootloader in sectors 0-3 (8 KB, bootloader/canboard) */
+    flash0 (rx) : org = 0x08002000, len = 54k
     flash_config (r) : org = 0x0800F800, len = 2k
     flash1 (rx) : org = 0x00000000, len = 0
     flash2 (rx) : org = 0x00000000, len = 0
@@ -36,7 +33,8 @@ MEMORY
     ram1   (wx) : org = 0x00000000, len = 0
     ram2   (wx) : org = 0x00000000, len = 0
     ram3   (wx) : org = 0x00000000, len = 0
-    ram4   (wx) : org = 0x10000000, len = 4k
+    /* last CCM word: bootloader request magic (RequestBootloader) */
+    ram4   (wx) : org = 0x10000000, len = 4k - 4
     ram5   (wx) : org = 0x00000000, len = 0
     ram6   (wx) : org = 0x00000000, len = 0
     ram7   (wx) : org = 0x00000000, len = 0
@@ -88,17 +86,3 @@ REGION_ALIAS("HEAP_RAM", ram0);
 
 /* Generic rules inclusion.*/
 INCLUDE rules.ld
-
-/* CanBoard-only: park the config staging buffer in the otherwise-unused 4 KB CCM (ram4),
-   freeing main SRAM (ram0). CCM is CPU-only (no DMA) — fine for stConfigTemp, which is never
-   a DMA target. NOLOAD: not initialised by crt0, so InitConfig() zeroes it. */
-SECTIONS
-{
-    .ccm (NOLOAD) :
-    {
-        . = ALIGN(8);
-        *(.ccm)
-        *(.ccm.*)
-        . = ALIGN(8);
-    } > ram4
-}

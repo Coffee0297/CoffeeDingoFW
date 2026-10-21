@@ -8,8 +8,9 @@
 #include "counter.h"
 #include "condition.h"
 #include "timer.h"
-#if NUM_TABLES > 0
-#include "table.h"
+#include "pid.h"
+#if CAN_SLEEP
+#include "sleep.h"
 #endif
 #if NUM_OUTPUTS > 0
 #include "profet.h"
@@ -33,6 +34,11 @@
 #include "analog_input.h"
 #endif
 
+static inline float VolatileRead(const float &value)
+{
+    return *const_cast<const volatile float*>(&value);
+}
+
 DeviceState GetDeviceState()
 {
     return eState;
@@ -41,7 +47,7 @@ DeviceState GetDeviceState()
 #if HAS_EXT_TEMP_SENSOR
 float GetBoardTemp()
 {
-    return fTempSensor;
+    return VolatileRead(fTempSensor);
 }
 #endif
 
@@ -99,8 +105,6 @@ ProfetState GetOutputState(uint8_t nOutput)
     if (nOutput >= NUM_OUTPUTS)
         return ProfetState::Off;
 
-    // Reported state overlays Warning/OpenLoad on top of On for the tool/CAN. The raw
-    // machine state (used by overload-log trip detection) is read via pf[].GetState().
     return pf[nOutput].GetReportedState();
 }
 
@@ -129,6 +133,26 @@ bool GetAnyPwmEnable()
     }
     return false;
 }
+
+// Wire load %, saturated to 255
+uint8_t GetOutputLoad(uint8_t nOutput)
+{
+    if (nOutput >= NUM_OUTPUTS)
+        return 0;
+
+    const float fLoad = VolatileRead(pf[nOutput].fLoad);
+    return fLoad >= 255.0f ? 255 : (uint8_t)fLoad;
+}
+
+bool GetAnyWireLoadEnable()
+{
+    for (uint8_t i = 0; i < NUM_OUTPUTS; i++)
+    {
+        if (stConfig.stOutput[i].nThermalTau > 0)
+            return true;
+    }
+    return false;
+}
 #endif
 
 #if NUM_DIG_INPUTS > 0
@@ -137,7 +161,7 @@ bool GetDigInputVal(uint8_t nInput)
     if (nInput >= NUM_DIG_INPUTS)
         return false;
 
-    return digIn[nInput].fVal;
+    return VolatileRead(digIn[nInput].fVal);
 }
 #endif
 
@@ -164,7 +188,7 @@ bool GetCanInOutput(uint8_t nInput)
     if (nInput >= NUM_CAN_INPUTS)
         return false;
 
-    return canIn[nInput].fOutput;
+    return VolatileRead(canIn[nInput].fOutput);
 }
 
 float GetCanInVal(uint8_t nInput)
@@ -172,7 +196,7 @@ float GetCanInVal(uint8_t nInput)
     if (nInput >= NUM_CAN_INPUTS)
         return false;
 
-    return canIn[nInput].fVal;
+    return VolatileRead(canIn[nInput].fVal);
 }
 
 float GetCanInFactor(uint8_t nInput)
@@ -191,20 +215,12 @@ float GetCanInOffset(uint8_t nInput)
     return stConfig.stCanInput[nInput].fOffset;
 }
 
-ByteOrder GetCanInByteOrder(uint8_t nInput)
-{
-    if (nInput >= NUM_CAN_INPUTS)
-        return ByteOrder::LittleEndian;
-
-    return stConfig.stCanInput[nInput].eByteOrder;
-}
-
 uint32_t GetCanInOutputs()
 {
     uint32_t result = 0;
     
     for (uint8_t i = 0; i < NUM_CAN_INPUTS; i++) {
-        result |= (((uint32_t)canIn[i].fVal & 0x01) << i);
+        result |= (((uint32_t)VolatileRead(canIn[i].fOutput) & 0x01) << i);
     }
     
     return result;
@@ -225,7 +241,7 @@ bool GetVirtInVal(uint8_t nInput)
     if (nInput >= NUM_VIRT_INPUTS)
         return false;
 
-    return virtIn[nInput].fVal;
+    return VolatileRead(virtIn[nInput].fVal);
 }
 
 uint32_t GetVirtIns()
@@ -233,7 +249,7 @@ uint32_t GetVirtIns()
     uint32_t result = 0;
     
     for (uint8_t i = 0; i < NUM_VIRT_INPUTS; i++) {
-        result |= (((uint32_t)virtIn[i].fVal & 0x01) << i);
+        result |= (((uint32_t)VolatileRead(virtIn[i].fVal) & 0x01) << i);
     }
     
     return result;
@@ -247,12 +263,12 @@ bool GetWiperEnable()
 
 bool GetWiperFastOut()
 {
-    return wiper.fFastOut > 0.0f;
+    return VolatileRead(wiper.fFastOut) > 0.0f;
 }
 
 bool GetWiperSlowOut()
 {
-    return wiper.fSlowOut > 0.0f;
+    return VolatileRead(wiper.fSlowOut) > 0.0f;
 }
 
 WiperState GetWiperState()
@@ -281,7 +297,7 @@ bool GetFlasherVal(uint8_t nFlasher)
     if (nFlasher >= NUM_FLASHERS)
         return false;
 
-    return flasher[nFlasher].fVal;
+    return VolatileRead(flasher[nFlasher].fVal);
 }
 
 bool GetAnyCounterEnable()
@@ -299,7 +315,7 @@ float GetCounterVal(uint8_t nCounter)
     if (nCounter >= NUM_COUNTERS)
         return 0;
 
-    return counter[nCounter].fVal;
+    return VolatileRead(counter[nCounter].fVal);
 }
 
 bool GetAnyConditionEnable()
@@ -315,9 +331,9 @@ bool GetAnyConditionEnable()
 uint32_t GetConditions()
 {
     uint32_t result = 0;
-
+    
     for (uint8_t i = 0; i < NUM_CONDITIONS; i++) {
-        result |= (((uint32_t)condition[i].fVal & 0x01) << i);
+        result |= (((uint32_t)VolatileRead(condition[i].fVal) & 0x01) << i);
     }
 
     return result;
@@ -325,42 +341,54 @@ uint32_t GetConditions()
 
 bool GetAnyTimerEnable()
 {
+    #if NUM_TIMERS > 0
     for (uint8_t i = 0; i < NUM_TIMERS; i++)
     {
         if (stConfig.stTimer[i].bEnabled)
             return true;
     }
+    #endif
     return false;
 }
 
-bool GetTimerVal(uint8_t nTimer)
-{
-    if (nTimer >= NUM_TIMERS)
-        return false;
-
-    return timer[nTimer].fVal != 0.0f;
-}
-
-uint8_t GetTimers()
+uint8_t GetTimerOutputs()
 {
     uint8_t result = 0;
-
-    for (uint8_t i = 0; i < NUM_TIMERS && i < 8; i++) {
-        result |= (((uint8_t)timer[i].fVal & 0x01) << i);
-    }
-
+    #if NUM_TIMERS > 0
+    for (uint8_t i = 0; i < NUM_TIMERS; i++)
+        result |= ((VolatileRead(timer[i].fVal) != 0) << i);
+    #endif
     return result;
 }
 
-bool GetAnyTableEnable()
+uint8_t GetTimersRunning()
+{
+    uint8_t result = 0;
+    #if NUM_TIMERS > 0
+    for (uint8_t i = 0; i < NUM_TIMERS; i++)
+        result |= (timer[i].IsRunning() << i);
+    #endif
+    return result;
+}
+
+// Elapsed time in 10ms units so the 600s max fits in 16 bits
+uint16_t GetTimerElapsed(uint8_t nTimer)
+{
+    #if NUM_TIMERS > 0
+    if (nTimer < NUM_TIMERS)
+        return (uint16_t)(timer[nTimer].GetElapsed() / 10);
+    #endif
+    (void)nTimer;
+    return 0;
+}
+
+bool GetTableEnable(uint8_t nTable)
 {
     #if NUM_TABLES > 0
-    for (uint8_t i = 0; i < NUM_TABLES; i++)
-    {
-        if (stConfig.stTable[i].bEnabled)
-            return true;
-    }
+    if (nTable < NUM_TABLES)
+        return stConfig.stTable[nTable].bEnabled;
     #endif
+    (void)nTable;
     return false;
 }
 
@@ -368,12 +396,57 @@ float GetTableVal(uint8_t nTable)
 {
     #if NUM_TABLES > 0
     if (nTable < NUM_TABLES)
-        return table[nTable].fVal;
-    #else
-    (void)nTable;
+        return VolatileRead(table[nTable].fVal);
     #endif
+    (void)nTable;
     return 0;
 }
+
+bool GetAnyPidEnable()
+{
+    #if NUM_PIDS > 0
+    for (uint8_t i = 0; i < NUM_PIDS; i++)
+    {
+        if (stConfig.stPid[i].bEnabled)
+            return true;
+    }
+    #endif
+    return false;
+}
+
+// Output x10, saturated to int16
+int16_t GetPidOutput(uint8_t nPid)
+{
+    #if NUM_PIDS > 0
+    if (nPid < NUM_PIDS)
+    {
+        const float fVal = VolatileRead(pid[nPid].fVal) * 10.0f;
+        if (fVal >= 32767.0f)
+            return 32767;
+        if (fVal <= -32768.0f)
+            return -32768;
+        return (int16_t)fVal;
+    }
+    #endif
+    (void)nPid;
+    return 0;
+}
+
+#if HAS_IGNITION
+bool GetIgnitionFrame(uint8_t *data, uint16_t &nSid)
+{
+    nSid = Ignition::StatusId(stConfig.stIgnition, stConfig.stDevice.nBaseId, nSid);
+    if (!stConfig.stIgnition.bEnabled || nSid == IGN_NO_SYNC)
+        return false;
+    ignition.StatusFrame(data);
+    #if CAN_SLEEP
+    data[7] = WakeSourceBits();
+    #else
+    data[7] = 0;
+    #endif
+    return true;
+}
+#endif
 
 #if NUM_KEYPADS > 0
 bool GetAnyKeypadEnable()
@@ -409,7 +482,7 @@ uint32_t GetKeypadButtons(uint8_t nKeypad)
     uint32_t result = 0;
 
     for (uint8_t i = 0; i < KEYPAD_MAX_BUTTONS; i++) {
-        result |= (((uint32_t)keypad[nKeypad].fButtonVal[i] & 0x01) << i);
+        result |= (((uint32_t)VolatileRead(keypad[nKeypad].fButtonVal[i]) & 0x01) << i);
     }
 
     return result;
@@ -427,7 +500,7 @@ float GetKeypadDialVal(uint8_t nKeypad, uint8_t nDial)
         return 0;
 
     #if NUM_KEYPADS > 0
-    return keypad[nKeypad].fDialVal[nDial];
+    return VolatileRead(keypad[nKeypad].fDialVal[nDial]);
     #else
     return 0;
     #endif
@@ -440,11 +513,9 @@ bool GetDigOutputState(uint8_t nOutput)
     if (nOutput >= NUM_DIG_OUTPUTS)
         return false;
 
-    return static_cast<bool>(digOut[nOutput].fVal);
+    return static_cast<bool>(VolatileRead(digOut[nOutput].fVal));
 }
-#endif
 
-#if HAS_DIG_PWM
 uint8_t GetDigOutputDC(uint8_t nOutput)
 {
     if (nOutput >= NUM_DIG_OUTPUTS)
@@ -457,7 +528,7 @@ bool GetAnyDigOutputPwmEnable()
 {
     for (uint8_t i = 0; i < NUM_DIG_OUTPUTS; i++)
     {
-        if (stConfig.stDigOutput[i].stPwm.bEnabled)
+        if (digOut[i].IsPwmEnabled())
             return true;
     }
     return false;
@@ -470,7 +541,7 @@ uint16_t GetAnalogInputVal(uint8_t nInput)
     if (nInput >= NUM_ANALOG_INPUTS)
         return 0;
 
-    return static_cast<uint16_t>(analogIn[nInput].fVal);
+    return static_cast<uint16_t>(VolatileRead(analogIn[nInput].fVal));
 }
 
 float GetAnalogInputMv(uint8_t nInput)
@@ -478,7 +549,7 @@ float GetAnalogInputMv(uint8_t nInput)
     if (nInput >= NUM_ANALOG_INPUTS)
         return 0;
 
-    return analogIn[nInput].fValMillivolts;
+    return VolatileRead(analogIn[nInput].fValMillivolts);
 }
 
 uint8_t GetRotarySwitchPos(uint8_t nInput)
@@ -486,7 +557,7 @@ uint8_t GetRotarySwitchPos(uint8_t nInput)
     if (nInput >= NUM_ANALOG_INPUTS)
         return 0;
 
-    return static_cast<uint8_t>(analogIn[nInput].fRotaryPos);
+    return static_cast<uint8_t>(VolatileRead(analogIn[nInput].fRotaryPos));
 }
 
 bool GetAnalogSwitchVal(uint8_t nInput)
@@ -494,6 +565,16 @@ bool GetAnalogSwitchVal(uint8_t nInput)
     if (nInput >= NUM_ANALOG_INPUTS)
         return false;
 
-    return static_cast<bool>(analogIn[nInput].fSwitchVal);
+    return static_cast<bool>(VolatileRead(analogIn[nInput].fSwitchVal));
+}
+
+bool GetAnyAnalogInputEnable()
+{
+    for (uint8_t i = 0; i < NUM_ANALOG_INPUTS; i++)
+    {
+        if (stConfig.stAnalogInput[i].bEnabled)
+            return true;
+    }
+    return false;
 }
 #endif

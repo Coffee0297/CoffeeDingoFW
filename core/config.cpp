@@ -3,7 +3,6 @@
 #include "crc.h"
 #include "param_protocol.h"
 #include "config_ext.h"
-#include <cstring>
 
 //Try to read config from internal flash first
 //If it fails, try external memory
@@ -16,7 +15,9 @@ bool ReadConfig(){
     }
 
     #if !HAS_EXT_MEMORY
-    DeviceConfig tempConfig;
+    // The staging copy, unused until the param thread starts: a local DeviceConfig (1.7 KB) overflowed the CANBoard's
+    // 1 KB main-thread stack into the interrupt stack below it
+    DeviceConfig &tempConfig = stConfigTemp;
 
     flash_error_t err = flashRead(CONFIG_FLASH, CONFIG_FLASH_OFFSET,
                                   sizeof(DeviceConfig), (uint8_t*)&tempConfig);
@@ -94,10 +95,6 @@ bool WriteConfig(){
 
 void InitConfig()
 {
-    // stConfigTemp may live in NOLOAD CCM (not zeroed by crt0) — clear it so unwritten staging
-    // fields behave exactly as the old zero-initialised BSS buffer did.
-    memset(&stConfigTemp, 0, sizeof(stConfigTemp));
-
     #if !HAS_EXT_MEMORY
     eflStart(&EFLD1, NULL);
     #endif

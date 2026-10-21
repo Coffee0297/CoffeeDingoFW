@@ -47,9 +47,9 @@ MEMORY
 {
   CCMRAM (xrw)    : ORIGIN = 0x10000000,   LENGTH = 4K
   RAM    (xrw)    : ORIGIN = 0x20000000,   LENGTH = 12K
-  /* dingoFW: bootloader owns sectors 0..7 (16 KB). The application lives at 0x08004000
+  /* dingoFW: bootloader owns sectors 0..3 (8 KB). The application lives at 0x08002000
    * and the config sector at 0x0800F800 - see flash_layout.c. */
-  FLASH  (rx)     : ORIGIN = 0x08000000,   LENGTH = 16K
+  FLASH  (rx)     : ORIGIN = 0x08000000,   LENGTH = 8K
 }
 
 /* Sections */

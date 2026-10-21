@@ -1,76 +1,50 @@
 #include "can.h"
-#if CAN_SLEEP
-#include "sleep.h"
-#endif
 #include "hal.h"
 #include "port.h"
 #include "device_config.h"
 #include "mailbox.h"
 #include "msg.h"
-#if HAS_USB
-#include "usb.h"
+#include "param_protocol.h"
+#if CAN_SLEEP
+#include "sleep.h"
 #endif
 
 #include <iterator>
 
-static CANFilter canfilters[STM32_CAN_MAX_FILTERS];
-static uint32_t nFilterIds[STM32_CAN_MAX_FILTERS * 2];
-static bool bFilterExtended[STM32_CAN_MAX_FILTERS * 2];
+static volatile uint32_t nLastCanRxTime;
 
-static uint32_t nLastCanRxTime;
-// Diagnostics (read with a debugger / the simulator): frames taken from the bxCAN FIFOs, and frames
-// dropped because the RX mailbox was full.
-volatile uint32_t gCanRxFrames = 0;
-volatile uint32_t gCanRxMailboxDrops = 0;
-static bool bCanFilterEnabled = true;
-// More ids asked for than the hardware has filter slots (14 banks x 2 ids): filtering would silently drop the
-// rest (CAN inputs past the 27th, the ignition follower's state frame), so accept every frame instead.
-static bool bCanFilterOverflow = false;
+// No peer ACKing (alone on the bus, or the bus is down): bxCAN retransmits each unacked frame at line rate.
+// After a few TX timeouts in a row abort the mailboxes and send to USB only for a while, then re-probe.
+#define CAN_NOACK_FAIL_STREAK 3
+#define CAN_NOACK_BACKOFF_CYCLES 50 // cyclic rounds, 50 x CAN_TX_CYCLIC_MSG_DELAY
+static volatile uint16_t nNoAckBackoff;
 
-void ConfigureCanFilters();
-
-// --- No-ACK flood back-off ---------------------------------------------------------------------
-// We deliberately do NOT use CAN_MCR_NART (one-shot TX): it breaks relaying XCP frames through a
-// board acting as a CAN bridge — a one-shot transmit is dropped the instant the flash target is
-// mid-reset and momentarily misses an ACK. Instead we leave auto-retransmit ON and back off in
-// software. If our transmits stop completing (no peer is ACKing — this is the only live node, or
-// the bus is down), bxCAN would otherwise retransmit each frame at line rate (the "no-ACK flood").
-// The TX thread detects that (canTransmitTimeout can't get a free mailbox), aborts the stuck
-// transmits, and pauses the CYCLIC telemetry for a back-off window. Config replies and forwarded
-// (bridge) frames are never paused — they ride auto-retransmit and are delivered the moment a peer
-// (e.g. a flash target) ACKs, then the next cyclic round resumes.
-#define CAN_NOACK_FAIL_STREAK     3u    // consecutive TX timeouts that mean "nobody is ACKing"
-#define CAN_NOACK_BACKOFF_CYCLES  50u   // cyclic-TX rounds to skip (~50 x CAN_TX_CYCLIC_MSG_DELAY)
-static volatile uint16_t gNoAckBackoff = 0;
-bool CanNoPeer() { return gNoAckBackoff > 0; }
-
-// --- Mute (FW #52 "MuteTxCAN") -------------------------------------------------------------------
-// While the var-map signal picked as nMuteTxInput is true every periodic frame is withheld: the cyclic
-// telemetry, the user CAN outputs and repeating CAN message blocks. So a fleet can fall silent on cue and
-// let every module's CAN-idle sleep timer run out. Config replies, forwarded (bridge) frames and one-shot
-// CAN messages still go.
-extern float *pVarMap[VAR_MAP_SIZE];
-static inline bool CyclicTxMuted()
-{
-#if CAN_SLEEP
-    if (QuietWake()) return true;
+extern DeviceConfig stConfig;
+#if HAS_IGNITION
+extern Ignition ignition;
 #endif
-    const uint16_t n = stConfig.stDevice.nMuteTxInput;
-    return n != 0 && n < VAR_MAP_SIZE && pVarMap[n] != nullptr && *pVarMap[n] != 0.0f;
-}
 
-bool CanTxMuted() { return CyclicTxMuted(); }
-
-static inline void CanAbortAllTx()
+// Bus activity for the sleep timer. A wake frame narrows it to that frame (data bytes past the length read as 0),
+// dingoConfig's frames always count
+#if CAN_SLEEP
+static bool IsWakeActivity(const CANRxFrame &msg)
 {
-    // Abort all three TX mailboxes so unacked frames stop retransmitting at line rate.
-    CAND1.can->TSR |= CAN_TSR_ABRQ0 | CAN_TSR_ABRQ1 | CAN_TSR_ABRQ2;
-}
+    const Config_WakeFrame &w = stConfig.stWakeFrame;
+    if (!w.bEnabled || ((msg.IDE == CAN_IDE_STD) && (msg.SID == stConfig.stDevice.nBaseId + CONFIG_RX_OFFSET)))
+        return true;
 
-// 256 not 128: with the hardware FPU enabled (M4F builds), exception entry pushes an
-// extended stack frame (~104 B) onto the active thread's stack. 128 B overflowed and
-// corrupted RAM, silencing CAN broadcasts on the CanBoard. See docs / CHANGELOG.
-static THD_WORKING_AREA(waCanCyclicTxThread, 256);
+    uint64_t nData = (msg.DLC < 8) ? (msg.data64[0] & ((1ULL << (8 * msg.DLC)) - 1)) : msg.data64[0];
+    uint64_t nMask = (static_cast<uint64_t>(w.nMaskHi) << 32) | w.nMaskLo;
+    uint64_t nValue = (static_cast<uint64_t>(w.nValueHi) << 32) | w.nValueLo;
+
+    return (msg.IDE == w.nIde) &&
+           (((msg.IDE == CAN_IDE_EXT) ? msg.EID : msg.SID) == w.nId) &&
+           (msg.DLC >= w.nMinLen) &&
+           ((nData & nMask) == (nValue & nMask));
+}
+#endif
+
+static THD_WORKING_AREA(waCanCyclicTxThread, CAN_THREAD_STACK);
 void CanCyclicTxThread(void *)
 {
     chRegSetThreadName("CAN Cyclic Tx");
@@ -79,33 +53,11 @@ void CanCyclicTxThread(void *)
 
     while (1)
     {
+        // Counts down to the round that goes to CAN again and re-probes for a peer
+        if (nNoAckBackoff > 0)
+            nNoAckBackoff--;
 
-        if (gNoAckBackoff > 0)
-        {
-            // No peer is ACKing — skip this telemetry round on CAN so we don't feed the no-ACK flood.
-            // Counts down to a periodic single round that re-probes whether a peer is back.
-            gNoAckBackoff--;
-#if HAS_USB
-            // A USB host is a listener too: keep its telemetry at the normal rate (USB only, not CAN).
-            if (GetUsbConnected() && !CyclicTxMuted())
-            {
-                for (uint8_t i = 0; i < NUM_TX_MSGS; i++)
-                {
-                    msg = TxMsgs[i]();
-                    if (!msg.bSend)
-                        continue;
-                    msg.frame.IDE = CAN_IDE_STD;
-                    msg.frame.RTR = CAN_RTR_DATA;
-                    PostTxUsbFrame(&msg.frame);
-                }
-            }
-#endif
-        }
-        else if (CyclicTxMuted())
-        {
-            // Muted by config (nMuteTxInput asserted) — skip this telemetry round.
-        }
-        else
+        if (!IsParamOpInProgress() && !CanTxMuted())
         {
             for (uint8_t i = 0; i < NUM_TX_MSGS; i++)
             {
@@ -125,52 +77,46 @@ void CanCyclicTxThread(void *)
     }
 }
 
-static THD_WORKING_AREA(waCanTxThread, 256);
+static THD_WORKING_AREA(waCanTxThread, CAN_THREAD_STACK);
 void CanTxThread(void *)
 {
     chRegSetThreadName("CAN Tx");
 
     CANTxFrame msg;
-    uint8_t txFailStreak = 0;
+    uint8_t nTxFails = 0;
 
     while (1)
     {
-        // Send all messages in the TX queue. The first fetch blocks until a frame is posted (up to
-        // 10 ms, to check for termination): no polling wake-ups while the queue is empty.
-        msg_t res;
-        sysinterval_t wait = TIME_MS2I(10);
-        do
+        // Blocks until a frame is queued, no polling while idle
+        // Timeout only so the thread can check for termination
+        // Frames queued before a back-off already went to USB, don't feed them to a bus nobody ACKs
+        if (FetchTxFrame(&msg, TIME_MS2I(100)) == MSG_OK && !CanNoPeer())
         {
-            res = FetchTxFrame(&msg, wait);
-            wait = TIME_IMMEDIATE;
-            if (res == MSG_OK)
+            // IDE is set by each sender (CAN outputs can be extended), RTR isn't always initialized
+            msg.RTR = CAN_RTR_DATA;
+            if (canTransmitTimeout(&CAND1, CAN_ANY_MAILBOX, &msg, TIME_MS2I(10)) == MSG_OK)
+                nTxFails = 0;
+            else if (++nTxFails >= CAN_NOACK_FAIL_STREAK)
             {
-                msg.IDE = CAN_IDE_STD;
-                msg.RTR = CAN_RTR_DATA;
-                if (canTransmitTimeout(&CAND1, CAN_ANY_MAILBOX, &msg, TIME_MS2I(10)) == MSG_OK)
-                {
-                    txFailStreak = 0;
-                }
-                else if (++txFailStreak >= CAN_NOACK_FAIL_STREAK)
-                {
-                    // No free mailbox after the timeout, repeatedly: all three are stuck
-                    // retransmitting unacked frames (no peer ACKing). Abort them and pause the
-                    // cyclic telemetry so the bus isn't flooded; auto-retransmit stays on so the
-                    // instant a peer ACKs, traffic flows again.
-                    CanAbortAllTx();
-                    gNoAckBackoff = CAN_NOACK_BACKOFF_CYCLES;
-                    txFailStreak = 0;
-                }
+                // Every TX mailbox stuck retransmitting: abort them (no-op in ChibiOS' FDCAN driver)
+                for (canmbx_t nMbx = 1; nMbx <= CAN_TX_MAILBOXES; nMbx++)
+                    canTryAbortX(&CAND1, nMbx);
+                nNoAckBackoff = CAN_NOACK_BACKOFF_CYCLES;
+                nTxFails = 0;
             }
+
+            // Pacing between frames, set CAN_TX_MSG_SPLIT to 0 to send at bus rate
+            #if CAN_TX_MSG_SPLIT > 0
             chThdSleepMicroseconds(CAN_TX_MSG_SPLIT);
-        } while (res == MSG_OK);
+            #endif
+        }
 
         if (chThdShouldTerminateX())
             chThdExit(MSG_OK);
     }
 }
 
-static THD_WORKING_AREA(waCanRxThread, 256);   // FPU exception-frame headroom (see waCanCyclicTxThread)
+static THD_WORKING_AREA(waCanRxThread, CAN_THREAD_STACK);
 void CanRxThread(void *)
 {
     CANRxFrame msg;
@@ -181,27 +127,22 @@ void CanRxThread(void *)
 
     while (true)
     {
-        // Drain EVERY frame waiting in the hardware FIFOs, then sleep. Reading one frame per wake-up
-        // (the tickless sleep is at least CH_CFG_ST_TIMEDELTA ticks = 200 us) fell behind back-to-back
-        // frames on a busy 500 kbit/s bus (~240 us apart) and the 3-deep bxCAN FIFO overran.
-        // The first receive blocks on the RX interrupt (up to 10 ms, to check for termination).
-        msg_t res;
-        sysinterval_t wait = TIME_MS2I(10);
-        while ((res = canReceiveTimeout(&CAND1, CAN_ANY_MAILBOX, &msg, wait)) == MSG_OK)
-        {
-            wait = TIME_IMMEDIATE;
-            nLastCanRxTime = SYS_TIME;
-            gCanRxFrames++;
 
-            res = PostRxFrame(&msg);
-            if (res != MSG_OK)
-                gCanRxMailboxDrops++;
-#if CAN_SLEEP
-            // a real frame ends a quiet wake; another module's goodbye [Sleep, 'Z', 'Z', 'Z', ...] does not
-            if (QuietWake() && !(msg.DLC >= 4 && msg.data8[0] == static_cast<uint8_t>(MsgCmd::Sleep) &&
-                                 msg.data8[1] == 'Z' && msg.data8[2] == 'Z' && msg.data8[3] == 'Z'))
-                EndQuietWake();
-#endif
+        msg_t res = canReceiveTimeout(&CAND1, CAN_ANY_MAILBOX, &msg, TIME_MS2I(100));
+        if (res == MSG_OK)
+        {
+            #if CAN_SLEEP
+            if (IsWakeActivity(msg))
+            #endif
+                nLastCanRxTime = SYS_TIME;
+
+            #if CAN_SLEEP
+            CheckQuietWake(&msg);
+            #endif
+
+            // Config frames go straight to the param thread
+            if (!RouteParamFrame(&msg))
+                res = PostRxFrame(&msg);
 
             if(stConfig.stDevice.bConnectUsbToCan)
             {
@@ -237,18 +178,15 @@ msg_t InitCan(Config_Device *conf)
         StopCan();
     }
 
-    SetCanFilterEnabled(conf->bCanFilterEnabled);
-
-    ConfigureCanFilters();
-
     msg_t ret = canStart(&CAND1, &GetCanConfig(conf->eCanSpeed));
     if (ret != HAL_RET_SUCCESS)
         return ret;
+
+    UpdateCanFilters();
+
     canCyclicTxThreadRef = chThdCreateStatic(waCanCyclicTxThread, sizeof(waCanCyclicTxThread), NORMALPRIO + 1, CanCyclicTxThread, nullptr);
     canTxThreadRef = chThdCreateStatic(waCanTxThread, sizeof(waCanTxThread), NORMALPRIO + 1, CanTxThread, nullptr);
-    // RX above the TX threads: it only moves a frame into the mailbox, and waiting behind a TX burst lets
-    // the 3-deep hardware FIFO overflow.
-    canRxThreadRef = chThdCreateStatic(waCanRxThread, sizeof(waCanRxThread), NORMALPRIO + 2, CanRxThread, nullptr);
+    canRxThreadRef = chThdCreateStatic(waCanRxThread, sizeof(waCanRxThread), NORMALPRIO + 1, CanRxThread, nullptr);
 
     return HAL_RET_SUCCESS;
 }
@@ -274,85 +212,127 @@ void StopCan()
     canRxThreadRef = NULL;
 }
 
-void ClearCanFilters()
-{
-    bCanFilterOverflow = false;
-    // Clear all filters
-    for (uint8_t i = 0; i < STM32_CAN_MAX_FILTERS; i++)
-    {
-        nFilterIds[i] = 0;
-        bFilterExtended[i] = false;
+//=============================================================================
+// Hardware filters
+// Rebuilt from the live config and written straight to the bxCAN filter
+// registers. The HAL's canSTM32SetFilters() needs the driver stopped (and turns
+// the CAN clock off), this works while running: reception only pauses for the
+// few us spent in filter init mode.
+//=============================================================================
 
-        canfilters[i].register1 = 0;
-        canfilters[i].register2 = 0;
-        canfilters[i].filter = 0;
-        canfilters[i].assignment = 0;
-        canfilters[i].mode = 0;
-        canfilters[i].scale = 0;
-    }
+#define MAX_FILTER_IDS (STM32_CAN_MAX_FILTERS * 2) // 32-bit list mode, 2 IDs per bank
+
+static uint32_t FilterReg(uint32_t nId, bool bExtended)
+{
+    // FR layout: STID[31:21] or EXID[31:3], IDE bit 2
+    return bExtended ? ((nId << 3) | 0x04) : (nId << 21);
 }
 
-void SetCanFilterId(uint8_t nFilterNum, uint32_t nId, bool bExtended)
+static void WriteFilterRegs(const uint32_t *pIds, uint8_t nNumIds)
 {
-    if (nFilterNum >= (STM32_CAN_MAX_FILTERS * 2))
-    {
-        bCanFilterOverflow = true;
-        return;
-    }
+    CAN_TypeDef *can = CAND1.can;
+    uint8_t nBanks = (nNumIds + 1) / 2;
 
-    bFilterExtended[nFilterNum] = bExtended;
+    can->FMR |= CAN_FMR_FINIT;
+    #if STM32_HAS_CAN2
+    // HAL splits the banks 50/50 with CAN2, CAN2 is unused so give CAN1 all of them
+    can->FMR = (can->FMR & ~CAN_FMR_CAN2SB) | (STM32_CAN_MAX_FILTERS << CAN_FMR_CAN2SB_Pos);
+    #endif
+    can->FA1R = 0;
+    can->FFA1R = 0; // All banks to FIFO 0
 
-    if (bExtended)
+    if (nNumIds == 0)
     {
-        nFilterIds[nFilterNum] = (nId << 3) | 0x04; // Set IDE bit for extended ID
+        // Filtering disabled - bank 0, 32-bit mask mode, mask 0 = accept everything
+        can->FM1R = 0;
+        can->FS1R = 1;
+        can->sFilterRegister[0].FR1 = 0;
+        can->sFilterRegister[0].FR2 = 0;
+        nBanks = 1;
     }
     else
     {
-        nFilterIds[nFilterNum] = nId << 21;
+        // 32-bit list mode, odd count repeats the last ID in the spare slot
+        for (uint8_t b = 0; b < nBanks; b++)
+        {
+            can->sFilterRegister[b].FR1 = pIds[b * 2];
+            can->sFilterRegister[b].FR2 = (b * 2 + 1 < nNumIds) ? pIds[b * 2 + 1] : pIds[b * 2];
+        }
+        can->FM1R = (1UL << nBanks) - 1;
+        can->FS1R = (1UL << nBanks) - 1;
     }
+
+    can->FA1R = (1UL << nBanks) - 1;
+    can->FMR &= ~CAN_FMR_FINIT;
 }
 
-void ConfigureCanFilters()
+void UpdateCanFilters()
 {
-
-    if(!bCanFilterEnabled || bCanFilterOverflow)
-    {
-        // Default HAL config = filter 0 enabled to allow all messages
+    // Registers are only clocked while the driver is running, InitCan() calls this after canStart()
+    if (CAND1.state != CAN_READY)
         return;
-    }
 
-    uint8_t nCurrentFilter = 0;
+    uint32_t nIds[MAX_FILTER_IDS];
+    uint8_t nNumIds = 0;
+    bool bOverflow = false;
 
-    // Go through nFilterIds and set filter register1 and register2 for each filter if ID is set
-    // CANNOT SET ALL FILTERS, MUST USE ONLY THE NUMBER OF REQUIRED FILTERS
-    for (uint8_t i = 0; i < (STM32_CAN_MAX_FILTERS * 2); i += 2)
+    auto Add = [&](uint32_t nId, bool bExtended) {
+        if (nNumIds < MAX_FILTER_IDS)
+            nIds[nNumIds++] = FilterReg(nId, bExtended);
+        else
+            bOverflow = true;
+    };
+
+    if (stConfig.stDevice.bCanFilterEnabled)
     {
-        if (nFilterIds[i] != 0 || nFilterIds[i + 1] != 0)
+        // Config/request frames from dingoConfig
+        Add(stConfig.stDevice.nBaseId + CONFIG_RX_OFFSET, false);
+
+        #if CAN_SLEEP
+        if (stConfig.stWakeFrame.bEnabled)
+            Add(stConfig.stWakeFrame.nId, stConfig.stWakeFrame.nIde == 1);
+        #endif
+
+        for (uint8_t i = 0; i < NUM_CAN_INPUTS; i++)
         {
-            canfilters[nCurrentFilter].filter = nCurrentFilter; // Filter bank number
-            canfilters[nCurrentFilter].assignment = 0;          // Assign to FIFO 0
-            canfilters[nCurrentFilter].mode = 1;                // List mode
-            canfilters[nCurrentFilter].scale = 1;               // 32-bit scale
-
-            // First ID (register1)
-            if (nFilterIds[i] != 0)
-            {
-                canfilters[nCurrentFilter].register1 = nFilterIds[i];
-            }
-
-            // Second ID (register2)
-            if (nFilterIds[i + 1] != 0)
-            {
-                canfilters[nCurrentFilter].register2 = nFilterIds[i + 1];
-            }
-
-            nCurrentFilter++;
+            if (stConfig.stCanInput[i].bEnabled)
+                Add(stConfig.stCanInput[i].nID, stConfig.stCanInput[i].nIDE == 1);
         }
+
+        #if NUM_KEYPADS > 0
+        for (uint8_t i = 0; i < NUM_KEYPADS; i++)
+        {
+            const Config_Keypad &kp = stConfig.stKeypad[i];
+            if (!kp.bEnabled)
+                continue;
+
+            // Both brands send button state on the CANopen TPDO1 ID
+            Add(kp.nNodeId + static_cast<uint16_t>(BlinkMarineMessageId::ButtonState), false);
+
+            if (kp.eModel < KeypadModel::Grayhill6Key)
+            {
+                Add(kp.nNodeId + static_cast<uint16_t>(BlinkMarineMessageId::DialState1), false);
+                Add(kp.nNodeId + static_cast<uint16_t>(BlinkMarineMessageId::DialState2), false);
+                Add(kp.nNodeId + static_cast<uint16_t>(BlinkMarineMessageId::AnalogInput), false);
+            }
+        }
+        #endif
+
+        #if HAS_IGNITION
+        const Config_Ignition &ign = stConfig.stIgnition;
+        const uint16_t nSync = Ignition::SyncId(ign, stConfig.stDevice.nBaseId);
+        if (ign.bEnabled && ign.eRole == IgnRole::Follower && nSync != IGN_NO_SYNC)
+            Add(nSync, false);
+        if (ign.bEnabled && ign.eRole != IgnRole::Follower && ign.nButtonMask && (ign.nButtonIde || ign.nButtonId <= 0x7FF))
+            Add(ign.nButtonId, ign.nButtonIde == 1);
+        #endif
     }
 
-    // Apply all filter configurations
-    // If no CAN inputs are enabled, filter[0].register1 is still set to settings request message ID (BaseId-1)
-    canSTM32SetFilters(&CAND1, STM32_CAN_MAX_FILTERS, nCurrentFilter, canfilters);
+    // Filtering disabled, or more IDs than filter slots - accept everything rather than drop frames
+    if (bOverflow)
+        nNumIds = 0;
+
+    WriteFilterRegs(nIds, nNumIds);
 }
 
 uint32_t GetLastCanRxTime()
@@ -360,11 +340,20 @@ uint32_t GetLastCanRxTime()
     return nLastCanRxTime;
 }
 
-volatile bool gReinitCanRequested = false;
-
-void SetCanFilterEnabled(bool bEnabled)
+bool CanTxMuted()
 {
-    bCanFilterEnabled = bEnabled;
-    // The actual filter hardware is (re)applied by InitCan(); a runtime change is committed
-    // on Burn via gReinitCanRequested (see DeviceThread), so no power cycle is needed.
+    #if CAN_SLEEP
+    if (QuietWake())
+        return true;
+    #endif
+    #if HAS_IGNITION
+    if (ignition.TxQuiet())
+        return true;
+    #endif
+    return *pVarMap[stConfig.stDevice.nMuteCanTxInput];
+}
+
+bool CanNoPeer()
+{
+    return nNoAckBackoff > 0;
 }

@@ -1,29 +1,23 @@
 #pragma once
 
 #include <cstdint>
-#include "enums.h"
-#ifdef DINGO_HOST_TEST
-#ifndef VAR_MAP_SIZE
-#define VAR_MAP_SIZE 1
-#endif
-#else
 #include "port.h"
-#endif
+#include "enums.h"
 
 extern float *pVarMap[VAR_MAP_SIZE];
 
-// CAN Message block (5.6): sends a whole user-defined frame (11/29-bit ID, length, 8 fixed bytes) while a
-// var-map signal is true: Repeat = every nIntervalMs while true; Once = one frame each time it turns true.
-// E.g. "tell the dash to shut down". fVal mirrors the trigger (true while it sends) for other blocks.
 struct Config_CanMsg{
   bool bEnabled;
   uint16_t nInput;
-  uint8_t nIDE;          // 0 = 11-bit, 1 = 29-bit
+  uint8_t nIDE; //0=STD, 1=EXT
   uint32_t nID;
-  uint8_t nDLC;          // 0..8
-  uint8_t nData[8];
+  uint8_t nDLC;
   CanMsgMode eMode;
-  uint16_t nIntervalMs;  // Repeat: 10..60000
+  uint8_t nData[8];
+  uint16_t nInterval; //ms, Repeat mode
+  CanOutputKind eChecksum; //Signal = none, ChecksumXor..Crc8Autosar
+  uint8_t nChecksumByte;
+  uint8_t nCounterByte; //low nibble counts 0-15 per frame, 0xFF = none
 };
 
 class CanMsg
@@ -40,15 +34,19 @@ public:
         pInput = pVarMap[config->nInput];
     }
 
-    // True when a frame is due now; the caller sends the configured frame (Config()).
-    bool Due(uint32_t nTimeNow);
-    const Config_CanMsg* Config() const { return pConfig; }
+    // True when the configured frame is due now. Repeat frames are held back while bMuted.
+    bool Due(bool bMuted);
 
-    float fVal = 0;
+    // The frame's data: the configured bytes, then the counter, then the checksum
+    void Fill(uint8_t *pData);
 
 private:
     Config_CanMsg* pConfig;
-    float *pInput = nullptr;
-    bool bLast = false;
-    uint32_t nLastSent = 0;
+
+    float *pInput;
+
+    bool bInit;
+    bool bLast;
+    uint32_t nLastSent;
+    uint8_t nCount;
 };

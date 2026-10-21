@@ -17,6 +17,8 @@ float GetOutputCurrent(uint8_t nOutput);
 ProfetState GetOutputState(uint8_t nOutput);
 uint8_t GetOutputOcCount(uint8_t nOutput);
 uint8_t GetOutputDC(uint8_t nOutput);
+uint8_t GetOutputLoad(uint8_t nOutput);
+bool GetAnyWireLoadEnable();
 
 bool GetAnyPwmEnable();
 bool GetAnyCanInEnable();
@@ -32,7 +34,6 @@ bool GetCanInOutput(uint8_t nInput);
 float GetCanInVal(uint8_t nInput);
 float GetCanInFactor(uint8_t nInput);
 float GetCanInOffset(uint8_t nInput);
-ByteOrder GetCanInByteOrder(uint8_t nInput);
 uint32_t GetCanInOutputs();
 
 bool GetVirtInVal(uint8_t nInput);
@@ -50,11 +51,16 @@ float GetCounterVal(uint8_t nCounter);
 uint32_t GetConditions();
 
 bool GetAnyTimerEnable();
-bool GetTimerVal(uint8_t nTimer);
-uint8_t GetTimers();   // bit i = timer i+1 output (NUM_TIMERS <= 8)
+uint8_t GetTimerOutputs();
+uint8_t GetTimersRunning();
+uint16_t GetTimerElapsed(uint8_t nTimer);
 
-bool GetAnyTableEnable();
+bool GetTableEnable(uint8_t nTable);
 float GetTableVal(uint8_t nTable);
+bool GetAnyPidEnable();
+int16_t GetPidOutput(uint8_t nPid);
+// nSid: in the frame's own slot, out the id to send on (nStatusId)
+bool GetIgnitionFrame(uint8_t *data, uint16_t &nSid);
 
 bool GetKeypadEnable(uint8_t nKeypad);
 uint32_t GetKeypadButtons(uint8_t nKeypad);
@@ -68,3 +74,4 @@ uint16_t GetAnalogInputVal(uint8_t nInput);
 float GetAnalogInputMv(uint8_t nInput);
 uint8_t GetRotarySwitchPos(uint8_t nInput);
 bool GetAnalogSwitchVal(uint8_t nInput);
+bool GetAnyAnalogInputEnable();

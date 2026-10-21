@@ -36,53 +36,6 @@ enum class FatalErrorType : uint8_t
 //=============================================================================
 // Message Enums
 //=============================================================================
-// Math block operation (5.6): A op B
-enum class MathOp : uint8_t
-{
-    Add = 0,
-    Sub = 1,
-    Mul = 2,
-    Div = 3,
-    Min = 4,
-    Max = 5,
-    Average = 6
-};
-
-// CAN Message block (5.6): every interval while the trigger is true, or one frame each time it turns true
-enum class CanMsgMode : uint8_t
-{
-    Repeat = 0,
-    Once = 1
-};
-
-// Ignition block (5.6)
-enum class IgnMode : uint8_t
-{
-    SwitchButton = 0,   // ignition switch + start button
-    ButtonOnly = 1,     // the button does ignition and start
-    Key = 2             // key: ON held, START momentary
-};
-enum class IgnRole : uint8_t
-{
-    Main = 0,           // reads the inputs, runs the state machine, broadcasts it
-    Follower = 1        // copies the main module
-};
-enum class IgnState : uint8_t
-{
-    Off = 0,
-    On = 1,
-    Cranking = 2,
-    Running = 3
-};
-
-enum class WakeReason : uint8_t
-{
-    PowerOn = 0,      // not woken from sleep: power applied, a reset, or the reason was lost
-    Can = 1,
-    DigitalInput = 2,
-    Usb = 3
-};
-
 enum class MsgCmd : uint8_t
 {
     Null = 0,
@@ -99,8 +52,10 @@ enum class MsgCmd : uint8_t
     WriteAllVal = 21,
     WriteAllComplete = 22,
     WriteAllModified = 23,
+    WriteAllMissing = 24,     // one frame per missing (index, subindex) after a failed WriteAllComplete
     WriteAllParamNotFound = 25,
     WriteAllOutOfRange = 26,
+    WriteAllMissingDone = 27, // terminates the WriteAllMissing list; count field, or 0xFFFF sentinel
 
     BurnSettings = 30,
     Version = 31,
@@ -108,41 +63,37 @@ enum class MsgCmd : uint8_t
     Bootloader = 33,
     CheckCrc = 34,
     CheckCrcRsp = 35,
+    Restart = 36,
 
-    LuaWrite = 40,          // upload a chunk: [cmd, offHi, offLo, b0..b4] (5 bytes)
-    LuaWriteComplete = 41,  // [cmd, lenHi, lenLo] -> store length, persist, reload
-    LuaRead = 42,           // [cmd, offHi, offLo] -> reply with 5 bytes at offset
-    LuaErr = 43,            // [cmd, offHi, offLo] -> reply 5 bytes of last error at offset
-
-    // On-device overload (trip) log read-back. The device records the last N trips
-    // with a current waveform around the trip; the tool reads them for troubleshooting.
-    OvlCount = 44,          // [cmd] -> reply [cmd, count] (number of stored events)
-    OvlHeader = 45,         // [cmd, idx] -> reply [cmd, idx, outNum, state, peakLo, peakHi, limitLo, limitHi] (peak/limit in 0.1A)
-    OvlData = 46,           // [cmd, idx, offHi, offLo] -> reply [cmd, idx, offHi, offLo, b0..b3] (4 sample bytes @ 0.5A)
-    OvlClear = 47,          // [cmd] -> clear the log
-
-    // Output bench test (wiring check from the tool). [cmd, out (0-based), mode, duty %, freqLo, freqHi, holdSec, 0]
-    // mode 0 = release, 1 = solid on, 2 = PWM at duty/freq. Reply echoes bytes 0-6, [7] = accepted.
-    // The override expires after holdSec (1..30) on its own — the tool re-sends while the test runs —
-    // and only an enabled output is accepted, so the test runs under that output's current limits.
-    OutputTest = 48,
-
-    // Identify (5.6): [cmd, seconds] -> blink the status and error LEDs in turn for 1..60 s so the operator can
-    // find the module. Reply [cmd, seconds, hasLed] (hasLed 0: no LED on this board, e.g. the CANBoard).
+    LuaWrite = 40,         // [cmd, offHi, offLo, 5 script bytes] -> [cmd, offHi, offLo] (DLC 3)
+    LuaWriteComplete = 41, // [cmd, lenHi, lenLo] -> store, reload -> [cmd, lenHi, lenLo, stored 0/1] (DLC 4)
+    LuaRead = 42,          // [cmd, offHi, offLo] -> [cmd, offHi, offLo, 5 script bytes]
+    LuaErr = 43,           // [cmd, offHi, offLo] -> [cmd, offHi, offLo, 5 bytes of the last error, 0 past the end]
+    OvlCount = 44,  // [cmd] -> [cmd, count, uptime ms LE x4, 0, 0]
+    OvlHeader = 45, // [cmd, idx] -> [cmd, idx, out (0xFF none), state, peak 0.1 A LE x2, limit 0.1 A LE x2]
+    OvlData = 46,   // [cmd, idx, offHi, offLo] -> [cmd, idx, offHi, offLo, 4 samples at 0.5 A]
+    OvlClear = 47,  // [cmd] -> [cmd] (DLC 1)
+    OutputTest = 48, // [cmd, out, mode 0 off/1 on/2 pwm, duty, freqLo, freqHi, holdSec, 0], reply byte 7 = accepted
     Identify = 49,
-
-    // Sleep info (5.6): [cmd] -> [cmd, wakeReason, wakeSource, wakesLo, wakesHi, countdown s (0xFF none), blockers, 0].
-    // wakeReason: WakeReason below; wakeSource = the digital input number (1..) for DigitalInput.
-    // blockers (what keeps it from sleeping now): bit0 sleep off, bit1 outputs on, bit2 USB, bit3 CAN traffic.
-    // Before it sleeps the module also sends [Sleep(32), 'Z', 'Z', 'Z', why (1 auto, 2 forced, 3 request), 0, 0, 0].
-    SleepInfo = 50,
-
-    // Trip times and other output events (5.6). OvlCount's reply also carries the uptime now (bytes 2-5, ms) and
-    // the number of notices (byte 6), so the tool can turn the times below into clock times.
-    OvlTime = 51,           // [cmd, idx] -> [cmd, idx, t0, t1, t2, t3, 0, 0] (trip idx, ms since power-on)
-    OvlNotice = 52,         // [cmd, idx] -> [cmd, idx, out (0-based, 0xFF none), kind (1 warning, 2 open load), t0..t3]
+    SleepInfo = 50, // [50] -> [50, wakeReason, wakeSource, wakesLo, wakesHi, countdown s (0xFF none), blockers, 0]
+    OvlTime = 51,   // [cmd, idx] -> [cmd, idx, trip uptime ms LE x4, 0, 0]
+    FaultLogRead = 53,
+    FaultLogClear = 54,
+    ResetCause = 55,
+    Unlock = 56,       // [56, pw0..pw3] -> [56, ok]
+    FactoryReset = 57, // [57, 'W', 'I', 'P', 'E'] -> [57, burned ok]
+    Locked = 58,       // Reply to a command refused while locked: [58, idxLo, idxHi, sub, refused cmd]
 
     Invalid = 0xFF
+};
+
+enum class WakeReason : uint8_t
+{
+    PowerOn = 0, // not a wake: power applied, a reset, or the reason was lost
+    Can = 1,
+    DigitalInput = 2, // wakeSource = input number (1..)
+    Usb = 3,
+    Other = 4 // another EXTI line
 };
 
 enum class MsgType : uint8_t
@@ -170,8 +121,9 @@ enum class MsgSrc : uint8_t
     TempSensor,
     USBConnection,
     Init,
-    OutputWarning,   // output current above warn limit (below trip)
-    OpenLoad         // output on but current below open-load floor (broken bulb / no load)
+    OutputWarning,
+    OpenLoad,
+    Undercurrent
 };
 
 //=============================================================================
@@ -214,6 +166,16 @@ enum class ByteOrder : uint8_t
     BigEndian = 1     // Motorola byte order
 };
 
+enum class CanOutputKind : uint8_t
+{
+    Signal = 0,
+    RollingCounter = 1,
+    ChecksumXor = 2,
+    ChecksumSum = 3,
+    Crc8SaeJ1850 = 4,
+    Crc8Autosar = 5
+};
+
 //=============================================================================
 // Input
 //=============================================================================
@@ -237,14 +199,115 @@ enum class InputPull : uint8_t
     Down
 };
 
+enum class RotaryMode : uint8_t
+{
+    Uniform,   // fOffset + n * fStep
+    Calibrated // a measured centre voltage per position
+};
+
 //=============================================================================
-// Timer (FW #61)
+// Timer
 //=============================================================================
 enum class TimerMode : uint8_t
 {
-    OnDelay,    // TON: output on after the input has been active for the preset
-    OffDelay,   // TOF: output follows the input on, stays on for the preset after it drops
-    Pulse       // TP : one output pulse of the preset length per activation
+    OnDelay,     // Output turns on after the input has been on for the set time
+    OffDelay,    // Output follows the input on, stays on for the set time after it goes off
+    PulseRetrig, // Every rising edge starts a pulse of the set length, retriggering it
+    PulseOneShot // A rising edge starts a pulse, further edges are ignored until it ends
+};
+
+//=============================================================================
+// Math block: (A op B) * factor + offset
+//=============================================================================
+enum class MathOp : uint8_t
+{
+    Add,
+    Sub,
+    Mul,
+    Div,     // A / B, 0 when B is 0
+    Min,
+    Max,
+    Average
+};
+
+//=============================================================================
+// CAN message
+//=============================================================================
+enum class CanMsgMode : uint8_t
+{
+    Repeat, // Every interval while the input is on
+    Once    // One frame each time the input turns on
+};
+
+//=============================================================================
+// Latch / gate
+//=============================================================================
+enum class LatchGateType : uint8_t
+{
+    Latch, // Set by a rising edge of the input, cleared by a rising edge of the control input or the auto-cancel time
+    Gate   // Follows the input while the control input is on, holds the last value otherwise
+};
+
+//=============================================================================
+// Ignition
+//=============================================================================
+enum class IgnMode : uint8_t
+{
+    SwitchButton, // Ignition switch + start button
+    ButtonOnly,   // One button does ignition and start
+    Key           // Key: ON held, START momentary
+};
+
+enum class IgnRole : uint8_t
+{
+    Main,       // Reads the inputs, runs the state machine, broadcasts the state on the sync id
+    Follower,   // Takes its state from the main module's sync frame
+    Standalone  // Like Main, but broadcasts nothing
+};
+
+enum class IgnSyncMode : uint8_t
+{
+    Absolute,  // nSyncId is the CAN id
+    BaseOffset // nSyncId is an offset from the main module's base id
+};
+
+enum class IgnDash : uint8_t
+{
+    Off,
+    On,
+    Grace,   // Ignition off, nDashHoldMs in case it comes straight back
+    Halting, // Shutting down (DashShutdown on): left to finish even if the ignition comes back
+    Restart  // Kept unpowered 2 s after halting so it boots clean
+};
+
+enum class IgnSleep : uint8_t
+{
+    Disabled,    // No sleep delay: the ignition doesn't put the module to sleep
+    Awake,       // Ignition, door or dash on
+    Counting,    // Sleep delay running
+    Following,   // Follower: sleeps when the main module says so
+    WaitingDash, // Delay over, the dash is still powering down
+    Held,        // Delay over, USB connected or a config session running
+    Quiet,       // All periodic CAN TX stopped, about to sleep
+    Sleep
+};
+
+// An output given a role follows the ignition instead of its own input
+enum class IgnOutputRole : uint8_t
+{
+    None,      // Its own input applies
+    Ignition,  // On whenever the ignition is on, cranking included
+    Accessory, // Like Ignition, but off while cranking
+    Dash,      // The Dash signal (hold / power down)
+    Starter    // On while cranking
+};
+
+enum class IgnState : uint8_t
+{
+    Off,
+    On,
+    Cranking,
+    Running
 };
 
 //=============================================================================
@@ -264,8 +327,9 @@ enum class ProfetState : uint8_t
     On,
     Overcurrent,
     Fault,
-    Warning,    // On, but current above the warning limit (below trip) — reported only
-    OpenLoad    // On + past inrush, but current below the open-load floor (broken bulb / no load) — reported only
+    Warning,
+    OpenLoad,
+    Undercurrent
 };
 
 enum class ProfetResetMode : uint8_t
@@ -342,7 +406,7 @@ enum class KeypadModel : uint8_t
     Blink12Key = 6,
     Blink15Key = 7,
     Blink15Key2Dial = 8,
-    Grayhill1Key = 10,
+    Blink1Key = 10,
     Grayhill6Key = 20,
     Grayhill8Key = 21,
     Grayhill12Key = 22,

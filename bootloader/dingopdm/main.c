@@ -36,7 +36,6 @@
 #include "stm32f4xx_ll_bus.h"                    /* STM32 LL BUS header                */
 #include "stm32f4xx_ll_system.h"                 /* STM32 LL SYSTEM header             */
 #include "stm32f4xx_ll_utils.h"                  /* STM32 LL UTILS header              */
-#include "stm32f4xx_ll_usart.h"                  /* STM32 LL USART header              */
 #include "stm32f4xx_ll_gpio.h"                   /* STM32 LL GPIO header               */
 
 

@@ -97,11 +97,7 @@ endif
 # Define project name here
 PROJECT = $(BOARD)
 
-# Emit an S-record (build/$(PROJECT).srec) alongside the .hex/.bin. ChibiOS's rules.mk both
-# gates srec output on `ifdef SREC` and uses $(SREC) as the objcopy command, so this must be the
-# command (not a flag). This is the format the OpenBLT CAN bootloader / dingoConfig "Update
-# firmware over CAN" flasher consumes (it carries load addresses, so the host programs exactly
-# the app region). $(CP) is defined later in arm-none-eabi.mk; deferred '=' expands it at use.
+# Also emit build/$(PROJECT).srec, the image the CAN flasher (OpenBLT) takes; rules.mk runs $(SREC) as the command
 SREC = $(CP) -O srec
 
 # Target settings. MCU is set in boards/*/board.mk
@@ -121,6 +117,8 @@ include $(CHIBIOS)/os/hal/osal/rt-nil/osal.mk
 # RTOS files (optional).
 include $(CHIBIOS)/os/rt/rt.mk
 include $(CHIBIOS)/os/various/cpp_wrappers/chcpp.mk
+# newlib syscalls (malloc via chCoreAlloc), chcpp.mk no longer pulls them in
+include $(CHIBIOS)/os/various/newlib_bindings/newlib.mk
 # Auto-build files in ./source recursively.
 include $(CHIBIOS)/tools/mk/autobuild.mk
 
@@ -134,15 +132,7 @@ LDSCRIPT = $(BOARDDIR)/$(BOARD).ld
 
 # C sources that can be compiled in ARM or THUMB mode depending on the global
 # setting.
-# Lua 5.5 is vendored under lua/ and built as C — only for boards that enable it
-# (HAS_LUA). Compiling the Lua core for a non-Lua board is pure waste and trips LTO.
-LUA_BOARDS = dingopdm_v7 dingopdmmax_v1
-ifneq (,$(filter $(BOARD),$(LUA_BOARDS)))
-LUASRC = $(wildcard lua/*.c)
-LUA_CPPSRC = lua/lua_port.cpp
-LUA_INCDIR = ./lua
-endif
-CSRC = $(ALLCSRC) $(LUASRC)
+CSRC = $(ALLCSRC)
 
 # C++ sources that can be compiled in ARM or THUMB mode depending on the global
 # setting.
@@ -160,37 +150,37 @@ CPPSRC = $(ALLCPPSRC) \
 				 core/config_ext.cpp \
 				 core/config_handler.cpp \
 				 core/error.cpp \
+				 core/fault_log.cpp \
 				 core/led.cpp \
 				 core/param_protocol.cpp \
 				 core/param_registry.cpp \
 				 core/status.cpp \
 				 core/device.cpp \
 				 functions/can_input.cpp \
+				 functions/can_msg.cpp \
 				 functions/can_outputs.cpp \
+				 functions/comfort_blink.cpp \
 				 functions/condition.cpp \
 				 functions/counter.cpp \
+				 functions/curve.cpp \
 				 functions/flasher.cpp \
-				 functions/table.cpp \
-				 functions/timer.cpp \
-				 functions/math_block.cpp \
-				 functions/can_msg.cpp \
 				 functions/ignition.cpp \
-				 functions/comfort_blink.cpp \
 				 functions/input.cpp \
+				 functions/math_block.cpp \
+				 functions/latch_gate.cpp \
+				 functions/timer.cpp \
+				 functions/table.cpp \
+				 functions/pid.cpp \
 				 functions/virtual_input.cpp \
 				 utils/crc.cpp \
 				 utils/dbc.cpp \
-				 $(LUA_CPPSRC) \
 				 main.cpp
 
 # List ASM source files here.
 ASMSRC = $(ALLASMSRC)
 
 # List ASM with preprocessor source files here.
-# $(BOOTLOADERASM) (set in boards/*/board.mk) holds the custom Reset_Handler that checks
-# the 0xDEADBEEF magic and jumps to the ROM DFU bootloader. It MUST be linked or the
-# software "enter bootloader" command just resets into the app (weak ChibiOS handler wins).
-ASMXSRC = $(ALLXASMSRC) $(BOOTLOADERASM)
+ASMXSRC = $(ALLXASMSRC)
 
 # Inclusion directories.
 INCDIR = $(CONFDIR) $(ALLINC) $(TESTINC)
@@ -222,7 +212,6 @@ UINCDIR = $(MCUDIR) \
 				  ./functions \
 				  $(UINC_BOARD) \
 				  ./hardware \
-				  $(LUA_INCDIR) \
 				  ./utils
 
 # List the user directory to look for the libraries here

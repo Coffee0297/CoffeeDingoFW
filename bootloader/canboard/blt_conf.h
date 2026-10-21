@@ -141,7 +141,7 @@
  *  and the bootloader waits - the same guarantee OpenBLT's checksum gives, without the app
  *  linker change. */
 #define BOOT_NVM_CHECKSUM_HOOKS_ENABLE  (1)
-/** \brief Use the dingoFW flash layout in flash_layout.c (16 KB bootloader, 46 KB app,
+/** \brief Use the dingoFW flash layout in flash_layout.c (8 KB bootloader, 54 KB app,
  *         and the 2 KB config sector at 0x0800F800 is excluded so settings survive a
  *         CAN reflash). */
 #define BOOT_FLASH_CUSTOM_LAYOUT_ENABLE (1)

@@ -20,7 +20,8 @@ struct Config_CanInput{
   Operator eOperator;
   float fOperand;       
   InputMode eMode;
-  float fTimeoutValue; //value the input takes when the timeout expires (5.6)
+  float fTimeoutValue;
+  bool bTimeoutUseValue; //0 = timeout reads 0 and off, 1 = timeout acts as if fTimeoutValue arrived
 };
 
 class CanInput
@@ -40,7 +41,7 @@ public:
     float fVal;
 
 private:
-    bool Compare(float v) const;
+    bool Compare(float fIn);
 
     Config_CanInput* pConfig;
 

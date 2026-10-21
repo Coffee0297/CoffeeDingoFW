@@ -64,7 +64,7 @@ Reset_Handler:
 /* dingoFW: USB-DFU dispatch from a PRISTINE reset state (before crt0 relocates VTOR / enables the
    FPU - doing this jump later, e.g. in main(), faults and resets straight back to the app). The
    application requests USB-DFU by leaving 0xDEADBEEF at the top of SRAM and resetting
-   (RequestBootloader, boards/cortex-m4/mcu_utils.cpp); branch to the STM32 system (ROM) bootloader
+   (RequestBootloader, boards/stm32f446/mcu_utils.cpp); branch to the STM32 system (ROM) bootloader
    exactly as the old enter_bootloader.S did. A non-matching value is LEFT IN PLACE so the
    CAN-update magic (0xB00710AD) survives for CpuUserProgramStartHook. */
   ldr   r0, =0x2001FFF0

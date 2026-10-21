@@ -26,19 +26,35 @@ bool CanInput::CheckMsg(CANRxFrame rx)
     return true;
 }
 
-bool CanInput::Compare(float v) const
+bool CanInput::Compare(float fIn)
 {
     switch (pConfig->eOperator)
     {
-    case Operator::Equal:              return v == pConfig->fOperand;
-    case Operator::NotEqual:           return v != pConfig->fOperand;
-    case Operator::GreaterThan:        return v > pConfig->fOperand;
-    case Operator::LessThan:           return v < pConfig->fOperand;
-    case Operator::GreaterThanOrEqual: return v >= pConfig->fOperand;
-    case Operator::LessThanOrEqual:    return v <= pConfig->fOperand;
-    case Operator::BitwiseAnd:         return ((uint32_t)v & (uint32_t)pConfig->fOperand) > 0;
-    case Operator::BitwiseNand:        return !(((uint32_t)v & (uint32_t)pConfig->fOperand) > 0);
+    case Operator::Equal:
+        return fIn == pConfig->fOperand;
+
+    case Operator::NotEqual:
+        return fIn != pConfig->fOperand;
+
+    case Operator::GreaterThan:
+        return fIn > pConfig->fOperand;
+
+    case Operator::LessThan:
+        return fIn < pConfig->fOperand;
+
+    case Operator::GreaterThanOrEqual:
+        return fIn >= pConfig->fOperand;
+
+    case Operator::LessThanOrEqual:
+        return fIn <= pConfig->fOperand;
+
+    case Operator::BitwiseAnd:
+        return ((uint32_t)fIn & (uint32_t)pConfig->fOperand) > 0;
+
+    case Operator::BitwiseNand:
+        return !(((uint32_t)fIn & (uint32_t)pConfig->fOperand) > 0);
     }
+
     return false;
 }
 
@@ -47,11 +63,12 @@ void CanInput::CheckTimeout()
     if (!pConfig->bTimeoutEnabled)
         return;
 
-    // The sender stopped: act as if fTimeoutValue had arrived (5.6; before, the input read 0 and was off).
-    // The rule is applied directly, not through the latch: a latching input must not toggle on a lost sender.
     if (SYS_TIME - nLastRxTime > pConfig->nTimeout)
     {
-        fVal = pConfig->fTimeoutValue;
-        fOutput = Compare(fVal) ? 1 : 0;
+        // Sender lost: read 0 and off, or act as if fTimeoutValue had arrived (e.g. coolant temp 120 so a fan
+        // rule turns on). The rule is applied directly, not through the latch, so a latching input can't toggle.
+        bool bUseValue = pConfig->bEnabled && pConfig->bTimeoutUseValue;
+        fVal = bUseValue ? pConfig->fTimeoutValue : 0;
+        fOutput = bUseValue && Compare(fVal);
     }
 }

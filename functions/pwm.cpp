@@ -1,8 +1,8 @@
 #include "pwm.h"
 #include "dbc.h"
 
-#if (NUM_OUTPUTS > 0) || HAS_DIG_PWM
-void Pwm::Update()
+#if (NUM_OUTPUTS > 0) || (NUM_DIG_OUTPUTS > 0)
+void Pwm::Update(bool bHoldSoftStart)
 {
     bChannelEnabled = (bool)(m_pwm->enabled & (1 << 0));
 
@@ -21,82 +21,109 @@ void Pwm::Update()
         if (bChannelEnabled != bLastChannelEnabled) {
             InitSoftStart();
         }
+        // Hold the ramp by moving its start forward by the time held
+        else if (bHoldSoftStart && !bSoftStartComplete) {
+            nSoftStartTime += SYS_TIME - nLastUpdateTime;
+        }
         
         // Update soft start
         if (!bSoftStartComplete) {
             UpdateSoftStart();
         }
-        // After soft start completes, track the variable-duty source.
+        // After soft start completes, continue updating duty cycle if variable
         else if (pConfig->bVariableDutyCycle) {
-            uint8_t target = GetTargetDutyCycle();
-            if (pConfig->bRampDutyChanges && pConfig->nSoftStartRampTime > 0) {
-                // Slew toward the new target at the soft-start rate (a full 0..100% change
-                // takes nSoftStartRampTime), so duty changes ramp instead of jumping.
-                float step = 100.0f * PWM_UPDATE_TIME / (float)pConfig->nSoftStartRampTime;
-                if (fDutyActual + step < target)      fDutyActual += step;
-                else if (fDutyActual - step > target) fDutyActual -= step;
-                else                                  fDutyActual = target;
-                nDutyCycle = (uint16_t)(fDutyActual + 0.5f);
-            } else {
-                nDutyCycle = target;
-                fDutyActual = target;
-            }
+            if (pConfig->bRampDutyChanges)
+                UpdateDutyRamp();
+            else
+                nDutyCycle = GetTargetDutyCycle();
         }
     }
 
     UpdateFrequency();
     
     bLastChannelEnabled = bChannelEnabled;
+    nLastUpdateTime = SYS_TIME;
 }
 
 uint8_t Pwm::GetTargetDutyCycle() {
     if (pConfig->bVariableDutyCycle && pConfig->nDutyCycleInputDenom > 0) {
-        float pct = (*pInput) / pConfig->nDutyCycleInputDenom;   // signal ÷ denom = duty %
-        if (pct > 100.0f) pct = 100.0f;                          // saturate at 100% (was uncapped → overshoot)
-        if (pct < 0.0f) pct = 0.0f;
-        uint8_t dc = (uint8_t)pct;
-        if (dc < pConfig->nMinDutyCycle)
-            dc = pConfig->nMinDutyCycle;
-        return dc;
+        // Clamp duty cycle to 100% and minimum duty cycle
+        float fDc = (*pInput) / pConfig->nDutyCycleInputDenom;
+        if (fDc > 100.0f)
+            fDc = 100.0f;
+        if (!(fDc >= pConfig->nMinDutyCycle))
+            fDc = pConfig->nMinDutyCycle;
+        return (uint8_t)fDc;
     }
     return pConfig->nFixedDutyCycle;
 }
 
 void Pwm::InitSoftStart() {
+    nSoftStartTime = SYS_TIME;
+
+    // No ramp time configured - go straight to target instead of dividing by zero
+    if (pConfig->nSoftStartRampTime == 0) {
+        nDutyCycle = GetTargetDutyCycle();
+        bSoftStartComplete = true;
+        return;
+    }
+
     fSoftStartStep = GetTargetDutyCycle() / (float)pConfig->nSoftStartRampTime;
     bSoftStartComplete = false;
-    nSoftStartTime = SYS_TIME;
-    fDutyActual = pConfig->nMinDutyCycle;   // slew starts from the min-duty floor
 }
 
 void Pwm::UpdateSoftStart() {
     uint8_t targetDuty = GetTargetDutyCycle();
-    nDutyCycle = (uint8_t)((fSoftStartStep * (SYS_TIME - nSoftStartTime)) + pConfig->nMinDutyCycle);
-    
-    if (nDutyCycle >= targetDuty) {
+    // Compare in float - the ramp can overshoot 255 in one step on short ramps
+    float fDuty = (fSoftStartStep * (SYS_TIME - nSoftStartTime)) + pConfig->nMinDutyCycle;
+
+    if (fDuty >= targetDuty) {
         nDutyCycle = targetDuty;
         bSoftStartComplete = true;
-        fDutyActual = nDutyCycle;   // hand off to the slew tracker at the reached duty
+        fDutyRamp = targetDuty;
+        nSoftStartTime = SYS_TIME;
+    }
+    else {
+        nDutyCycle = (uint8_t)fDuty;
     }
 }
 
-// Effective PWM frequency: fixed nFreq, or — when bVariableFreq — derived from a signal
-// (Hz = signal / denom), clamped to the valid 15..400 Hz window.
+void Pwm::UpdateDutyRamp() {
+    // Slew at the soft-start rate: a full 0-100% change takes nSoftStartRampTime
+    // nSoftStartTime = last ramp update once the soft start is complete
+    uint8_t targetDuty = GetTargetDutyCycle();
+    float fStep = 100.0f;
+    if (pConfig->nSoftStartRampTime > 0)
+        fStep = 100.0f * (SYS_TIME - nSoftStartTime) / pConfig->nSoftStartRampTime;
+    nSoftStartTime = SYS_TIME;
+
+    if (fDutyRamp + fStep < targetDuty)
+        fDutyRamp += fStep;
+    else if (fDutyRamp - fStep > targetDuty)
+        fDutyRamp -= fStep;
+    else
+        fDutyRamp = targetDuty;
+
+    nDutyCycle = (uint8_t)fDutyRamp;
+}
+
 uint16_t Pwm::GetTargetFreq()
 {
-    if (pConfig->bVariableFreq && pConfig->nFreqInputDenom > 0 && pFreqInput != nullptr)
-    {
-        int32_t f = (int32_t)((*pFreqInput) / pConfig->nFreqInputDenom);
-        if (f < 15) f = 15;
-        if (f > 400) f = 400;
-        return (uint16_t)f;
-    }
-    return pConfig->nFreq;
+    if (!pConfig->bVariableFreq || pConfig->nFreqInputDenom == 0)
+        return (pConfig->nFreq > 0 && pConfig->nFreq < PWM_MIN_FREQ) ? PWM_MIN_FREQ : pConfig->nFreq;
+
+    // 16 Hz = slowest period that fits the 16 bit timers at 1 MHz
+    float fFreq = (*pFreqInput) / pConfig->nFreqInputDenom;
+    if (fFreq > 400.0f)
+        fFreq = 400.0f;
+    if (!(fFreq >= PWM_MIN_FREQ))
+        fFreq = PWM_MIN_FREQ;
+    return (uint16_t)fFreq;
 }
 
 void Pwm::UpdateFrequency()
 {
-    const uint16_t nFreq = GetTargetFreq();
+    uint16_t nFreq = GetTargetFreq();
 
     // Frequency within range and
     // (Frequency setting has changed or
@@ -106,6 +133,10 @@ void Pwm::UpdateFrequency()
         (m_pwm->period != (m_pwmCfg->frequency / nFreq))))
     {
         pwmChangePeriod(m_pwm, m_pwmCfg->frequency / nFreq);
+
+        // Width was set for the old period, rescale it so the duty holds
+        if (bChannelEnabled)
+            On();
     }
 
     nLastFreq = nFreq;
@@ -124,6 +155,9 @@ void Pwm::EnsureStarted()
 
 void Pwm::OverrideFrequency(uint16_t nFreq)
 {
+    if (nFreq > 0 && nFreq < PWM_MIN_FREQ)
+        nFreq = PWM_MIN_FREQ;
+
     if (nFreq > 0 && nFreq <= 400 &&
         m_pwm->period != (m_pwmCfg->frequency / nFreq))
     {

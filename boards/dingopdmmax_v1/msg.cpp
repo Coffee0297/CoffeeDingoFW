@@ -1,9 +1,10 @@
-#include "sleep.h"
 #include "msg.h"
 #include "config.h"
 #include "profet.h"
 #include "device.h"
 #include "status.h"
+#include "sleep.h"
+#include <algorithm>
 
 
 CANTxMsg TxMsg0()
@@ -14,9 +15,7 @@ CANTxMsg TxMsg0()
     //=======================================================
     stMsg.frame.SID = stConfig.stDevice.nBaseId + CYCLIC_TX_OFFSET + 0;
     stMsg.frame.DLC = 8; // Bytes to send
-    // bits 2-7 (5.6): seconds until auto-sleep, 0..60; 63 = not counting (sleep off, outputs on, USB)
-    stMsg.frame.data8[0] = (GetDigInputVal(1) << 1) + GetDigInputVal(0) +
-                           ((SleepCountdownSec() > 60 ? 63 : SleepCountdownSec()) << 2);
+    stMsg.frame.data8[0] = (GetDigInputVal(1) << 1) + GetDigInputVal(0) + (std::min<uint8_t>(SleepCountdownSec(), 63) << 2);
     stMsg.frame.data8[1] = static_cast<uint8_t>(GetDeviceState()) + (PDM_TYPE << 4);
     stMsg.frame.data16[1] = (uint16_t)(GetTotalCurrent() * 10.0); // 0.1 A/bit
     stMsg.frame.data16[2] = (uint16_t)(GetBattVolt() * 10.0);
@@ -35,7 +34,7 @@ CANTxMsg TxMsg1()
     //=======================================================
     stMsg.frame.SID = stConfig.stDevice.nBaseId + CYCLIC_TX_OFFSET + 1;
     stMsg.frame.DLC = 8; // Bytes to send
-    stMsg.frame.data16[0] = (uint16_t)(GetOutputCurrent(0) * 10.0); // 0.1 A/bit
+    stMsg.frame.data16[0] = (uint16_t)(GetOutputCurrent(0) * 10.0);
     stMsg.frame.data16[1] = (uint16_t)(GetOutputCurrent(1) * 10.0);
     stMsg.frame.data16[2] = (uint16_t)(GetOutputCurrent(2) * 10.0);
     stMsg.frame.data16[3] = (uint16_t)(GetOutputCurrent(3) * 10.0);
@@ -76,7 +75,7 @@ CANTxMsg TxMsg3()
     stMsg.frame.data8[5] = (static_cast<uint8_t>(GetWiperState()) << 4) + static_cast<uint8_t>(GetWiperSpeed());
     stMsg.frame.data8[6] = (GetFlasherVal(3) << 3) + (GetFlasherVal(2) << 2) +
                            (GetFlasherVal(1) << 1) + GetFlasherVal(0);
-    stMsg.frame.data8[7] = GetTimers(); // Timer 1-8 outputs, bit 0 = Timer 1
+    stMsg.frame.data8[7] = 0;
 
     stMsg.bSend = true; // Always send
 
@@ -488,14 +487,133 @@ CANTxMsg TxMsg27()
 {
     CANTxMsg stMsg;
     //=======================================================
-    // Build Msg 27 (Table 1-2 outputs, IEEE-754 float32 little-endian)
+    // Build Msg 27 (Timer outputs and running states)
     //=======================================================
     stMsg.frame.SID = stConfig.stDevice.nBaseId + CYCLIC_TX_OFFSET + 27;
+    stMsg.frame.DLC = 8;
+    stMsg.frame.data8[0] = GetTimerOutputs();
+    stMsg.frame.data8[1] = GetTimersRunning();
+    stMsg.frame.data16[1] = 0;
+    stMsg.frame.data32[1] = 0;
+
+    stMsg.bSend = GetAnyTimerEnable();
+
+    return stMsg;
+}
+
+CANTxMsg TxMsg28()
+{
+    CANTxMsg stMsg;
+    //=======================================================
+    // Build Msg 28 (Timer 1-4 Elapsed, 10ms units)
+    //=======================================================
+    stMsg.frame.SID = stConfig.stDevice.nBaseId + CYCLIC_TX_OFFSET + 28;
+    stMsg.frame.DLC = 8;
+    stMsg.frame.data16[0] = GetTimerElapsed(0);
+    stMsg.frame.data16[1] = GetTimerElapsed(1);
+    stMsg.frame.data16[2] = GetTimerElapsed(2);
+    stMsg.frame.data16[3] = GetTimerElapsed(3);
+
+    stMsg.bSend = GetAnyTimerEnable();
+
+    return stMsg;
+}
+
+CANTxMsg TxMsg29()
+{
+    CANTxMsg stMsg;
+    //=======================================================
+    // Build Msg 29 (Timer 5-8 Elapsed, 10ms units)
+    //=======================================================
+    stMsg.frame.SID = stConfig.stDevice.nBaseId + CYCLIC_TX_OFFSET + 29;
+    stMsg.frame.DLC = 8;
+    stMsg.frame.data16[0] = GetTimerElapsed(4);
+    stMsg.frame.data16[1] = GetTimerElapsed(5);
+    stMsg.frame.data16[2] = GetTimerElapsed(6);
+    stMsg.frame.data16[3] = GetTimerElapsed(7);
+
+    stMsg.bSend = GetAnyTimerEnable();
+
+    return stMsg;
+}
+
+CANTxMsg TxMsg30()
+{
+    CANTxMsg stMsg;
+    //=======================================================
+    // Build Msg 30 (Out 1-8 Wire Load %)
+    //=======================================================
+    stMsg.frame.SID = stConfig.stDevice.nBaseId + CYCLIC_TX_OFFSET + 30;
+    stMsg.frame.DLC = 8;
+    for (uint8_t i = 0; i < 8; i++)
+        stMsg.frame.data8[i] = GetOutputLoad(i);
+
+    stMsg.bSend = GetAnyWireLoadEnable();
+
+    return stMsg;
+}
+
+CANTxMsg TxMsg31()
+{
+    CANTxMsg stMsg;
+    //=======================================================
+    // Build Msg 31 (Table 1-2 outputs, float32 little-endian)
+    //=======================================================
+    stMsg.frame.SID = stConfig.stDevice.nBaseId + CYCLIC_TX_OFFSET + 31;
     stMsg.frame.DLC = 8;
     Dbc::EncodeFloat(stMsg.frame.data8, GetTableVal(0), 0);
     Dbc::EncodeFloat(stMsg.frame.data8, GetTableVal(1), 32);
 
-    stMsg.bSend = GetAnyTableEnable();
+    stMsg.bSend = GetTableEnable(0) || GetTableEnable(1);
+
+    return stMsg;
+}
+
+CANTxMsg TxMsg32()
+{
+    CANTxMsg stMsg;
+    //=======================================================
+    // Build Msg 32 (Table 3-4 outputs, float32 little-endian)
+    //=======================================================
+    stMsg.frame.SID = stConfig.stDevice.nBaseId + CYCLIC_TX_OFFSET + 32;
+    stMsg.frame.DLC = 8;
+    Dbc::EncodeFloat(stMsg.frame.data8, GetTableVal(2), 0);
+    Dbc::EncodeFloat(stMsg.frame.data8, GetTableVal(3), 32);
+
+    stMsg.bSend = GetTableEnable(2) || GetTableEnable(3);
+
+    return stMsg;
+}
+
+CANTxMsg TxMsg33()
+{
+    CANTxMsg stMsg;
+    //=======================================================
+    // Build Msg 33 (PID 1-4 outputs, x10)
+    //=======================================================
+    stMsg.frame.SID = stConfig.stDevice.nBaseId + CYCLIC_TX_OFFSET + 33;
+    stMsg.frame.DLC = 8;
+    stMsg.frame.data16[0] = (uint16_t)GetPidOutput(0);
+    stMsg.frame.data16[1] = (uint16_t)GetPidOutput(1);
+    stMsg.frame.data16[2] = (uint16_t)GetPidOutput(2);
+    stMsg.frame.data16[3] = (uint16_t)GetPidOutput(3);
+
+    stMsg.bSend = GetAnyPidEnable();
+
+    return stMsg;
+}
+
+CANTxMsg TxMsg34()
+{
+    CANTxMsg stMsg;
+    //=======================================================
+    // Build Msg 34 (Ignition status, while the block is enabled)
+    //=======================================================
+    uint16_t nSid = stConfig.stDevice.nBaseId + CYCLIC_TX_OFFSET + 34;
+    stMsg.frame.DLC = 8;
+
+    stMsg.bSend = GetIgnitionFrame(stMsg.frame.data8, nSid);
+    stMsg.frame.SID = nSid;
 
     return stMsg;
 }

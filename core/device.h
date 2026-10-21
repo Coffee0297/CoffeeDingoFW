@@ -10,19 +10,16 @@ class VirtualInput;
 class Flasher;
 class Counter;
 class Condition;
+
+#if NUM_TIMERS > 0
 class Timer;
-#if NUM_MATH > 0
-class MathBlock;
-extern MathBlock mathBlock[NUM_MATH];
-#endif
-#if NUM_CAN_MSGS > 0
-class CanMsg;
-extern CanMsg canMsg[NUM_CAN_MSGS];
 #endif
 #if NUM_TABLES > 0
 class Table;
 #endif
-
+#if NUM_PIDS > 0
+class Pid;
+#endif
 #if NUM_DIG_INPUTS > 0
 class Digital_Input;
 #endif
@@ -34,6 +31,9 @@ class Wiper;
 #endif
 #if HAS_STARTER_DISABLE
 class Starter;
+#endif
+#if HAS_IGNITION
+class Ignition;
 #endif
 #if NUM_KEYPADS > 0
 class Keypad;
@@ -52,9 +52,15 @@ extern VirtualInput virtIn[NUM_VIRT_INPUTS];
 extern Flasher flasher[NUM_FLASHERS];
 extern Counter counter[NUM_COUNTERS];
 extern Condition condition[NUM_CONDITIONS];
+#if NUM_TIMERS > 0
 extern Timer timer[NUM_TIMERS];
+#endif
 #if NUM_TABLES > 0
 extern Table table[NUM_TABLES];
+#endif
+
+#if NUM_PIDS > 0
+extern Pid pid[NUM_PIDS];
 #endif
 
 #if NUM_DIG_INPUTS > 0
@@ -69,6 +75,9 @@ extern Wiper wiper;
 #if HAS_STARTER_DISABLE
 extern Starter starter;
 #endif
+#if HAS_IGNITION
+extern Ignition ignition;
+#endif
 #if NUM_KEYPADS > 0
 extern Keypad keypad[NUM_KEYPADS];
 #endif
@@ -82,8 +91,11 @@ extern Analog_Input analogIn[NUM_ANALOG_INPUTS];
 extern DeviceConfig stConfig;
 extern DeviceConfig stConfigTemp; // Used for staging new config before applying
 extern float *pVarMap[VAR_MAP_SIZE];
-extern DeviceState eState;
-extern volatile uint32_t nIdentifyUntil; // MsgCmd::Identify: blink the LEDs until this SYS_TIME (5.6)
+
+extern volatile DeviceState eState;
+extern volatile bool bDeviceOverTemp;
+extern volatile bool bDeviceCriticalTemp;
+extern uint8_t nResetCause;
 
 #if HAS_EXT_TEMP_SENSOR
 extern float fTempSensor;
@@ -91,12 +103,10 @@ extern float fTempSensor;
 #if HAS_BATT_VOLT_SENSE
 extern float fBattVolt;
 #endif
-#if CAN_SLEEP
-extern bool bSleepRequest;
-#endif
 
 #if HAS_USB
 void CheckBootloaderRequest();
 #endif
 
 void InitDevice();
+bool SetOutputTest(uint8_t nOutput, uint8_t nMode, uint8_t nDuty, uint16_t nFreq, uint8_t nHoldSec);

@@ -6,15 +6,10 @@
 
 msg_t InitCan(Config_Device *conf);
 void StopCan();
-void ClearCanFilters();
-void SetCanFilterId(uint8_t nFilterNum, uint32_t nId, bool bExtended);
-void SetCanFilterEnabled(bool bEnabled);
+// Rebuild hardware filters from live config (config ID, CAN inputs, keypads), safe while running
+void UpdateCanFilters();
 uint32_t GetLastCanRxTime();
-// True while no CAN peer is ACKing our frames (TX backed off); frames then go to USB only.
-bool CanNoPeer();
-// True while the module's mute-transmit input is on: periodic frames (telemetry, CAN outputs) are withheld.
+// Mute input set: no periodic frames (telemetry, CAN outputs), so the bus can go idle and the fleet sleep
 bool CanTxMuted();
-
-// Set by the config-commit (Burn) handler; DeviceThread re-runs InitCan() so a changed
-// CAN filter enable / filter IDs / bitrate take effect without a power cycle.
-extern volatile bool gReinitCanRequested;
+// True while no CAN peer ACKs our frames (TX backed off), frames then go to USB only
+bool CanNoPeer();

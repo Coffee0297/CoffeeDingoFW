@@ -1,7 +1,6 @@
 import cantools
-from cantools.database.conversion import LinearConversion
+from utils.signal_utils import create_duplicate_signals
 
-# Msg 27 (base+29): Table 1-2 outputs (dingoConfig #58) as IEEE-754 float32, little-endian.
 def build_msg_27(base_id):
     message = cantools.database.Message(
         frame_id=base_id + 27,
@@ -11,14 +10,10 @@ def build_msg_27(base_id):
         signals=[]
     )
 
-    for i in range(2):
-        message.signals.append(cantools.database.Signal(
-            name=f"Table_{i + 1}",
-            start=i * 32,
-            length=32,
-            byte_order="little_endian",
-            is_signed=True,
-            conversion=LinearConversion(1, 0, True),   # IEEE-754 float
-        ))
+    output_sigs = create_duplicate_signals("TimerOutput", 8, 1, 0, 1, 1, 0)
+    message.signals.extend(output_sigs)
+
+    running_sigs = create_duplicate_signals("TimerRunning", 8, 1, 8, 1, 1, 0)
+    message.signals.extend(running_sigs)
 
     return message

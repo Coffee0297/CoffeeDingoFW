@@ -1,447 +1,66 @@
 # Changelog
 
 Notable changes to this **dingoFW** fork (the dingoConfig feature set). Version is `MAJOR.MINOR.BUILD`
-from `core/device_config.h`; the `testing` CI build publishes it as a prerelease (`Testing v5.5.x`).
+from `core/device_config.h`. 5.6.x and earlier are on the old fork line (`master` up to 5.6.6).
 
-## [Unreleased]
+## [5.7.0] — unreleased
 
-## [5.6.6] — 2026-10-19
+**New base: upstream dingoFW `development`.** The fork's features were re-built one by one on top of upstream's
+current code (each one also offered upstream as its own PR), so this line follows upstream closely from now on.
+**`CONFIG_VERSION` 0x0013 → 0x000B (upstream numbering + the ignition parity round + the status id): saved configs reset to defaults. Write the project to the
+module again after flashing.** Needs a dingoConfig that knows the 5.7 layout (it reads the version and picks it).
 
-### Fixed
-- **Virtual input NOR** (`functions/virtual_input.cpp`) was NAND (`!a || !b`: on unless both are on). It is now a
-  real NOR: on only when neither is on. A config that used it as NAND must swap to NOT inputs + AND, or OR.
-- **Condition AND / NAND** (`functions/condition.cpp`): AND gave the masked number instead of 0/1, and NAND gave
-  `~(a & b)`, non-zero almost always. Both now read 1/0 on "any masked bit set", like a CAN input.
-- **Lua with no stored program** ran a built-in 1 Hz demo square wave on slot 0. Now nothing runs, and clearing a
-  program stops its callbacks and zeroes every Lua slot.
+### Changed (compared with 5.6.6)
+- Param indices, var-map order and status frames follow upstream: Timer `0x1A00` (upstream's, with reset input and
+  one-shot / retriggerable pulse; "active while off" = a NOT virtual input in front of it), Table `0x1B00`; device
+  subs 0–8 as upstream (`bDisableCanWake` replaces "wake on CAN"); new var-map entries and status frames sit after
+  upstream's (tables base+33/34, PID base+35, ignition status base+36 on the PDMs).
+- **Ignition sync on its own id**: the main module broadcasts `[state, flags]` (dingoFW #72's frame) on the sync id
+  (0x1E00 sub 10, default 0x6F1, or an offset from the main module's base with sub 11 = 1 and, on followers, the main
+  module's base in sub 12) every 100 ms and at once on a change, instead of the 'I' state frame on base+36 / base+12.
+  That slot now carries the ignition status (state/role, dash state, sleep status, link, sleep countdown, output
+  flags, wake source). Every module of a car needs the same sync id.
+- **Ignition status frame on its own id** (0x1E00 sub 23): 0 keeps it on base+36 / base+12, anything else is the std id
+  it goes out on, so modules spaced 0x20 apart keep their status out of the next module's range. An id on another of
+  the module's own frames or on the sync id sends no status.
+- Currents in the status frames stay at 0.1 A/bit as in 5.6 (PDM Msg 0 total, Msg 1/2 outputs; upstream sends 1 A/bit);
+  the DBC factor is 0.1.
+- A CAN input that times out goes off as upstream does; "value on timeout" (sub 14) applies only with sub 15 on.
+- Analog inputs keep upstream's uniform rotary mode; the calibrated positions are a mode next to it (sub 13).
+- **CANBoard bootloader moved to 8 KB, app at 0x08002000** (was 16 KB / 0x08004000). Every CANBoard needs the new
+  `bootloader/canboard` bootloader programmed once over SWD (e.g. `flash-dingo.ps1 -Hex canboard_blt.hex,canboard_v2.hex`);
+  after that, updates over CAN as before. The old 16 KB bootloader does not start a 5.7 CANBoard app.
+- CANBoard: ignition block (params 0x1E00, status frame Msg 10 = base+12), 2 PID blocks (0x2300-0x2301, output frame
+  Msg 11 = base+13) and PWM measuring on all 8 digital inputs (0x1200 subs 5-7, up to 5 kHz) now fit. CANBoard var map
+  after the timers: DI PWM duty/freq 79-94, analog scaled 95-99, math 100-103, ignition 104-110, comfort blink 111-112,
+  PID 113-120.
+- Lua heap 40 KB on the PDMs (CAN RX queue 64 and TX queue 128 frames, device/param thread stacks 1.5 KB, all measured in
+  the Sim with room to spare).
+- PDM apps run behind the OpenBLT bootloader (0x08004000) as before; the bootloader is built from `bootloader/`.
 
-## [5.6.5] — 2026-10-18
+### Added (new since 5.6.6)
+- Condition hysteresis and on/off delays, output undercurrent trip, hard-short trip, soft-start current limit, soft
+  stop, fault clear input, load shed, wire-load (thermal) model, output state signals, stay-alive outputs on sleep.
+- Up to 4 lookup tables, curves, latch/gate logic, PID blocks, retained values, CAN output and CAN message
+  counters/checksums and trigger inputs, config lock, wake on a chosen frame, reset cause, fault history (FRAM).
+- Ignition, everything of dingoFW #65 / #67-#74 the 5.6 block lacked: role Standalone (no broadcast), output roles
+  (Ignition/Accessory/Dash/Starter per output, PDMs), start button read straight from a CAN frame, stop input,
+  power-up crank interlock, dash power down (grace, halting with a DashShutdown var for a CAN Message to send the
+  dash's shutdown frame, 2 s unpowered after) and a timed door input, ignition sleep (sleep delay; the main module
+  announces it in the sync frame, every module goes quiet for 2 s, then sleeps; goodbye why 4 at the start of the
+  quiet). DashShutdown is the last var-map entry (v7 342, Max 310, pt-dpdm4 320, CANBoard 121).
+- Sleep: before the transceiver sleeps, periodic TX stops, the CAN controller is stopped and TX parked recessive, and
+  edges latched while arming are cleared (dingoFW #65); a wake on an unknown line reads WakeReason Other (4).
+- CAN Message: an input already on at power-up sends no Once frame (the first pass only samples, dingoFW #68).
+- Upstream's own work since the fork: pt-dpdm4 board, NeoPixels, param thread with Restart / WriteAllMissing,
+  hardened USB parser, wrap-safe timing, packed CAN filters.
 
-### Fixed
-- **Wake count** (`core/sleep.cpp`): "wakes since power-on" read 1 after any number of wakes: the count was cleared
-  at every boot. It now runs from power-on; a reset that is not a wake keeps the count and reports power-on.
-
-## [5.6.4] — 2026-10-17
-
-### Added
-- **Version marker** in the image (`DINGO_FW=5.6.4`, next to `DINGO_BOARD=`): dingoConfig reads the version from the
-  file itself, whatever it is called, and says so when the name claims another version.
-
-### Fixed
-- **A car with the Ignition block set up never fell asleep.** The main module kept sending its ignition state
-  frame (base+30, ten a second) while muted (sleep on cue), so the bus never went quiet: the others' CAN-idle
-  timers never ran out, and once the module sending "sleep now" slept, everyone unmuted again. The state
-  frame now follows the mute like every other periodic frame.
-
-## [5.6.3] — 2026-10-17
-
-### Added
-- **Wake announcement**: after every boot (a wake from sleep or a power-on) the module sends its SleepInfo
-  frame unasked on base+0: why it woke (power-on, CAN, which digital input, USB) and how often. With the
-  goodbye frame it already sends before sleep (`[32,'Z','Z','Z',why]`), the bus hears both ends.
-
-### Fixed
-- **A fleet that put itself to sleep woke itself up again, for ever.** A goodbye frame is CAN traffic, so it
-  woke every module already asleep; they restarted (STOP ends in a reset), forgot "sleep now" and started
-  talking, which woke the rest. A module woken by CAN now restarts quiet: nothing periodic (telemetry, CAN
-  outputs, repeating CAN messages, Lua `txCan`, the "running" info message) until it hears a frame that is not a goodbye, then it
-  announces why it woke. With nothing real on the bus it sleeps again without a goodbye of its own.
-- **PDM wake cause lost**: the word that keeps it across the STOP reset lay inside the heap, which a debugger
-  or emulator loading the image zero-fills (and an allocation from the top could overwrite). RAM is 32 bytes
-  shorter in the linker scripts so the word sits outside it. A wake with no digital input or USB line
-  pending is reported as CAN (the only other armed source).
-- Mute transmit (sleep on cue) now withholds every periodic frame: the user CAN outputs, repeating CAN
-  message blocks and Lua `txCan` too, not only the telemetry. A muted module that still sent one (an indicator clock, a
-  backup clock, a "sleep now" frame) kept every other module's CAN-idle timer from running out: the fleet
-  went silent but never slept. Config replies, bridge frames and one-shot CAN messages still go.
-
-## [5.6.2] — 2026-10-17
-
-### Fixed
-- With CAN filtering on, CAN inputs past the 27th and an ignition follower's state frame were never received:
-  each filter id took the slot of its input number, and ids past the 28 hardware slots were dropped. The ids
-  are now packed into consecutive slots, and when more are needed than fit the module accepts every frame.
-
-## [5.6.1] — 2026-10-16
-
-**`CONFIG_VERSION` 0x0012 → 0x0013: saved configs are reset to defaults after updating.** Write the project to the
-module again once it is on 5.6.1.
-
-### Added
-- **Comfort blink** (lane change, 0x1F00, one per module): a short tap of the turn lever blinks a set number of times
-  (1–10, default 3) and stops; held longer than the tap time (100–5000 ms, default 1000) it is a normal blink that
-  stops on release. A tap the other way during a comfort blink cancels it. Blinks are counted on the shared
-  indicator clock, so every module running it stops on the same blink. Var-map signals Left / Right: use them as
-  "indicator on" in place of the lever.
-
-### Changed
-- CANBoard: no USB transmit mailbox (it has no USB; frames were queued that nobody fetched), freeing the RAM the
-  comfort blink needs. Var map: PDM 284, CANBoard 115 entries.
-
-## [5.6.0] — 2026-10-16
-
-**`CONFIG_VERSION` 0x0011 → 0x0012: saved configs are reset to defaults after updating.** Write the project
-to the module again (dingoConfig: Apply) once it is on 5.6.
-
-### Added
-- **Identify** (`MsgCmd::Identify` 49 `[cmd, secs]`): the module answers `[cmd, secs, hasLed]` and blinks its
-  status LEDs for that long (the CANBoard has none, so it only answers).
-- **Why it slept / woke** (`MsgCmd::SleepInfo` 50): wake reason (power-on, CAN, digital input, USB) and
-  source, wakes since power-on, the sleep countdown and what keeps it awake. The wake cause survives the
-  STOP reset in a small no-init word. A module now says goodbye before sleep (`[32,'Z','Z','Z',why]` on
-  base+0). The countdown is also in the status frames (PDM msg 0 byte 0 bits 2-7, CANBoard msg 1).
-- **Trip times and notices** (`MsgCmd::OvlTime` 51, `OvlNotice` 52): each overload trip keeps its uptime;
-  entering Warning or OpenLoad is logged in a 16-entry ring. `OvlCount` replies with 8 bytes (uptime and
-  notice count added).
-- **CAN input "value on timeout"** (0x1300 sub 14): what a CAN input reads when its frame stops coming.
-- **Math blocks** (0x1C00, 8 on the PDMs / 4 on the CANBoard): A op B (add, sub, mul, div, min, max,
-  average) × factor + offset; B a signal or a constant.
-- **CAN Messages** (0x1D00, 4 / 2): send a fixed 8-byte frame while a signal is true (repeat at an
-  interval) or once each time it turns true.
-- **Ignition & start button** (0x1E00): switch + button, button only or key; crank only with the
-  crank-allow input, max crank time, crank while held, dash hold after off. The main module sends its state
-  every 100 ms at the first id after its range (PDM base+30, CANBoard base+14); followers copy it and hold
-  the last state if it stops. Published as var-map signals (Ignition, Accessory, Cranking, Running, Ready,
-  Dash, Link OK), so outputs take a role by following one.
-
-### Changed
-- `ParamInfo` packs its type next to the subindex (24 bytes, was 28): the CANBoard's 46 KB flash needed the
-  room. Var map: PDM 282, CANBoard 113 entries.
-
-## [5.5.112] — 2026-10-15
-
-No `CONFIG_VERSION` change (still 0x0011): saved configs are kept.
+### Kept from 5.6.6
+- Lua, overload trip log, bench test, identify, sleep info / wake reason / quiet wake, comfort blink, ignition (PDMs and CANBoard), PWM inputs (PDMs and CANBoard),
+  math, CAN messages, CANBoard DO PWM / timers / sleep (M4F `-Os` build), USB SLCAN filter + identify, no-ACK
+  back-off, board and version markers in the image, `.srec` output, little-endian CAN-input re-broadcast,
+  CANBoard sleep countdown in Msg 1.
 
 ### Fixed
-- **Sleep current on the PDMs** (`functions/profet.cpp`): the Profet diagnostics (DEN) stayed enabled in
-  STOP, so the off output drivers kept drawing their diagnostic current. DEN now goes low with the outputs
-  before sleep. Measured on a dingoPDM v7 at 12 V, nothing else connected: 16 mA → 7 mA asleep (40 mA
-  awake).
-
-## [5.5.111] — 2026-10-15
-
-No `CONFIG_VERSION` change (still 0x0011): saved configs are kept.
-
-### Added
-- **CANBoard sleep** (`boards/canboard_v2`, `boards/cortex-m3/mcu_utils.cpp`, `core/sleep.cpp`): the CANBoard v2
-  now sleeps (STOP) like the PDM and wakes on its armed digital inputs and on CAN RX. It has no CAN standby
-  pin, so the transceiver stays powered; analog inputs cannot wake it. Digital outputs are forced off first.
-
-### Fixed
-- **Sleep ended at once** (`core/sleep.cpp`): a CAN or timer IRQ pending at the moment of STOP entry ended
-  the WFI straight away, so the module reset instead of sleeping, booted unmuted and woke the whole bus.
-  SysTick and every NVIC IRQ are now disabled and their pending bits cleared before WFI, leaving only the
-  wake (EXTI) lines.
-- **Sleep-request reply is 8 bytes again** (`comms/request_msg.cpp`): dingoConfig dropped the shorter reply.
-
-### Changed
-- **CAN RX/TX and USB TX threads block instead of polling** (`comms/`): ~5000 idle wake-ups a second per
-  thread are gone.
-- CI builds and runs the host self-tests before the firmware build.
-
-## [5.5.110] — 2026-10-13
-
-No `CONFIG_VERSION` change (still 0x0011): saved configs are kept.
-
-### Fixed
-- **A PDM alone on USB (bench, nothing else on CAN) starved the USB host** (`comms/mailbox.cpp`,
-  `comms/can.cpp`): with no CAN peer ACKing, the no-ACK back-off skipped the status broadcasts and a frame
-  reached USB only after a successful CAN post, so dingoConfig saw almost no traffic, lost the replies to its
-  own requests and a config read stalled. While no peer is ACKing (`CanNoPeer()`), a frame now goes to USB
-  only and counts as sent, and the status broadcasts keep going to USB. Measured on a dingoPDM v7: 0 → ~11
-  status frames/s per id over USB; read, write, burn, Lua upload, re-address and USB-DFU flash all work.
-- **Counter with a reset input** (`functions/counter.cpp`): a reset returned before the counter remembered
-  its inputs, so a falling-edge reset ("off when the ignition goes off") fired again on every cycle and held
-  the count at 0 until the reset input came back on. Edges are now taken once per cycle on every path
-  (host self-test: `tests/host_selftest.cpp`, COUNTER_ONLY build).
-- **Timer reused after being disabled** (`functions/timer.cpp`): it kept the last input it saw, so a Pulse
-  from an input that is already on (a fuel-pump prime from Always On) did not fire when the slot was enabled
-  again. A disabled timer now forgets it; enabling it treats an active input as a new activation.
-
-## [5.5.109] — 2026-10-11
-
-A release with every file a board needs, and a flasher for USB as well as SWD. No firmware behaviour
-changes and **no `CONFIG_VERSION` change** (still 0x0011): saved configs are kept.
-
-### Added
-- **Board marker in the image** (`core/device.cpp`): `DINGO_BOARD=<board name>`, so flash tools can tell a
-  dingoPDM v7 from a -Max (same MCU) by reading the firmware back.
-- **Release assets**: the `.srec` for each board (dingoConfig *Flash over CAN*) and the OpenBLT bootloaders
-  `dingopdm_blt.hex` / `canboard_blt.hex` (first flash of a blank board), next to the `.hex` / `.bin` / `.elf`.
-- **`flash-dingo.ps1`**: flashes PDMs over USB-C DFU (dfu-util) as well as SWD, both links watched at once,
-  with the same image checks, blank check and byte-for-byte verify. Without `-Hex` it downloads this fork's
-  stable or testing release (with the bootloaders) or the official dingoFW release, and picks v7 or -Max per
-  PDM from its board marker, asking when there is none.
-
-## [5.5.108] — 2026-10-08
-
-PWM inputs on every digital input, an explicit reply to refused parameter writes, and a CAN receive path
-that no longer drops frames on a busy bus. Pairs with **dingoConfig v0.8.0**. **`CONFIG_VERSION` 0x000F →
-0x0011: flashing resets the saved config to defaults, so deploy it again from dingoConfig.** Verified in
-CoffeeDingoSim with a 7-module vehicle scene and by the host self-test, **not yet on hardware**.
-
-### Fixed
-- **A refused single param Write now says so** (`core/param_protocol.cpp`). An out-of-range value used to get
-  no reply at all, so dingoConfig reported it as written and its project drifted from the module. It now
-  answers `WriteAllOutOfRange` (26) with the value the module kept, or `WriteAllParamNotFound` (25).
-- **Stale Lua error after a good reload** (`lua/lua_port.cpp`). `LuaLoadString` only ever set the last error,
-  so after a broken upload was replaced by a working one, dingoConfig kept showing the old parse error.
-- **CAN receive overruns on a busy bus** (`comms/can.cpp`). The RX thread read one frame per wake-up and
-  the tickless sleep between wake-ups is at least `CH_CFG_ST_TIMEDELTA` ticks (200 µs), so back-to-back
-  frames (~240 µs apart at 500 kbit/s) overran the 3-deep bxCAN FIFO. It now drains every waiting frame
-  per wake-up and runs one priority above the CAN TX threads. Found in CoffeeDingoSim: a 604-frame
-  WriteAll reached a CANBoard as 550 frames.
-- **CANBoard RX mailbox 16 → 48 frames**, held in CCM (`RX_MAILBOX_SIZE`, `comms/mailbox.cpp`) so main
-  SRAM is not touched (the heap grows from 680 to 1136 B). Other boards keep `MAILBOX_SIZE`.
-
-### Added
-- **PWM input mode on every digital input** (`functions/digital_input.cpp`, `functions/pwm_meter.h`).
-  Param `0x1200+i` sub 5 `bPwm`, sub 6 `nPwmFreq` (Hz, 0 = auto-detect). Both edges are timestamped
-  with the cycle counter in the pin's EXTI callback; each update averages the whole periods since the last
-  one. New var-map entries per input, appended after the tables/timers so every existing index is
-  unchanged: `PWM Duty` (0–100 %, Invert = time low) and `PWM Frequency` (Hz). No edge for 3 periods
-  reads 0 % / 100 % from the pin level and drops the input's state. Uses: a Condition on PWM Duty
-  ("on at x %"), or an output's variable duty following it. CANBoard: `PAL_USE_CALLBACKS` on.
-  Sub 7 `nPwmMinPulseUs` is a glitch filter: two edges closer than it are a spike and both are dropped.
-  The frequency setting is capped per board from the input circuit (`DI_PWM_MAX_FREQ`): dingoPDM 1 kHz
-  (4.7k + 10 nF; open collector on the internal pull-up only ~100 Hz), CANBoard 5 kHz (10k, unfiltered).
-  **`CONFIG_VERSION` 0x000F → 0x0011: saved configs reset to defaults; re-deploy from dingoConfig.**
-- Diagnostic counters `gCanRxFrames` / `gCanRxMailboxDrops` (read with a debugger or the simulator).
-
-## [5.5.107] — 2026-10-05
-
-Timer functions (upstream dingoFW #61), 2-axis lookup tables (dingoConfig #58) and the expanded sleep
-model agreed in dingoFW #52 (force-sleep / mute-TX signals + configurable wake sources). **Breaking** —
-config struct changed (`CONFIG_VERSION` 0x000E → 0x000F), so devices load defaults on first boot after
-flashing. Needs **dingoConfig ≥ 0.7.0** (new params, var-map entries and frames). Build-verified on all
-three boards; not yet flashed to hardware.
-
-### Added
-- **Output bench test** (`MsgCmd::OutputTest = 48`, PDM/-Max Profet outputs and CANBoard digital outputs) —
-  the tool can force an output **on**, or
-  **PWM at a duty + frequency**, for a bounded hold (1–30 s; the tool re-sends while the test runs, so a
-  dropped link releases it by itself). The output ignores its input but keeps its current limits and
-  fault handling (PDM), and only an enabled output is accepted. Frame `[48, out, mode (0 off / 1 on / 2 pwm),
-  duty %, freqLo, freqHi, holdSec, 0]`; the reply echoes bytes 0–6 with byte 7 = accepted.
-- **Timer function** (`functions/timer.*`, params `0x1B00+`, 8 per PDM / 4 per CANBoard). One var-map
-  input, a preset (ms, up to 1 h) and a mode: **on-delay** (TON — output on once the input has been
-  active for the preset, off with the input), **off-delay** (TOF — follows the input on, holds for the
-  preset after it drops) or **pulse** (TP — one preset-long pulse per activation, retriggerable). `eEdge`
-  picks the active level (Rising = input true, Falling = input false) so a timer can run while something
-  is *off* — "ignition off for 30 s" is a falling-edge on-delay. Output is in the var map, so it drives
-  outputs, conditions, CAN outputs or the new force-sleep input.
-- **Lookup table function** (`functions/table.*`, params `0x1A00+`, 2 per PDM/-Max; none on the
-  CANBoard — a 328-byte table doesn't fit its 2 KB config sector). Up to **8×8** cells, X/Y from the var
-  map, **bilinear interpolation**, edge values held outside the axis range; `nYSize = 1` makes a 1-D
-  curve. Param layout: sub 0–4 header, 5–12 X axis, 13–20 Y axis, 21–84 cells (row-major). Outputs are
-  broadcast in a new PDM **Msg 27 (`base+29`)** as two float32 LE — the PDM's CAN footprint is now
-  `base .. base+29` (`NUM_TX_MSGS` 28).
-- **Timer outputs on CAN**: PDM Msg 3 byte 7 (bits 56–63, was 0) and CANBoard Msg 2 upper nibble of
-  byte 3 (bits 28–31). DBC builders + `dbc/*_0.5.1.dbc` regenerated.
-- **Expanded sleep (FW #52)** — the decision stays local to each module, no inter-module handshake:
-  - `nForceSleepInput` (0x0000:10) — a var-map signal that forces sleep *now*, ignoring the idle rules and
-    the auto-sleep enable (a digital ignition input, a CAN "sleep now" input, a Timer…). USB connected
-    still blocks it (the #36 soft-lock) and a 1 s boot grace lets inputs settle after a wake.
-  - `nMuteTxInput` (0x0000:11) — a var-map signal that withholds the cyclic telemetry so a fleet can go
-    quiet on cue and every module's CAN-idle timer can expire. Config replies, bridge frames and user CAN
-    outputs are not muted.
-  - `nWakeDigInputMask` (0x0000:12) + `bWakeOnCan` (0x0000:13) — which digital inputs (per-pin bits) and
-    whether CAN traffic re-arm as wake sources. USB always wakes.
-  - Sleep entry now switches **every output off** and gives the CAN TX thread 100 ms to flush before the
-    transceiver goes to standby: a forced sleep can arrive with outputs on, and in stop mode nothing
-    would protect the load (same step upstream `development` takes).
-  - Replaces the 5.5.106 digital-input-only sleep trigger (`bSleepInputEnabled` / `nSleepInput` /
-    `bSleepInputActiveHigh`, subs 6–8 — retired, not reused, so an old tool writing them gets "param not
-    found" instead of a silently re-purposed value).
-- `static_assert` that `DeviceConfig` (+CRC) still fits the 2 KB config flash sector on boards without
-  FRAM — a struct that outgrew it would silently program past the sector.
-- `tests/host_selftest.cpp` — a host-side (plain `g++`) check of the pure Timer/Table logic; same cases as
-  dingoConfig's `LookupTableTests` / `table.test.js` so the three implementations can't drift.
-
-### Fixed
-- **`primaryOutput` param range** was `-1..VAR_MAP_SIZE-1` on an `int8_t`: a value of 128..258 wrapped negative and
-  `stOutput[]` was indexed out of bounds. Now `-1..NUM_OUTPUTS-1` (`core/param_defs.h`).
-- **Keypad model param range** was `0..13`, so the Grayhill models (`20..24` in `KeypadModel`) could never be written;
-  now `0..24`.
-- **DBC drift**: `OutputState` now lists `Warning` (4) and `OpenLoad` (5); the CANBoard DBC advertised 32 CAN inputs,
-  16 virtual inputs and 32 conditions for a board that has 8 of each (`dbc/dbc_builder/canboard`), regenerated.
-
-### Changed
-- **CAN-input value re-broadcast is always little-endian** (PDM Msg 7–22, CANBoard Msg 5–8). It used
-  the input's own byte order, so a Motorola (big-endian) CAN input was re-encoded as a sawtooth from bit 0
-  that spilled into the neighbouring value's bytes — undecodable. The input's byte order only describes
-  the frame it *listens* to; the telemetry container is a fixed LE int32 (dingoConfig #59 follow-up).
-- Var-map order: timers and tables are appended **after** the Lua output slots (not before), so every
-  pre-existing index — including saved "Lua Out N" output bindings — is unchanged. New blocks go after.
-- `VAR_MAP_SIZE`: PDM/-Max +10 (8 timers + 2 tables); CANBoard +4. The PDM analog term is now `×5` like
-  the CANBoard's (it was `×4`, harmless with 0 analog inputs, but one less trap).
-
-### Notes
-- `build/` is shared between boards: run `rm -rf build/obj build/lst` (or `make clean`) when switching
-  `BOARD=`, or stale objects from the previous board get linked (the CANBoard then fails with "cannot move
-  location counter backwards" from the PDM's 128 KB of RAM structures).
-
-## [5.5.104] — 2026-06-25
-
-OpenBLT CAN bootloader + application relocation, so the app can be reflashed over CAN from dingoConfig
-("Update firmware over CAN") after a one-time SWD flash of the bootloader. No config-struct change.
-Verified end-to-end on a CANBoard (SWD-once → CAN-after, settings preserved, interrupted-flash recovery).
-Also: a USB `I` identify command and always-live analog inputs.
-
-### Added
-- **USB `I` identify command** (`comms/usb.cpp`) — a non-standard SLCAN extension (mirrors the `X`
-  accept-filter): when this board is the USB↔CAN bridge, a host sends `I` and the board replies
-  `I<baseId>` over USB only (never onto CAN). Lets dingoConfig learn which board is the bridge so it
-  flashes that board over USB and every other module over CAN. Standalone SLCAN adapters ignore it.
-- **Analog inputs always read live** (`functions/analog_input.cpp`) — the raw ADC voltage is now
-  sampled and broadcast on CAN whether or not the input is `bEnabled`; only the derived decoders
-  (rotary / switch / scale) stay config-gated. Previously a disabled input forced 0 mV, so a probe on
-  an unconfigured pin read 0 in dingoConfig.
-- **OpenBLT (Feaser) XCP-over-CAN bootloader** for the CANBoard, vendored under `bootloader/` (trimmed to
-  the core + the `ARMCM4_STM32F3` port; CAN-only). One-time SWD install (`bootloader/canboard/`,
-  `make` → `bin/canboard_blt.hex`); thereafter the app is flashed over CAN.
-  - **Runtime CAN config from the config sector**: the bootloader reads `nBaseId` (offset 2) and
-    `eCanSpeed` (offset 4) at startup, so its XCP command/response IDs (`base+12`/`base+13`) and bitrate
-    track the one firmware setting. Falls back to `0x640`/500 kbit if the sector is blank.
-  - **HSE-clocked** (crystal accuracy required for reliable CAN — the demo's HSI is not).
-  - **Vector block written last** (`FlashDone` reorder): an interrupted/brown-out CAN update leaves the
-    app invalid and the bootloader waiting — always re-flashable. App validity = vector-table presence.
-  - Application is **relocated** above the 16 KB bootloader: `flash0` `0x08000000` → `0x08004000`
-    (46 KB), config sector at `0x0800F800` untouched. `core/config.h` pins the config offsets the
-    bootloader reads (`static_assert`).
-- `RequestBootloader()` for the CANBoard (`boards/cortex-m3/mcu_utils.cpp`): sets a magic in CCM at
-  `0x10000FFC` and resets; the bootloader consumes it and stays in CAN-update mode. `MsgCmd::Bootloader`
-  (33) is now handled on all boards (was USB-only).
-- The application build emits `build/<board>.srec` (`SREC = $(CP) -O srec`) — the S-record the CAN
-  flasher consumes.
-- **OpenBLT CAN bootloader ported to the F446 PDMs** (`dingopdm_v7`, `dingopdmmax_v1`), vendored
-  under `bootloader/dingopdm/` (core + the `ARMCM4_STM32F4` port; CAN-only). One bootloader serves
-  both: 16 KB in flash sector 0, app relocated to sector 1 (`0x08004000`, sectors 1–6 = 368 KB),
-  sector 7 left for config. CAN on PB8/PB9 AF9, 144 MHz HSE clock (APB1 = 36 MHz). **USB-DFU is
-  kept** (decision #6): the app still enters it with the `0xDEADBEEF` reset-magic, but since OpenBLT
-  now owns the reset vector the dispatch moved into it — the bootloader's **reset handler** (before
-  crt0, from a pristine state) sees `0xDEADBEEF` → jumps to the STM32 ROM bootloader (USB-DFU), and a
-  non-matching value is left in place so `0xB00710AD` survives to `CpuUserProgramStartHook`, which
-  keeps the bootloader up for an XCP-over-CAN session. (Doing the ROM jump later, in `main()` after
-  crt0 had moved VTOR / enabled the FPU, faulted — that was found and fixed on hardware.) Because the PDMs
-  keep config in external FRAM (unreadable by the minimal bootloader), the app hands the bootloader
-  its base id + CAN speed in a reserved word at the top of SRAM at entry; cold-boot falls back to
-  the PDM default base `0x0DE`. New `RequestBootloaderCan()` + a cmd-33 sub-action (byte 6 = 1) on
-  the PDMs select CAN update vs USB-DFU; the CANBoard is unchanged. The PDM apps are now built `-Os`
-  (the `-O0` image does not fit the 368 KB app region) and the relocated app uses ChibiOS's default
-  reset handler (the `enter_bootloader.S` trampoline is dropped — OpenBLT owns reset).
-- **No-ACK CAN flood back-off** (`comms/can.cpp`) — when transmits stop being ACKed (this is the only
-  live node, or the bus is down), bxCAN would otherwise retransmit each frame at line rate (a bus
-  flood). `CAN_MCR_NART` (one-shot TX) stops it but **breaks bridged XCP flashing** — a forwarded
-  frame is dropped the instant the flash target is mid-reset and misses one ACK. So auto-retransmit
-  is kept and the TX thread instead aborts the stuck mailboxes and pauses *cyclic telemetry* after 3
-  consecutive no-ACK timeouts, resuming the moment a peer ACKs. Config replies and forwarded (bridge)
-  frames are never paused. Validated by flashing a CANBoard over CAN through the PDM bridge on a
-  Kvaser-saturated **3000 msg/s** bus.
-- **SLCAN `X` acceptance-filter command** (`comms/usb.cpp`) — lets the host tell a USB↔CAN bridge
-  which ID(s) to forward, so the bridge can drop a bus flood instead of relaying every frame to USB.
-
-### Fixed
-- **Keypad timeout reset wrote out of bounds** (`functions/keypad/keypad.cpp`): the reset loop ran to
-  `KEYPAD_MAX_BUTTONS` (20) while indexing `fDialVal` (2) and `fAnalogVal` (4), overrunning both —
-  harmless at `-O0` but real UB that the new PDM `-Os` build both warns on and may miscompile. Now
-  each array is reset to its own bound.
-
-### Notes
-- ✅ **PDM bootloader port validated on a dingoPDM-v7** (2026-06-24): bootloader installed over
-  USB-DFU; the relocated app boots and runs (telemetry clean, **0 bus errors**); an **OpenBLT
-  CAN-update session connected over XCP** on the runtime-derived IDs `0x0EA/0x0EB`, confirming the
-  FRAM→RAM base-id handoff, and `PROGRAM_RESET` returned to the app; and **both USB-DFU paths reach
-  the ROM bootloader cleanly** — the BOOT0 switch and the software trigger (`0xDEADBEEF`, dispatched
-  in the bootloader's reset handler). dingoPDM-Max is a mirror (same bootloader + app base; only
-  config storage differs) — build-verified, not yet hardware-tested.
-- The **bootloader itself can only be updated over USB-DFU** — it can't erase/rewrite its own
-  sector 0 while executing from it, so its flash map excludes that sector. Application updates go
-  over CAN; a bootloader change (rare) needs USB-DFU (BOOT0 or the software trigger).
-- ⚠️ Installing OpenBLT relocates the app, so the device runs this fork firmware afterwards; its
-  stored config resets to fork defaults on first boot (base `0x0DE` / 500 kbit unchanged). Keep a
-  read-out backup of the original flash and a BOOT0 path before installing on any board.
-
-## [5.5.103] — 2026-06-24 (testing prerelease)
-
-CANBoard digital-output PWM. **Breaking** — config struct changed (`CONFIG_VERSION` 0x000B → 0x000C),
-so devices load defaults on first boot after flashing. Needs the matching dingoConfig update to expose
-the new params (0x2100 sub 2–10) and decode the new duty frame (0x64B). The CANBoard DBC was
-regenerated (`dbc/CANBoard_0.5.1.dbc`); downstream consumers (dingoConfig, dingoPDM MCP) pick up the
-new signals from it.
-
-### Added
-- **PWM on the CANBoard's 4 digital outputs (DO1–DO4)** — mirrors the dingoPDM Profet PWM: enable,
-  fixed or variable duty (from a var-map input ÷ denominator), 0–400 Hz, soft-start ramp, min duty.
-  Reuses the existing `Pwm` class / `Config_PwmOutput`. Each output gets its own timebase
-  (DO1→TIM3, DO2→TIM15, DO3→TIM16, DO4→TIM17) for independent frequencies; the timer just drives the
-  period/compare ISRs that toggle the plain-GPIO DO line (no timer-AF pin needed). TIM2 (system tick)
-  and TIM1/TIM4 are left alone. New params at base 0x2100 sub 2–10. Flash 53.9 % → 59.2 %.
-  ✅ **Flashed and verified on a CanBoard** (SWD via Raspberry Pi Pico / CMSIS-DAP) — boots clean and
-  CAN broadcasts confirmed, after the FPU stack fix below.
-- **CANBoard duty-cycle CAN broadcast** — new cyclic frame **Msg 9 at `base+0x0B` (0x64B default)**,
-  mirroring the PDM's Msg 23: one byte per output, 0–100 % (`DigitalOutputDC_1..4`), bytes 0–3.
-  Only sent when at least one DO has PWM enabled. On/off state stays in Msg 2 byte 6. Slots into the
-  free `0x64B–0x64F` range (cyclic frames previously ended at 0x64A).
-
-### Fixed
-- **CAN went silent on the CanBoard** under the M4F / hardware-FPU build (the FPU switch from v5.5.101):
-  with the FPU enabled, exception entry pushes an extended (~104 B) stack frame onto the active thread's
-  stack, overflowing the **128 B** `waCanCyclicTxThread` / `waCanRxThread` stacks (`comms/can.cpp`) and
-  corrupting RAM, so broadcasts stopped. Bumped both to **256 B**. The v5.5.101 FPU change shipped
-  without resizing these; the first on-hardware test surfaced it. Upstream (soft-float) was unaffected.
-- DBC builder (`dbc/dbc_builder/main.py`) now writes **LF** line endings, so regenerating on Windows
-  no longer rewrites every line of all three DBCs (cantools emits CRLF; text-mode write doubled it).
-
-## [5.5.102] — 2026-06-23 (testing prerelease)
-
-CAN broadcast wire-format fixes. **Breaking** — reflash to keep telemetry correct. Pairs with the
-matching dingoConfig decode update and the new `docs/can-frame-map.md` frame reference.
-
-### Fixed
-- **2nd CAN-input value in each value-pair frame** was encoded at start bit 33 instead of 32
-  (`boards/*/msg.cpp`), so on the wire it sat at bits 33–63 with its MSB truncated and did not match
-  the DBC. Now byte-aligned at bytes 4–7 (bit 32). Affects dingoPDM, dingoPDM-Max and CANBoard.
-- **Total/Output current** now transmitted at **0.1 A/bit** (×10), matching the DBCs, the overload
-  log and the battery/temperature fields, instead of 1 A/bit. Removed the incorrect "Already scaled
-  by 10" note on dingoPDM-Max.
-- **Keypad-2 dials DBC** (`dingoPdm*_0.5.1.dbc` Msg 26) corrected to bytes 0–7 (was start bit 24,
-  with one signal past the frame); generator `dbc_builder/*/build_msg_26.py` fixed to match.
-
-## [5.5.101] — 2026-06-22 (testing prerelease)
-
-Gives the analog input three mutually-exclusive modes — on/off switch, calibrated multi-position
-switch, and **linear sensor scaling** — and makes them fit the CanBoard by building it as the
-Cortex-M4F it is. Pairs with **dingoConfig v0.6.0-rc.1**.
-
-### Added
-- **Analog input — calibrated multi-position decode** (`functions/analog_input.*`). Each position has
-  its own measured centre voltage (up to `MAX_SWITCH_POS = 10`). A reading registers for a position
-  only inside its window — half-width on each side = `min(tolerance, gap-to-neighbour/2)` — so windows
-  never overlap and a far-apart switch gets a narrow band, not half the rail. Outside every window
-  reports **`ROTARY_NO_POS` (15)**. Point voltages are stored **packed two per 32-bit word**
-  (`nPointPair[5]`) and exposed as 5 SDO words, to save flash.
-- **Analog input — linear sensor scaling** (`Config_AnalogScale`): `fScaled = fGain·mV + fOffset`,
-  published per input in the variable map (`fScaledVal`) so outputs/conditions can use the scaled
-  value (e.g. a fan driven by a temperature sensor).
-- **New SDO map** at `0x2200` (sub **0–16**) per analog input: input enable; switch enable/mode/
-  invert/threshold; rotary enable/invert/numPos/tolerance + 5 packed point-words; scale enable/gain/
-  offset (`core/param_defs.h`).
-
-### Changed
-- **CanBoard now builds for the STM32F303K8T6 as a Cortex-M4F** (`boards/canboard_v2/board.mk`):
-  hardware FPU enabled (`-mfloat-abi=hard -mfpu=fpv4-sp-d16`, removes ~2.5 KB of soft-float) and the
-  image is size-optimised (`-Os` instead of the inherited `-O0`). Flash use drops from **101.5 %
-  (overflow)** to **53.9 %**. The `cortex-m3` MCU-utils dir is kept on purpose (the `cortex-m4` utils
-  hardcode an F4-only bootloader RAM address). PDM boards are unchanged.
-- **Config staging buffer (`stConfigTemp`) moved into the 4 KB CCM** (`ram4`), growing the heap from
-  448 B to ~1600 B.
-- **Dropped the legacy uniform `offset/step` rotary decode** — calibrated points are the only mode.
-- **`CONFIG_VERSION` 0x0A → 0x0B** — the analog config struct changed, so stored config resets to
-  defaults on first boot of this build (re-send config from the tool).
-
-### Notes
-- ⚠️ **Prerelease — NOT yet flashed/tested on a CanBoard.** It compiles for all three boards and the
-  sizes fit, but the FPU + `-Os` switch and the reworked decode are behaviour changes. Flash and verify
-  on hardware before relying on it.
-- Decoded position is still transmitted as the existing **4-bit** nibble (0–14 = position, 15 = none).
+- CANBoard: reading the config at boot no longer overflows the main-thread stack into the interrupt stack (a 1.7 KB
+  copy on a 1 KB stack); an interrupt during the read could reset the config to defaults.

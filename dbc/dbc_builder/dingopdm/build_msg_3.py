@@ -15,8 +15,9 @@ def build_msg_3(base_id):
         1: "On",
         2: "Overcurrent",
         3: "Fault",
-        4: "Warning",   # on, current above the warn limit (report only)
-        5: "OpenLoad"   # on, current below the open-load floor (report only)
+        4: "Warning",
+        5: "OpenLoad",
+        6: "Undercurrent"
     }
     output_state_sigs = create_duplicate_signals("OutputState", 8, 1, 0, 4, 1, 0)
     for sig in output_state_sigs:
@@ -92,9 +93,5 @@ def build_msg_3(base_id):
     
     flasher_sigs = create_duplicate_signals("Flasher", 4, 1, 48, 1, 1, 0)
     message.signals.extend(flasher_sigs)
-
-    # Timer 1-8 outputs (FW #61), bit 56 = Timer 1
-    timer_sigs = create_duplicate_signals("Timer", 8, 1, 56, 1, 1, 0)
-    message.signals.extend(timer_sigs)
     
     return message

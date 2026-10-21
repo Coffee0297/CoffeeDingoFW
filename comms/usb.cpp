@@ -5,49 +5,51 @@
 #include "mailbox.h"
 #include "msg.h"
 #include "config.h"
+#include "param_protocol.h"
 
 #if HAS_USB
 
 /* Virtual serial port over USB.*/
 SerialUSBDriver SDU1;
 
-// Non-standard SLCAN accept-filter for the CAN->USB bridge. When >= 0, only this CAN id is forwarded
-// over USB; -1 (the default) forwards everything. The host sets it via the 'X' command (see UsbRxThread)
-// so a flooded bus doesn't pour across the USB link while it flashes / configures a module through this
-// board acting as the bridge. A standalone SLCAN adapter simply ignores the unknown 'X' command.
-static volatile int32_t gUsbSlcanFilterId = -1;
+// Non-standard SLCAN for a host using this module as its CAN bridge: 'X<id>' forwards only that CAN id to
+// USB (a flooded bus can't swamp the link), a bare 'X' forwards everything again; 'I' replies 'I<baseId>'
+static volatile int32_t nUsbFilterId = -1;
+static MUTEX_DECL(mtxUsbWrite); // the TX thread and the 'I' reply both write to SDU1
 
-// One hex nibble (0-15) to its ASCII character.
-static inline uint8_t HexNib(uint8_t v) { return v < 0xA ? (uint8_t)(v + '0') : (uint8_t)(v + '7'); }
-
-// Reply to the dingo 'I' identify command: emit 'I' + this board's CAN base id (3 hex) + CR straight back
-// over USB. Lets a host learn which board is acting as the USB<->CAN bridge so it flashes THIS board over
-// USB (the bridge can't be reflashed over the link it provides) and every other module over CAN. The reply
-// goes only over USB, never onto CAN; a standalone SLCAN adapter ignores 'I' and never answers.
-static void SendUsbIdentify()
+static int32_t ParseFilterId(const uint8_t *data, size_t dataLen)
 {
-    uint16_t base = stConfig.stDevice.nBaseId & 0x7FF;
-    uint8_t reply[5] = { 'I', HexNib((base >> 8) & 0xF), HexNib((base >> 4) & 0xF), HexNib(base & 0xF), '\r' };
-    chnWriteTimeout(&SDU1, reply, sizeof(reply), TIME_MS2I(10));
+    int32_t nId = -1; // no digits: forward everything
+    for (size_t i = 1; i < dataLen; i++)
+    {
+        uint8_t c = data[i];
+        int32_t nNib;
+        if (c >= '0' && c <= '9')
+            nNib = c - '0';
+        else if (c >= 'a' && c <= 'f')
+            nNib = c - 'a' + 10;
+        else if (c >= 'A' && c <= 'F')
+            nNib = c - 'A' + 10;
+        else
+            break;
+        nId = (((nId < 0) ? 0 : nId) << 4 | nNib) & 0x7FF;
+    }
+    return nId;
 }
 
-// Parse an 'X' command: 'X' + up to 3 hex digits + CR sets the forward id; a bare 'X' clears it.
-static void SetUsbSlcanFilter(const uint8_t *buf, size_t len)
+static void SendIdentify()
 {
-    int32_t id = 0;
-    uint8_t digits = 0;
-    for (size_t i = 1; i < len; i++)
-    {
-        uint8_t c = buf[i];
-        int8_t nib;
-        if (c >= '0' && c <= '9')      nib = c - '0';
-        else if (c >= 'a' && c <= 'f') nib = c - 'a' + 10;
-        else if (c >= 'A' && c <= 'F') nib = c - 'A' + 10;
-        else break;                     // CR / NUL / junk ends the id
-        id = (id << 4) | nib;
-        digits++;
-    }
-    gUsbSlcanFilterId = (digits > 0) ? (id & 0x7FF) : -1;
+    uint8_t nData[5] = {'I',
+                        (uint8_t)((stConfig.stDevice.nBaseId >> 8) & 0x7),
+                        (uint8_t)((stConfig.stDevice.nBaseId >> 4) & 0xF),
+                        (uint8_t)(stConfig.stDevice.nBaseId & 0xF),
+                        '\r'};
+    for (uint8_t i = 1; i <= 3; i++)
+        nData[i] += (nData[i] < 0xA) ? 0x30 : 0x37;
+
+    chMtxLock(&mtxUsbWrite);
+    chnWriteTimeout(&SDU1, nData, sizeof(nData), TIME_MS2I(10));
+    chMtxUnlock(&mtxUsbWrite);
 }
 
 /*
@@ -375,61 +377,53 @@ void UsbTxThread(void *)
 
     while (1)
     {
-        // Send all messages in the TX queue
-        msg_t res;
         if (usbGetDriverStateI(&USBD1) == USB_ACTIVE)
         {
-            sysinterval_t wait = TIME_MS2I(10);   // block for the first frame, no polling wake-ups
-            do
+            // Blocks until a frame is queued, no polling while idle
+            // Timeout so USB disconnect is still noticed
+            if ((FetchTxUsbFrame(&msg, TIME_MS2I(100)) == MSG_OK) &&
+                ((nUsbFilterId < 0) || (msg.SID == (uint32_t)nUsbFilterId)))
             {
-                res = FetchTxUsbFrame(&msg, wait);
-                wait = TIME_IMMEDIATE;
-                if (res == MSG_OK)
+                uint8_t nData[22];
+                nData[0] = 't';
+                nData[1] = (msg.SID >> 8) & 0xF;
+                nData[2] = (msg.SID >> 4) & 0xF;
+                nData[3] = msg.SID & 0xF;
+                nData[4] = (msg.DLC & 0xFF);
+                nData[5] = (msg.data8[0] >> 4);
+                nData[6] = (msg.data8[0] & 0x0F);
+                nData[7] = (msg.data8[1] >> 4);
+                nData[8] = (msg.data8[1] & 0x0F);
+                nData[9] = (msg.data8[2] >> 4);
+                nData[10] = (msg.data8[2] & 0x0F);
+                nData[11] = (msg.data8[3] >> 4);
+                nData[12] = (msg.data8[3] & 0x0F);
+                nData[13] = (msg.data8[4] >> 4);
+                nData[14] = (msg.data8[4] & 0x0F);
+                nData[15] = (msg.data8[5] >> 4);
+                nData[16] = (msg.data8[5] & 0x0F);
+                nData[17] = (msg.data8[6] >> 4);
+                nData[18] = (msg.data8[6] & 0x0F);
+                nData[19] = (msg.data8[7] >> 4);
+                nData[20] = (msg.data8[7] & 0x0F);
+                nData[21] = '\r';
+
+                // Shift the data to ASCII, except the first 't' and last '\r' 
+                for (uint8_t i = 1; i <= 20; i++)
                 {
-                    // Bridge accept-filter: when armed, still drain the frame from the mailbox but
-                    // only forward the one id the host asked for, so a flooded bus can't pour over USB.
-                    if (gUsbSlcanFilterId >= 0 && (int32_t)msg.SID != gUsbSlcanFilterId)
-                        continue;
-
-                    uint8_t nData[22];
-                    nData[0] = 't';
-                    nData[1] = (msg.SID >> 8) & 0xF;
-                    nData[2] = (msg.SID >> 4) & 0xF;
-                    nData[3] = msg.SID & 0xF;
-                    nData[4] = (msg.DLC & 0xFF);
-                    nData[5] = (msg.data8[0] >> 4);
-                    nData[6] = (msg.data8[0] & 0x0F);
-                    nData[7] = (msg.data8[1] >> 4);
-                    nData[8] = (msg.data8[1] & 0x0F);
-                    nData[9] = (msg.data8[2] >> 4);
-                    nData[10] = (msg.data8[2] & 0x0F);
-                    nData[11] = (msg.data8[3] >> 4);
-                    nData[12] = (msg.data8[3] & 0x0F);
-                    nData[13] = (msg.data8[4] >> 4);
-                    nData[14] = (msg.data8[4] & 0x0F);
-                    nData[15] = (msg.data8[5] >> 4);
-                    nData[16] = (msg.data8[5] & 0x0F);
-                    nData[17] = (msg.data8[6] >> 4);
-                    nData[18] = (msg.data8[6] & 0x0F);
-                    nData[19] = (msg.data8[7] >> 4);
-                    nData[20] = (msg.data8[7] & 0x0F);
-                    nData[21] = '\r';
-
-                    // Shift the data to ASCII, except the first 't' and last '\r' 
-                    for (uint8_t i = 1; i <= 20; i++)
-                    {
-                        // Less than 0xA is a number
-                        // Shift up to ASCII numbers
-                        if (nData[i] < 0xA)
-                            nData[i] += 0x30;
-                        else
-                            nData[i] += 0x37;
-                    }
-
-                    
-                    chnWriteTimeout(&SDU1, (const uint8_t *)nData, sizeof(nData), TIME_MS2I(10));
+                    // Less than 0xA is a number
+                    // Shift up to ASCII numbers
+                    if (nData[i] < 0xA)
+                        nData[i] += 0x30;
+                    else
+                        nData[i] += 0x37;
                 }
-            } while (res == MSG_OK);
+
+                
+                chMtxLock(&mtxUsbWrite);
+                chnWriteTimeout(&SDU1, (const uint8_t *)nData, sizeof(nData), TIME_MS2I(10));
+                chMtxUnlock(&mtxUsbWrite);
+            }
         }
         else
         {
@@ -438,9 +432,12 @@ void UsbTxThread(void *)
     }
 }
 
-void Parse(uint8_t *data, uint8_t dataLen, CANRxFrame *frame)
+bool Parse(uint8_t *data, uint8_t dataLen, CANRxFrame *frame)
 {
     uint8_t firstPos;
+
+    if (dataLen < 5)
+        return false;
 
     // Convert from ASCII (2nd character to end)
     for (uint8_t i = 1; i < dataLen; i++)
@@ -456,23 +453,31 @@ void Parse(uint8_t *data, uint8_t dataLen, CANRxFrame *frame)
             data[i] = data[i] - '0';
     }
 
-    if (data[0] == 't')
+    if (data[0] != 't')
+        return false;
+
+    uint8_t nDlc = data[4];
+    if (nDlc > 8)
+        return false;
+
+    firstPos = 5;
+
+    if (dataLen < (uint16_t)firstPos + 2 * (uint16_t)nDlc)
+        return false; // Line too short to contain nDlc data bytes
+
+    frame->SID = ((data[1] & 0xF) << 8) + ((data[2] & 0xF) << 4) + (data[3] & 0xF);
+    frame->DLC = nDlc;
+
+    for (int i = 0; i < frame->DLC; i++)
     {
-        frame->SID = ((data[1] & 0xF) << 8) + ((data[2] & 0xF) << 4) + (data[3] & 0xF);
-
-        frame->DLC = data[4];
-
-        firstPos = 5;
-
-        for (int i = 0; i < frame->DLC; i++)
-        {
-            frame->data8[i] = ((data[i + firstPos] & 0xF) << 4) + (data[i + firstPos + 1] & 0xF);
-            firstPos++;
-        }
-
-        frame->IDE = CAN_IDE_STD;
-        frame->RTR = CAN_RTR_DATA;
+        frame->data8[i] = ((data[i + firstPos] & 0xF) << 4) + (data[i + firstPos + 1] & 0xF);
+        firstPos++;
     }
+
+    frame->IDE = CAN_IDE_STD;
+    frame->RTR = CAN_RTR_DATA;
+
+    return true;
 }
 
 static THD_WORKING_AREA(waUsbRxThread, 1024);
@@ -507,40 +512,29 @@ void UsbRxThread(void *)
                     // Null terminate and process the command
                     rxBuf[rxIndex] = '\0';
 
-                    if (rxIndex > 0)
+                    if (rxBuf[0] == 'X')
+                        nUsbFilterId = ParseFilterId(rxBuf, rxIndex);
+                    else if (rxBuf[0] == 'I')
+                        SendIdentify();
+                    else if (rxIndex > 0 && Parse(rxBuf, rxIndex, &msg))
                     {
-                        if (rxBuf[0] == 'X')
-                        {
-                            // dingo accept-filter command (non-standard SLCAN): clamp which CAN id this
-                            // bridge forwards over USB so a host can stop a flooded bus from pouring
-                            // across the link. Not a frame — don't parse / pass it through to CAN.
-                            SetUsbSlcanFilter(rxBuf, rxIndex);
-                        }
-                        else if (rxBuf[0] == 'I')
-                        {
-                            // dingo identify command (non-standard SLCAN): report this bridge's base id over
-                            // USB so the host knows which board is the bridge. Not a frame — never onto CAN.
-                            SendUsbIdentify();
-                        }
-                        else
-                        {
-                            Parse(rxBuf, rxIndex, &msg);
+                        // Config frames go straight to the param thread
+                        if (!RouteParamFrame(&msg))
                             PostRxFrame(&msg);
 
-                            if(stConfig.stDevice.bConnectUsbToCan)
+                        if(stConfig.stDevice.bConnectUsbToCan)
+                        {
+                            //Copy data to CAN for data pass through
+                            //Don't send if it's a settings msg for this device
+                            if( (msg.SID != stConfig.stDevice.nBaseId + CONFIG_RX_OFFSET) &&
+                                (msg.SID != stConfig.stDevice.nBaseId + CONFIG_TX_OFFSET))
                             {
-                                //Copy data to CAN for data pass through
-                                //Don't send if it's a settings msg for this device
-                                if( (msg.SID != stConfig.stDevice.nBaseId + CONFIG_RX_OFFSET) &&
-                                    (msg.SID != stConfig.stDevice.nBaseId + CONFIG_TX_OFFSET))
-                                {
-                                    canTx.SID = msg.SID;
-                                    canTx.IDE = msg.IDE;
-                                    canTx.DLC = msg.DLC;
-                                    for(size_t i = 0; i < msg.DLC; i++)
-                                        canTx.data8[i] = msg.data8[i];
-                                    PostTxFrame(&canTx);
-                                }
+                                canTx.SID = msg.SID;
+                                canTx.IDE = msg.IDE;
+                                canTx.DLC = msg.DLC;
+                                for(size_t i = 0; i < msg.DLC; i++)
+                                    canTx.data8[i] = msg.data8[i];
+                                PostTxFrame(&canTx);
                             }
                         }
                     }
@@ -555,7 +549,8 @@ void UsbRxThread(void *)
         else
         {
             chThdSleepMilliseconds(200);
-            // Reset buffer when not connected
+            // Reset buffer and bridge filter when not connected
+            nUsbFilterId = -1;
             rxIndex = 0;
             for (size_t i = 0; i < sizeof(rxBuf); i++)
                 rxBuf[i] = 0;

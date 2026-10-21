@@ -64,8 +64,8 @@ const CANConfig& GetCanConfig(CanBitrate bitrate) {
     return canConfig500;
 }
 
-adcsample_t adc1_samples[ADC1_NUM_CHANNELS] = {0};
-adcsample_t adc2_samples[ADC2_NUM_CHANNELS] = {0};
+volatile adcsample_t adc1_samples[ADC1_NUM_CHANNELS] = {0};
+volatile adcsample_t adc2_samples[ADC2_NUM_CHANNELS] = {0};
 
 static const ADCConversionGroup adc1_cfg = {
     .circular = true,
@@ -82,12 +82,14 @@ static const ADCConversionGroup adc1_cfg = {
             ADC_SMPR1_SMP_AN2(ADC_SMPR_SMP_601P5) |
             ADC_SMPR1_SMP_AN3(ADC_SMPR_SMP_601P5) |
             ADC_SMPR1_SMP_AN4(ADC_SMPR_SMP_601P5),
-            ADC_SMPR2_SMP_AN16(ADC_SMPR_SMP_601P5)},              // SMPR: Sampling time register
+            ADC_SMPR2_SMP_AN16(ADC_SMPR_SMP_601P5) |
+            ADC_SMPR2_SMP_AN18(ADC_SMPR_SMP_601P5)},              // SMPR: Sampling time register
     .sqr = {ADC_SQR1_SQ1_N(ADC_CHANNEL_IN1) |                      // SQR: Regular sequence register
             ADC_SQR1_SQ2_N(ADC_CHANNEL_IN2) |
             ADC_SQR1_SQ3_N(ADC_CHANNEL_IN3) |
             ADC_SQR1_SQ4_N(ADC_CHANNEL_IN4),
-            ADC_SQR2_SQ5_N(ADC_CHANNEL_IN16),
+            ADC_SQR2_SQ5_N(ADC_CHANNEL_IN16) |
+            ADC_SQR2_SQ6_N(ADC_CHANNEL_IN18),
             0,
             0}};
 
@@ -118,14 +120,15 @@ msg_t InitAdc()
         return ret;
 
     adcSTM32EnableTS(&ADCD1); // Enable temperature sensor
+    adcSTM32EnableVREF(&ADCD1); // Enable vref
 
-    adcStartConversion(&ADCD1, &adc1_cfg, adc1_samples, ADC1_BUF_DEPTH);
+    adcStartConversion(&ADCD1, &adc1_cfg, const_cast<adcsample_t*>(adc1_samples), ADC1_BUF_DEPTH);
 
     ret = adcStart(&ADCD2, NULL);
     if(ret != HAL_RET_SUCCESS)
         return ret;
 
-    adcStartConversion(&ADCD2, &adc2_cfg, adc2_samples, ADC2_BUF_DEPTH);
+    adcStartConversion(&ADCD2, &adc2_cfg, const_cast<adcsample_t*>(adc2_samples), ADC2_BUF_DEPTH);
 
     return HAL_RET_SUCCESS;
 }
@@ -146,6 +149,8 @@ adcsample_t GetAdcRaw(AnalogChannel channel)
         return adc2_samples[0];
     case AnalogChannel::TempSensor:
         return adc1_samples[4];
+    case AnalogChannel::VRefInt:
+        return adc1_samples[5];
     default:
         return 0; // Invalid channel
     }
@@ -153,9 +158,9 @@ adcsample_t GetAdcRaw(AnalogChannel channel)
 
 float AdcToVolts(adcsample_t raw)
 {
-    // MCU vRef = 3.3v
+    // MCU vRef = measured VDDA
     // 4095 counts full scale
-    float mcuVolts = (3.3 / 4095) * raw;
+    float mcuVolts = (GetVDDA() / 4095) * raw;
 
     const float rUpper = 4700;
     const float rLower = 10000;
@@ -170,5 +175,14 @@ float GetAdcVolts(AnalogChannel channel)
 
 uint16_t GetTemperature()
 {
-    return (uint16_t)(30.0 + ((float)(GetAdcRaw(AnalogChannel::TempSensor) - STM32_TEMP_3V3_30C) / (STM32_TEMP_3V3_110C - STM32_TEMP_3V3_30C)) * (110.0 - 30.0));
+    return (uint16_t)(STM32_TS_CAL1_TEMP + ((float)(GetAdcRaw(AnalogChannel::TempSensor) - STM32_TS_CAL1) / (STM32_TS_CAL2 - STM32_TS_CAL1)) * (STM32_TS_CAL2_TEMP - STM32_TS_CAL1_TEMP));
+}
+
+float GetVDDA()
+{
+    uint16_t raw = GetAdcRaw(AnalogChannel::VRefInt);
+    if (raw == 0)
+        return 3.3; // No conversion yet, assume nominal
+
+    return ((float)STM32_VREF_INT_CAL / (float)raw) * STM32_CAL_VDDA;
 }

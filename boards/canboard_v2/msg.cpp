@@ -1,8 +1,8 @@
-#include "sleep.h"
 #include "msg.h"
 #include "config.h"
 #include "status.h"
 #include "device.h"
+#include "sleep.h"
 
 uint8_t nHeartbeat = 0;
 
@@ -35,7 +35,6 @@ CANTxMsg TxMsg1()
     stMsg.frame.SID = stConfig.stDevice.nBaseId + CYCLIC_TX_OFFSET + 1;
     stMsg.frame.DLC = 8;
     stMsg.frame.data16[0] = (uint16_t)(GetAnalogInputMv(4));
-    // 5.6: seconds until auto-sleep (0xFF = not counting) and what keeps it awake (MsgCmd::SleepInfo bits)
     stMsg.frame.data16[1] = (uint16_t)(SleepBlockers() << 8) | SleepCountdownSec();
     stMsg.frame.data16[2] = 0;
     stMsg.frame.data16[3] = GetTemperature();
@@ -57,8 +56,7 @@ CANTxMsg TxMsg2()
     stMsg.frame.data8[0] = (GetRotarySwitchPos(1) << 4) + GetRotarySwitchPos(0);
     stMsg.frame.data8[1] = (GetRotarySwitchPos(3) << 4) + GetRotarySwitchPos(2);
     stMsg.frame.data8[2] = GetRotarySwitchPos(4);
-    stMsg.frame.data8[3] = ((GetTimers() & 0x0F) << 4) +                  // Timer 1-4 outputs in the upper nibble (bits 28-31)
-                           (GetFlasherVal(3) << 3) + (GetFlasherVal(2) << 2) +
+    stMsg.frame.data8[3] = (GetTimerOutputs() << 4) + (GetFlasherVal(3) << 3) + (GetFlasherVal(2) << 2) +
                            (GetFlasherVal(1) << 1) + GetFlasherVal(0);
     stMsg.frame.data8[4] = (GetDigInputVal(7) << 7) + (GetDigInputVal(6) << 6) + (GetDigInputVal(5) << 5) + (GetDigInputVal(4) << 4) + 
                            (GetDigInputVal(3) << 3) + (GetDigInputVal(2) << 2) + (GetDigInputVal(1) << 1) + GetDigInputVal(0);
@@ -177,22 +175,51 @@ CANTxMsg TxMsg9()
 {
     CANTxMsg stMsg;
     //=======================================================
-    // Build Msg 9 (Digital output duty cycle) — mirrors the PDM's Msg 23
+    // Build Msg 9 (Digital output duty cycle)
     //=======================================================
-    stMsg.frame.IDE = CAN_IDE_STD;
     stMsg.frame.SID = stConfig.stDevice.nBaseId + CYCLIC_TX_OFFSET + 9;
-    stMsg.frame.DLC = 8;
+    stMsg.frame.DLC = 8; // Bytes to send
     stMsg.frame.data8[0] = GetDigOutputDC(0);
     stMsg.frame.data8[1] = GetDigOutputDC(1);
     stMsg.frame.data8[2] = GetDigOutputDC(2);
     stMsg.frame.data8[3] = GetDigOutputDC(3);
-    stMsg.frame.data8[4] = 0;
-    stMsg.frame.data8[5] = 0;
-    stMsg.frame.data8[6] = 0;
-    stMsg.frame.data8[7] = 0;
+    stMsg.frame.data32[1] = 0;
 
     stMsg.bSend = GetAnyDigOutputPwmEnable();
 
     return stMsg;
 }
 
+
+CANTxMsg TxMsg10()
+{
+    CANTxMsg stMsg;
+    //=======================================================
+    // Build Msg 10 (Ignition status, while the block is enabled)
+    //=======================================================
+    uint16_t nSid = stConfig.stDevice.nBaseId + CYCLIC_TX_OFFSET + 10;
+    stMsg.frame.DLC = 8;
+
+    stMsg.bSend = GetIgnitionFrame(stMsg.frame.data8, nSid);
+    stMsg.frame.SID = nSid;
+
+    return stMsg;
+}
+
+CANTxMsg TxMsg11()
+{
+    CANTxMsg stMsg;
+    //=======================================================
+    // Build Msg 11 (PID outputs, same bytes as the PDM PID frame)
+    //=======================================================
+    stMsg.frame.SID = stConfig.stDevice.nBaseId + CYCLIC_TX_OFFSET + 11;
+    stMsg.frame.DLC = 8;
+    stMsg.frame.data16[0] = (uint16_t)GetPidOutput(0);
+    stMsg.frame.data16[1] = (uint16_t)GetPidOutput(1);
+    stMsg.frame.data16[2] = (uint16_t)GetPidOutput(2);
+    stMsg.frame.data16[3] = (uint16_t)GetPidOutput(3);
+
+    stMsg.bSend = GetAnyPidEnable();
+
+    return stMsg;
+}

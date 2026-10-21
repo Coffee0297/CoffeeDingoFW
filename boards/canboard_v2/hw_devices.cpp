@@ -12,7 +12,7 @@ Digital_Input digIn[NUM_DIG_INPUTS] = {
     Digital_Input(LINE_DI8)};   
 
 Digital_Output digOut[NUM_DIG_OUTPUTS] = {
-    Digital_Output(LINE_DO1, &PWMD3,  &pwm3Cfg,  PwmChannel::Ch1),
+    Digital_Output(LINE_DO1, &PWMD3, &pwm3Cfg, PwmChannel::Ch1),
     Digital_Output(LINE_DO2, &PWMD15, &pwm15Cfg, PwmChannel::Ch1),
     Digital_Output(LINE_DO3, &PWMD16, &pwm16Cfg, PwmChannel::Ch1),
     Digital_Output(LINE_DO4, &PWMD17, &pwm17Cfg, PwmChannel::Ch1)};

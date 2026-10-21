@@ -1,47 +1,121 @@
 #include "timer.h"
 
-// OnDelay  (TON): output on once the input has been active for the preset; off as soon as it isn't.
-// OffDelay (TOF): output on with the input; stays on for the preset after the input goes inactive.
-// Pulse    (TP) : one output pulse of the preset length each time the input becomes active
-//                 (a new activation restarts it; releasing the input doesn't cut it short).
-void Timer::Update(uint32_t nTimeNow)
+void Timer::Update()
 {
     if (!pConfig->bEnabled)
     {
-        fVal = 0;
-        bTiming = false;
-        bLastActive = false;   // enabling it later starts fresh: an input already active is a new activation
+        bInit = false;
+        bRunning = false;
+        bOut = false;
+        fVal = 0.0f;
         return;
     }
 
-    const bool bActive = (pConfig->eEdge == InputEdge::Falling) ? (*pInput == 0.0f) : (*pInput != 0.0f);
-    const bool bRise = bActive && !bLastActive;
-    const bool bFall = !bActive && bLastActive;
-    bLastActive = bActive;
+    const bool bIn = *pInput > 0.5f;
+    const bool bReset = *pResetInput > 0.5f;
+    const uint32_t nNow = SYS_TIME;
+
+    // First pass after enable only samples the input. Without this a timer
+    // whose input is already high at power up sees a rising edge that never
+    // happened and fires a pulse on its own.
+    if (!bInit)
+    {
+        bInit = true;
+        bLastIn = bIn;
+        bRunning = false;
+        bOut = false;
+        fVal = 0.0f;
+        return;
+    }
+
+    // Reset is level sensitive, not edge: while it is held the timer stays
+    // cleared, so it can be used to cancel a running delay and keep it cancelled
+    if (bReset)
+    {
+        bRunning = false;
+        bOut = false;
+        bLastIn = bIn;
+        fVal = 0.0f;
+        return;
+    }
+
+    const bool bRising = bIn && !bLastIn;
+    const bool bFalling = !bIn && bLastIn;
+    const bool bElapsed = bRunning && ((nNow - nStartTime) >= pConfig->nTime);
 
     switch (pConfig->eMode)
     {
     case TimerMode::OnDelay:
-        if (bRise) { bTiming = true; nStartTime = nTimeNow; }
-        if (!bActive) bTiming = false;
-        fVal = (bTiming && (nTimeNow - nStartTime) >= pConfig->nPreset) ? 1.0f : 0.0f;
+        // Level triggered, not edge: an input already on at power up or
+        // after a reset is released still starts the delay
+        if (!bIn)
+        {
+            bRunning = false;
+            bOut = false;
+        }
+        else if (!bRunning && !bOut)
+        {
+            bRunning = true;
+            nStartTime = nNow;
+        }
+        else if (bElapsed)
+        {
+            bRunning = false;
+            bOut = true;
+        }
         break;
 
     case TimerMode::OffDelay:
-        if (bFall) { bTiming = true; nStartTime = nTimeNow; }
-        if (bActive) bTiming = false;
-        if (bTiming && (nTimeNow - nStartTime) >= pConfig->nPreset) bTiming = false;
-        fVal = (bActive || bTiming) ? 1.0f : 0.0f;
+        if (bIn)
+        {
+            bRunning = false;
+            bOut = true;
+        }
+        else
+        {
+            if (bFalling)
+            {
+                bRunning = true;
+                nStartTime = nNow;
+            }
+
+            if (bElapsed)
+            {
+                bRunning = false;
+                bOut = false;
+            }
+        }
         break;
 
-    case TimerMode::Pulse:
-        if (bRise) { bTiming = true; nStartTime = nTimeNow; }
-        if (bTiming && (nTimeNow - nStartTime) >= pConfig->nPreset) bTiming = false;
-        fVal = bTiming ? 1.0f : 0.0f;
+    case TimerMode::PulseRetrig:
+        if (bRising)
+        {
+            bRunning = true;
+            bOut = true;
+            nStartTime = nNow;
+        }
+        else if (bElapsed)
+        {
+            bRunning = false;
+            bOut = false;
+        }
         break;
 
-    default:
-        fVal = 0;
+    case TimerMode::PulseOneShot:
+        if (bRising && !bRunning)
+        {
+            bRunning = true;
+            bOut = true;
+            nStartTime = nNow;
+        }
+        else if (bElapsed)
+        {
+            bRunning = false;
+            bOut = false;
+        }
         break;
     }
+
+    bLastIn = bIn;
+    fVal = bOut ? 1.0f : 0.0f;
 }

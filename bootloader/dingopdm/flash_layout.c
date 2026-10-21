@@ -34,9 +34,8 @@
 static const tFlashSector flashLayout[] =
 {
   /* dingoFW: STM32F446 (512 kB). The 16 kB bootloader lives in sector 0; the relocated
-   * application occupies sectors 1..6 (base 0x08004000). Sector 7 (0x08060000, 128 kB) is
-   * excluded: dingoPDM-Max stores its config there, and dingoPDM-v7 (FRAM config) leaves
-   * it unused - either way the CAN flasher must never erase it. */
+   * application occupies sectors 1..7 (base 0x08004000, 496 kB). Every F446 board keeps its
+   * config in external FRAM, so no sector is reserved for it. */
   /* { 0x08000000, 0x04000,  0},           flash sector  0 -  16kb - reserved for bootloader */
   { 0x08004000, 0x04000,  1},           /* flash sector  1 -  16kb - app base              */
   { 0x08008000, 0x04000,  2},           /* flash sector  2 -  16kb                          */
@@ -44,7 +43,7 @@ static const tFlashSector flashLayout[] =
   { 0x08010000, 0x10000,  4},           /* flash sector  4 -  64kb                          */
   { 0x08020000, 0x20000,  5},           /* flash sector  5 - 128kb                          */
   { 0x08040000, 0x20000,  6},           /* flash sector  6 - 128kb                          */
-  /* { 0x08060000, 0x20000,  7},           flash sector  7 - 128kb - reserved for config    */
+  { 0x08060000, 0x20000,  7},           /* flash sector  7 - 128kb                          */
 };
 
 

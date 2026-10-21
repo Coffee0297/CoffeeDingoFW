@@ -31,10 +31,8 @@
 ****************************************************************************************/
 #include "boot.h"                                /* bootloader generic header          */
 #include "led.h"                                 /* LED driver header                  */
-#include "printf.h"                              /* Tiny sprintf                       */
 #include "stm32f4xx.h"                           /* STM32 registers and drivers        */
 #include "stm32f4xx_ll_gpio.h"                   /* STM32 LL GPIO header               */
-#include "stm32f4xx_ll_usart.h"                  /* STM32 LL USART header              */
 #include "stm32f4xx_ll_bus.h"                    /* STM32 LL BUS header                */
 
 
@@ -84,7 +82,7 @@ blt_bool CpuUserProgramStartHook(void)
 {
   /* dingoFW: the application requests the CAN bootloader by leaving a magic value at the
    * top of SRAM (0x2001FFF0) and resetting - see RequestBootloaderCan() in
-   * boards/cortex-m4/mcu_utils.cpp. If present, consume it and keep the bootloader active
+   * boards/stm32f446/mcu_utils.cpp. If present, consume it and keep the bootloader active
    * so dingoConfig can reflash over CAN, instead of starting the (otherwise valid)
    * application. That word is outside this bootloader's linked RAM, so neither the app nor
    * this bootloader's startup clears it; we clear it here so the next plain reset (e.g.
@@ -241,7 +239,7 @@ blt_bool NvmVerifyChecksumHook(void)
     return BLT_FALSE;                 /* stack pointer not in SRAM -> no valid app */
   }
   if (((resetVector & 0x1UL) == 0UL) ||
-      (resetVector < 0x08004000UL) || (resetVector >= 0x08060000UL))
+      (resetVector < 0x08004000UL) || (resetVector >= 0x08080000UL))
   {
     return BLT_FALSE;                 /* reset vector not a Thumb address in the app region */
   }

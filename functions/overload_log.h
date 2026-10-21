@@ -4,49 +4,25 @@
 #include "port.h"
 #include "enums.h"
 
-#if NUM_OUTPUTS > 0
+// Trip log: the last OVL_EVENTS output trips (Overcurrent/Fault) with the current waveform around them,
+// read back over CAN (MsgCmd OvlCount..OvlClear, OvlTime). Each sample is the peak over its OVL_SAMPLE_MS
+// bucket, so a ms-scale spike between samples still shows.
+// ponytail: RAM only, a power cycle (e.g. to clear a latched Fault) wipes it; persist to FRAM if needed.
 
-// On-device overload (trip) log. The device records the last OVL_EVENTS output trips
-// (Overcurrent / Fault) with a current waveform around the trip, so the tool can read
-// them back over CAN for troubleshooting even if it wasn't connected when it happened.
-//
-// Sampling: the control loop (500Hz) tracks per-output peak; every OVL_SAMPLE_MS the
-// peak-since-last-sample is pushed here as one waveform point — so a sub-millisecond
-// inrush/short spike inside a sample bucket is preserved as that bucket's value.
-//
-// ponytail: log lives in RAM only — a power cycle (e.g. to clear a latched Fault) wipes
-// it. Persist event headers to FRAM if trips must survive a reboot.
+#define OVL_SAMPLE_MS 40                                        // 25 Hz
+#define OVL_PRE_SAMPLES ((10 * 1000) / OVL_SAMPLE_MS)           // 10 s before the trip
+#define OVL_POST_SAMPLES ((3 * 1000) / OVL_SAMPLE_MS)           // 3 s after
+#define OVL_TOTAL_SAMPLES (OVL_PRE_SAMPLES + OVL_POST_SAMPLES)
+#define OVL_EVENTS 3
+#define OVL_AMP_STEP 0.5f                                       // A per sample byte
 
-// ponytail: rate/events kept small — this firmware's RAM is tight (Lua 48K heap + 12K
-// stack). Each sample is the peak over its bucket, so 25Hz still catches a ms-scale
-// inrush/short. Bump these if RAM frees up.
-#define OVL_SAMPLE_MS    40                                   // 25 Hz waveform
-#define OVL_PRE_S        10                                   // seconds captured before the trip
-#define OVL_POST_S       3                                    // seconds captured after the trip
-#define OVL_PRE_SAMPLES  ((OVL_PRE_S  * 1000) / OVL_SAMPLE_MS)// 250
-#define OVL_POST_SAMPLES ((OVL_POST_S * 1000) / OVL_SAMPLE_MS)// 75
-#define OVL_TOTAL_SAMPLES (OVL_PRE_SAMPLES + OVL_POST_SAMPLES)// 325
-#define OVL_EVENTS       3                                    // most-recent trips kept
-#define OVL_AMP_STEP     0.5f                                 // amps per waveform byte (0..127.5A)
+// Call every device cycle for each output; bSample on the cycle that closes an OVL_SAMPLE_MS bucket.
+void OvlLogUpdate(uint8_t nOut, float fAmps, ProfetState eState, float fLimitA, bool bSample);
 
-void OvlLogInit();
-// Push one waveform sample (the peak amps over the last OVL_SAMPLE_MS) for an output.
-void OvlLogSample(uint8_t nOut, float fAmps);
-// Record a trip: snapshots the pre-window and begins capturing the post-window.
-void OvlLogTrigger(uint8_t nOut, ProfetState eState, float fLimitA);
-
-uint8_t OvlLogCount();                                        // number of stored events
-uint32_t OvlLogTime(uint8_t idx);                             // ms since power-on of trip idx (5.6), 0 = invalid
-
-// Notices (5.6): an output went into Warning or OpenLoad. Time and kind only, no waveform (RAM).
-#define OVL_NOTICES 16
-void OvlNotice(uint8_t nOut, uint8_t nKind);                  // nKind 1 warning, 2 open load
-uint8_t OvlNoticeCount();
-bool OvlNoticeGet(uint8_t idx, uint8_t &nOut, uint8_t &nKind, uint32_t &nTime);   // idx 0 = newest
-// Header for event idx (0 = newest). peakA/limitA in amps. Returns false if idx invalid.
+uint8_t OvlLogCount();
+// idx 0 = newest. Peak and limit in A. False if idx is not stored.
 bool OvlLogGetHeader(uint8_t idx, uint8_t &nOut, uint8_t &nState, float &fPeakA, float &fLimitA);
-// Copy up to nMax waveform bytes from sample offset off. Returns bytes copied (0 past end).
-uint8_t OvlLogGetData(uint8_t idx, uint16_t off, uint8_t *pBuf, uint8_t nMax);
+// Copies up to nMax sample bytes from sample offset nOff, returns the count (0 past the end).
+uint8_t OvlLogGetData(uint8_t idx, uint16_t nOff, uint8_t *pBuf, uint8_t nMax);
+uint32_t OvlLogTime(uint8_t idx); // SYS_TIME at the trip, 0 = not stored
 void OvlLogClear();
-
-#endif

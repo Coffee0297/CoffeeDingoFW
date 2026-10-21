@@ -2,7 +2,7 @@
 #include "blink_keypad.h"
 #include "grayhill_keypad.h"
 
-static THD_WORKING_AREA(waKeypadThread, 256);
+static THD_WORKING_AREA(waKeypadThread, 512);
 
 static void KeypadThread(void *arg)
 {
@@ -59,7 +59,7 @@ void Keypad::SetConfig(Config_Keypad* config)
     pConfig = config;
     pDimmingInput = pVarMap[config->nDimmingVar];
 
-    if (config->eModel <= KeypadModel::Blink15Key2Dial) {
+    if (config->eModel < KeypadModel::Grayhill6Key) {
         fnCheckMsg = CheckMsgBlinkMarine;
         fnGetTxMsg = GetTxMsgBlinkMarine;
         fnGetStartMsg = GetStartMsgBlinkMarine;
@@ -94,10 +94,7 @@ void Keypad::CheckTimeout()
 
     if (SYS_TIME - nLastRxTime > pConfig->nTimeout)
     {
-        // Timeout - reset values. Each array has its own size (buttons 20, dials 2, analog 4
-        // on the PDMs); reset each to its own bound. (The old single KEYPAD_MAX_BUTTONS loop
-        // ran past fDialVal/fAnalogVal - harmless at -O0 but real out-of-bounds UB, which -Os
-        // both warns on and may miscompile.)
+        // Timeout - reset values
         for (uint8_t i = 0; i < KEYPAD_MAX_BUTTONS; i++)
             fButtonVal[i] = 0;
         for (uint8_t i = 0; i < KEYPAD_MAX_DIALS; i++)

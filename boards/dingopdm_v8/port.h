@@ -1,0 +1,144 @@
+#pragma once
+
+#include "hal.h"
+#include "enums.h"
+
+#define BOARD_ID 0 //Version reply byte 1: 0 PDM, 1 PDM-MAX, 2 CANBoard, 3 PT-DPDM4
+
+#define PDM_TYPE 0 //0 = PDM
+
+#define HAS_SE_LEDS TRUE
+#define HAS_USB TRUE
+#define HAS_I2C TRUE
+#define HAS_EXT_TEMP_SENSOR TRUE
+#define HAS_EXT_MEMORY TRUE
+#define HAS_BATT_VOLT_SENSE TRUE
+#define CAN_SLEEP TRUE
+
+#define NUM_OUTPUTS 8
+#define NUM_DIG_OUTPUTS 0
+#define DI_PWM_MAX_FREQ 1000 // Hz, the input circuit's limit
+#define NUM_DIG_INPUTS 2
+#define NUM_ANALOG_INPUTS 0
+#define NUM_VIRT_INPUTS 16
+#define NUM_CAN_INPUTS 32
+#define NUM_CAN_OUTPUTS 32
+#define NUM_FLASHERS 4
+#define NUM_WIPER_INTER_DELAYS 6
+#define NUM_WIPER_SPEED_MAP 8
+#define NUM_COUNTERS 4
+#define NUM_CONDITIONS 32
+#define NUM_MATH 8
+#define NUM_CAN_MSGS 4
+#define NUM_CURVES 4
+#define NUM_TIMERS 8
+#define NUM_TABLES 4
+#define NUM_LATCH_GATES 8
+#define NUM_PIDS 4
+#define NUM_KEYPADS 2
+#define HAS_WIPERS TRUE
+#define HAS_COMFORT_BLINK TRUE
+#define HAS_IGNITION TRUE
+#define HAS_STARTER_DISABLE TRUE
+
+#define KEYPAD_MAX_BUTTONS 20
+#define KEYPAD_MAX_ANALOG_INPUTS 4
+#define KEYPAD_MAX_DIALS 2
+
+#define HAS_LUA TRUE
+#define NUM_LUA_OUTPUTS 32
+#define LUA_HEAP_SIZE (40 * 1024) // as on its own branch, after the mailbox/stack trims; 48 KB does not fit
+#define LUA_SCRIPT_MAX 4096
+
+#define HAS_NEOPIXELS FALSE
+
+//Always false
+//Always true
+//State
+//Temperature sensor
+//Battery voltage
+#define VAR_MAP_SYS_VARS 5
+
+#define VAR_MAP_WIPER_VARS 6
+
+#define VAR_MAP_SIZE ( \
+    VAR_MAP_SYS_VARS + \
+    (NUM_DIG_INPUTS * 3) + \
+    (NUM_ANALOG_INPUTS * 5) + \
+    (NUM_DIG_OUTPUTS * 1) + \
+    (NUM_CAN_INPUTS * 2) + \
+    (NUM_VIRT_INPUTS * 1) + \
+    (NUM_OUTPUTS * 7) + \
+    (NUM_FLASHERS * 1) + \
+    (NUM_CONDITIONS * 1) + \
+    (NUM_COUNTERS * 1) + \
+    (NUM_TIMERS * 1) + \
+    (NUM_OUTPUTS * 1) + \
+    (NUM_MATH * 1) + \
+    (NUM_TABLES * 1) + \
+    (NUM_CURVES * 1) + \
+    (NUM_LATCH_GATES * 1) + \
+    (NUM_PIDS * 4) + \
+    (HAS_COMFORT_BLINK * 2) + \
+    (HAS_IGNITION * 8) + \
+    (NUM_LUA_OUTPUTS * 1) + \
+    VAR_MAP_WIPER_VARS + \
+    (NUM_KEYPADS * (KEYPAD_MAX_BUTTONS + KEYPAD_MAX_DIALS + KEYPAD_MAX_ANALOG_INPUTS)) \
+)
+
+#define MAILBOX_SIZE 256 // param FIFO and USB TX queue (USB bursts, not measurable in the Sim)
+#define CAN_RX_MAILBOX_SIZE 64 // Sim peak 4 under a 3000-frame flood; 1 Mbit/s full load is 16 per 2 ms device cycle
+#define CAN_TX_MAILBOX_SIZE 128 // Sim peak 42 (all status frames + Lua)
+#define DEVICE_THREAD_STACK 1536 // device and param threads: Sim peak 568 / 816 B of the 2 KB working area
+#define CAN_THREAD_STACK 512
+
+#define NUM_TX_MSGS 35
+#define DEFAULT_BASE_ID 0x0DE
+
+#define ADC1_NUM_CHANNELS 8
+#define ADC1_BUF_DEPTH 1
+
+#define BTS7002_1EPP_KILIS 22950
+#define BTS7008_2EPA_KILIS 5950
+#define BTS70012_1ESP_KILIS 35000
+
+
+// Milliseconds from the 64-bit timestamp, truncated to 32 bits so it wraps cleanly
+// every ~49.7 days. Always compare as (SYS_TIME - start), never as absolute times.
+#define SYS_TIME ((uint32_t)(chVTGetTimeStamp() / (CH_CFG_ST_FREQUENCY / 1000)))
+
+static const float ALWAYS_FALSE = 0.0f;
+static const float ALWAYS_TRUE = 1.0f;
+ 
+enum class AnalogChannel
+{
+    IS1 = 0,
+    IS2,
+    IS3_4,
+    IS5_6,
+    IS7_8,
+    BattVolt,
+    TempSensor,
+    VRefInt
+};
+
+enum class LedType
+{
+    Status,
+    Error
+};
+
+const CANConfig &GetCanConfig(CanBitrate bitrate);
+
+const I2CConfig i2cConfig = {
+    OPMODE_I2C,
+    400000,
+    FAST_DUTY_CYCLE_2,
+};
+
+msg_t InitAdc();
+void DeInitAdc();
+uint16_t GetAdcRaw(AnalogChannel channel);
+float GetBattVolt();
+float GetTemperature();
+float GetVDDA();

@@ -2,11 +2,9 @@
 
 void Analog_Input::Update()
 {
-    // Always sample the raw pin — it's a physical input, so its live voltage should be visible (on CAN
-    // and in dingoConfig) whether or not the input is "enabled" for logic. Only the derived decoders
-    // below are config-gated; each already zeroes itself when its own feature is off.
+    // Raw pin value is always live (CAN status, var map); only the decoders depend on bEnabled
     fVal = (float)GetAdcRaw(m_channel);
-    fValMillivolts = GetAdcVolts(m_channel) * 1000.0f;
+    fValMillivolts = GetAdcVolts(m_channel) * 1000.0;
 
     if(!pConfig->bEnabled)
     {
@@ -18,7 +16,8 @@ void Analog_Input::Update()
 
     RotaryUpdate();
     SwitchUpdate();
-    ScaleUpdate();
+
+    fScaledVal = pConfig->bScale ? (pConfig->fScaleGain * fValMillivolts + pConfig->fScaleOffset) : 0;
 }
 
 void Analog_Input::RotaryUpdate()
@@ -29,28 +28,43 @@ void Analog_Input::RotaryUpdate()
         return;
     }
 
-    // Calibrated points: each position is a measured centre voltage. A position registers only when
-    // the reading is within its window — capped at the tolerance AND at the midpoint to each
-    // neighbour, so windows never overlap and a far-apart 2-position switch gets a narrow band, not
-    // half the rail. Outside every window the reading is in a dead zone -> report ROTARY_NO_POS.
-    int n = pConfig->stRotary.nNumPos;
-    if (n < 2) n = 2;
-    if (n > MAX_SWITCH_POS) n = MAX_SWITCH_POS;
-    const int tol = pConfig->stRotary.nTolerance;
-    const int mv  = static_cast<int>(fValMillivolts);
-    int found = ROTARY_NO_POS;
-    for (int k = 0; k < n; k++)
+    if (pConfig->stRotary.eMode == RotaryMode::Calibrated)
     {
-        const int c      = Point(k);
-        const int gapLo  = (k == 0)     ? tol * 2 : c - Point(k - 1);
-        const int gapHi  = (k == n - 1) ? tol * 2 : Point(k + 1) - c;
-        const int halfLo = (gapLo / 2 < tol) ? gapLo / 2 : tol;
-        const int halfHi = (gapHi / 2 < tol) ? gapHi / 2 : tol;
-        if (mv >= c - halfLo && mv <= c + halfHi) { found = k; break; }
+        // A position counts only inside its window: the tolerance, capped at half the gap to each
+        // neighbour so windows never overlap. Anywhere else reads ROTARY_NO_POS.
+        const Config_RotarySwitch &r = pConfig->stRotary;
+        auto point = [&r](int k) { return (int)((r.nPointPair[k / 2] >> ((k & 1) * 16)) & 0xFFFF); };
+        int n = (r.nNumPos > ROTARY_MAX_POS) ? ROTARY_MAX_POS : r.nNumPos;
+        int mv = static_cast<int>(fValMillivolts);
+        int pos = ROTARY_NO_POS;
+        for (int k = 0; k < n; k++)
+        {
+            int c = point(k);
+            int lo = (k > 0 && (c - point(k - 1)) / 2 < r.nTolerance) ? (c - point(k - 1)) / 2 : r.nTolerance;
+            int hi = (k < n - 1 && (point(k + 1) - c) / 2 < r.nTolerance) ? (point(k + 1) - c) / 2 : r.nTolerance;
+            if (mv >= c - lo && mv <= c + hi)
+            {
+                pos = r.bInvert ? (n - 1 - k) : k;
+                break;
+            }
+        }
+        fRotaryPos = pos;
+        return;
     }
-    if (found != ROTARY_NO_POS && pConfig->stRotary.bInvert)
-        found = (n - 1) - found;
-    fRotaryPos = found;
+
+    if (fValMillivolts < pConfig->stRotary.fOffset)
+    {
+        fRotaryPos = pConfig->stRotary.bInvert ? pConfig->stRotary.fMaxPos : 0;
+    }
+    else
+    {
+        float stepsAboveOffset = (fValMillivolts - pConfig->stRotary.fOffset) / pConfig->stRotary.fStep;
+        int pos = static_cast<int>(stepsAboveOffset);
+        if (pos > pConfig->stRotary.fMaxPos)
+            pos = pConfig->stRotary.fMaxPos;
+
+        fRotaryPos = pConfig->stRotary.bInvert ? (pConfig->stRotary.fMaxPos - pos) : pos;
+    }
 }
 
 void Analog_Input::SwitchUpdate()
@@ -62,16 +76,4 @@ void Analog_Input::SwitchUpdate()
     }
 
     fSwitchVal = input.Check(pConfig->stSwitch.eMode, pConfig->stSwitch.bInvert, fValMillivolts > static_cast<float>(pConfig->stSwitch.nThreshold));
-}
-
-void Analog_Input::ScaleUpdate()
-{
-    if(!pConfig->stScale.bEnabled)
-    {
-        fScaledVal = 0;
-        return;
-    }
-
-    // Linear sensor scaling: engineering units = gain * millivolts + offset.
-    fScaledVal = pConfig->stScale.fGain * fValMillivolts + pConfig->stScale.fOffset;
 }

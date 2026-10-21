@@ -1,4 +1,5 @@
 #include "counter.h"
+#include "dbc.h"
 #include "edge.h"
 
 void Counter::Update()
@@ -9,65 +10,64 @@ void Counter::Update()
         return;
     }
 
-    // Edges are taken against the previous cycle's inputs, so every exit records this cycle's (a reset used
-    // to return early: a falling-edge reset then fired again on every cycle and held the count at 0 until the
-    // reset input came back).
-    const bool bInc = *pIncInput, bDec = *pDecInput, bReset = *pResetInput;
-    const bool bIncEdge = Edge::Check(pConfig->eIncEdge, bLastInc, bInc);
-    const bool bDecEdge = Edge::Check(pConfig->eDecEdge, bLastDec, bDec);
-    const bool bResetEdge = Edge::Check(pConfig->eResetEdge, bLastReset, bReset);
-    bLastInc = bInc;
-    bLastDec = bDec;
-    bLastReset = bReset;
+    // Detect edges and store last states before any early return,
+    // otherwise an edge is seen again every cycle (e.g. falling-edge reset stuck while low)
+    bool bReset = Edge::Check(pConfig->eResetEdge, bLastReset, *pResetInput);
+    bool bInc = Edge::Check(pConfig->eIncEdge, bLastInc, *pIncInput);
+    bool bDec = Edge::Check(pConfig->eDecEdge, bLastDec, *pDecInput);
+
+    bLastInc = *pIncInput;
+    bLastDec = *pDecInput;
+    bLastReset = *pResetInput;
+
+    // Keep within range - covers startup (0) and min/max config changes
+    if (fVal < pConfig->nMinCount)
+        fVal = pConfig->nMinCount;
+    if (fVal > pConfig->nMaxCount)
+        fVal = pConfig->nMaxCount;
 
     // Reset
-    if (bResetEdge)
+    if (bReset)
     {
-        fVal = 0;
+        fVal = pConfig->nMinCount;
         return;
     }
 
     // Hold to reset
     if (pConfig->bHoldToReset)
     {
-        if (bInc && (SYS_TIME - nLastIncTime >= pConfig->nResetTime))
+        if (*pIncInput && (SYS_TIME - nLastIncTime >= pConfig->nResetTime))
         {
-            fVal = 0;
+            fVal = pConfig->nMinCount;
             return;
         }
 
-        if (bDec && (SYS_TIME - nLastDecTime >= pConfig->nResetTime))
+        if (*pDecInput && (SYS_TIME - nLastDecTime >= pConfig->nResetTime))
         {
-            fVal = 0;
+            fVal = pConfig->nMinCount;
             return;
         }
     }
 
     // Increment
-    if (bIncEdge)
+    if (bInc)
     {
-        fVal++;
-        if (fVal > pConfig->nMaxCount)
-        {
-            fVal = pConfig->bWrapAround ? 0 : pConfig->nMaxCount;
-        }
+        if (fVal >= pConfig->nMaxCount)
+            fVal = pConfig->bWrapAround ? pConfig->nMinCount : pConfig->nMaxCount;
+        else
+            fVal++;
 
         nLastIncTime = SYS_TIME;
     }
 
     // Decrement
-    if (bDecEdge)
+    if (bDec)
     {
-        if(fVal == 0)
-        {
+        if (fVal <= pConfig->nMinCount)
             fVal = pConfig->bWrapAround ? pConfig->nMaxCount : pConfig->nMinCount;
-        }
         else
-        {
             fVal--;
-        }
 
         nLastDecTime = SYS_TIME;
     }
-
 }

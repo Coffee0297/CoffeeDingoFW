@@ -3,6 +3,7 @@
 #include "config.h"
 #include "mailbox.h"
 #include "config_handler.h"
+#include "request_msg.h"
 #include "crc.h"
 #include <cstring>
 
@@ -44,6 +45,45 @@ void EncodeParamRsp(CANTxFrame *tx, uint8_t cmd, uint16_t index, uint8_t subinde
     tx->data8[7] = (value >> 24) & 0xFF;
 }
 
+#define TX_MAX_RETRIES 50   // 50 × 200µs = 10ms max stall per frame before aborting
+
+// Retry a TX post when mailbox is full
+msg_t PostTxFrameWithRetry(CANTxFrame *tx) {
+    msg_t ret;
+    uint8_t txRetries = 0;
+    do {
+        ret = PostTxFrame(tx);
+        if (ret != MSG_OK) {
+            chThdSleepMicroseconds(200);
+            txRetries++;
+        }
+    } while (ret != MSG_OK && txRetries < TX_MAX_RETRIES);
+    return ret;
+}
+
+// Set while a ReadAll/WriteAll transfer is in progress so cyclic TX can pause.
+volatile bool g_bParamOpInProgress = false;
+static volatile uint32_t nParamOpStartTime = 0;
+#define PARAM_OP_MAX_DURATION_MS 4000 // never pause cyclic TX longer than this
+
+static void SetParamOpInProgress(bool bInProgress) {
+    g_bParamOpInProgress = bInProgress;
+    if (bInProgress)
+        nParamOpStartTime = SYS_TIME;
+}
+
+bool IsParamOpInProgress() {
+    if (!g_bParamOpInProgress)
+        return false;
+
+    if (SYS_TIME - nParamOpStartTime > PARAM_OP_MAX_DURATION_MS) {
+        g_bParamOpInProgress = false; // stale
+        return false;
+    }
+
+    return true;
+}
+
 void SendAllParams(bool modifiedOnly) {
     CANTxFrame tx;
     uint8_t nBatchCount = 0;
@@ -60,14 +100,11 @@ void SendAllParams(bool modifiedOnly) {
         nBatchCount++;
 
         uint32_t value = ReadParam(&stParams[i]);
-        EncodeParamRsp(&tx, static_cast<uint8_t>(MsgCmd::ReadAllRsp), 
+        EncodeParamRsp(&tx, static_cast<uint8_t>(MsgCmd::ReadAllRsp),
                         stParams[i].nIndex, stParams[i].nSubIndex, value);
-        msg_t ret;
-        do {
-            ret = PostTxFrame(&tx);
-            if (ret != MSG_OK)
-                chThdSleepMicroseconds(200);
-        } while (ret != MSG_OK);
+
+        if (PostTxFrameWithRetry(&tx) != MSG_OK)
+            break; // TX stalled — abort; ReadAllComplete sent below with wrong CRC so host retries
 
         nReadCrc = CalculateCRC32Partial(&tx.data8[4], 4, nReadCrc);
 
@@ -77,34 +114,27 @@ void SendAllParams(bool modifiedOnly) {
     chThdSleepMilliseconds(1);
     nReadCrc = ~nReadCrc; // Finalize CRC after all params sent
     EncodeParamRsp(&tx, static_cast<uint8_t>(MsgCmd::ReadAllComplete), nNumReadParams, 0, nReadCrc); // End of params marker, return number of params sent and CRC
-    PostTxFrame(&tx);
+    PostTxFrameWithRetry(&tx);
 }
 
 void CheckCrc() {
     CANTxFrame tx;
 
-    // Hardened full-config signature: ORDER-INDEPENDENT and self-describing. Each param contributes
-    // a standalone CRC over its identity (index+subindex) AND value, XOR-combined. XOR is commutative,
-    // so the host and firmware no longer have to iterate params in the same order to agree, and
-    // including the identity bytes means a missing/extra param changes the signature (a param-set
-    // difference is detected, not silently equal). The host computes the identical value in CalcCrc().
-    uint32_t acc = 0;
-    for (int i = 0; i < NUM_PARAMS; i++) {
-        uint32_t value = ReadParam(&stParams[i]);
-        EncodeParamRsp(&tx, static_cast<uint8_t>(MsgCmd::ReadAllRsp),
-                        stParams[i].nIndex, stParams[i].nSubIndex, value);
-        acc ^= CalculateCRC32(&tx.data8[1], 7); // index(2) + subindex(1) + value(4), finalized per param
-    }
-    nCheckCrc = acc;
+    nCheckCrc = CalcParamsCrc(false); // Canonical table-order CRC over live values
 
-    EncodeParamRsp(&tx, static_cast<uint8_t>(MsgCmd::CheckCrcRsp), 0, 0, nCheckCrc); // End of params marker, return CRC
-    PostTxFrame(&tx);
+    EncodeParamRsp(&tx, static_cast<uint8_t>(MsgCmd::CheckCrcRsp), 0, 0, nCheckCrc); // End of params marker, return number of params sent and CRC
+    PostTxFrameWithRetry(&tx);
+
 }
 
 void SetAllDefaultParams(bool temp) {
     for (int i = 0; i < NUM_PARAMS; i++) {
         WriteParam(&stParams[i], stParams[i].nDefaultVal, temp);
     }
+    #if HAS_LUA
+    if (!temp)
+        stConfig.stLua = {}; // not a param; a failed config read can leave anything in it
+    #endif
 }
 
 void ApplyTempParams() {
@@ -114,67 +144,189 @@ void ApplyTempParams() {
     }
 }
 
-MsgCmd ProcessParamMsg(CANRxFrame *rx, uint16_t *nIndex) {
+static void ApplyLiveConfig() {
+    LockConfig();
+    ApplyTempParams();
+    ApplyAllConfig();
+    UnlockConfig();
+}
+
+static bool bLastWriteWasModified = false;
+
+// Set by a correct Unlock, or by any config command allowed while no password was set
+// (so whoever sets the password keeps access until the next reset)
+static bool bUnlocked = false;
+static uint32_t nLastUnlockFail = 0;
+static bool bUnlockFailed = false;
+#define UNLOCK_RETRY_MS 1000 // after a wrong password, slows guessing to one try per second
+
+bool IsConfigLocked() {
+    return stConfig.stLock.nPassword != 0 && !bUnlocked;
+}
+
+static bool IsLockedCmd(const ParamMsg& msg) {
+    switch (msg.eCmd) {
+        case MsgCmd::Read:
+            // The contact text stays readable so a locked module says who to call
+            return !(msg.nIndex == 0x0200 && msg.nSubIndex != 0);
+        case MsgCmd::Write:
+        case MsgCmd::ReadAll:
+        case MsgCmd::ReadAllModified:
+        case MsgCmd::WriteAll:
+        case MsgCmd::WriteAllModified:
+        case MsgCmd::WriteAllVal:
+        case MsgCmd::WriteAllComplete:
+        case MsgCmd::Bootloader:
+            return true;
+        default:
+            return false;
+    }
+}
+
+#define MAX_WRITE_ALL_MISSING_REPORTED 16
+
+static void SendWriteAllMissingList(bool bForceOverflow) {
+    CANTxFrame tx;
+    bool bOverflow = bForceOverflow;
+
+    if (!bOverflow) {
+        uint16_t nMissing = 0;
+        for (uint16_t i = 0; i < NUM_PARAMS && nMissing <= MAX_WRITE_ALL_MISSING_REPORTED; i++) {
+            if (!IsParamReceived(i)) nMissing++;
+        }
+        bOverflow = (nMissing > MAX_WRITE_ALL_MISSING_REPORTED);
+    }
+
+    uint16_t nSent = 0;
+    if (!bOverflow) {
+        for (uint16_t i = 0; i < NUM_PARAMS && nSent < MAX_WRITE_ALL_MISSING_REPORTED; i++) {
+            if (!IsParamReceived(i)) {
+                EncodeParamRsp(&tx, static_cast<uint8_t>(MsgCmd::WriteAllMissing),
+                                stParams[i].nIndex, stParams[i].nSubIndex, 0);
+                PostTxFrameWithRetry(&tx);
+                nSent++;
+            }
+        }
+    }
+
+    uint16_t nDoneCount = bOverflow ? 0xFFFF : nSent;
+    EncodeParamRsp(&tx, static_cast<uint8_t>(MsgCmd::WriteAllMissingDone), nDoneCount, 0, 0);
+    PostTxFrameWithRetry(&tx);
+}
+
+static void ProcessParamMsg(CANRxFrame *rx) {
     CANTxFrame tx;
     ParamMsg msg;
 
     if (rx->SID != stConfig.stDevice.nBaseId + CONFIG_RX_OFFSET)
-        return MsgCmd::Invalid;
+        return;
 
     if (rx->DLC != 8)
-        return MsgCmd::Invalid;
+        return;
 
     DecodeParamCmd(rx, &msg);
 
-    *nIndex = msg.nIndex;
+    if (IsLockedCmd(msg)) {
+        if (IsConfigLocked()) {
+            EncodeParamRsp(&tx, static_cast<uint8_t>(MsgCmd::Locked), msg.nIndex, msg.nSubIndex, static_cast<uint8_t>(msg.eCmd));
+            PostTxFrameWithRetry(&tx);
+            return;
+        }
+        bUnlocked = true;
+    }
 
     switch(msg.eCmd) {
+        case MsgCmd::Unlock: {
+            uint32_t nPw = rx->data8[1] | (rx->data8[2] << 8) | (rx->data8[3] << 16) | ((uint32_t)rx->data8[4] << 24);
+            bool bOk = false;
+            if (!bUnlockFailed || (SYS_TIME - nLastUnlockFail >= UNLOCK_RETRY_MS)) {
+                bOk = (nPw == stConfig.stLock.nPassword);
+                bUnlockFailed = !bOk;
+                nLastUnlockFail = SYS_TIME;
+            }
+            if (bOk)
+                bUnlocked = true;
+            EncodeParamRsp(&tx, static_cast<uint8_t>(MsgCmd::Unlock), bOk, 0, 0);
+            PostTxFrameWithRetry(&tx);
+            break;
+        }
+
+        case MsgCmd::FactoryReset: {
+            // Always allowed: whoever holds the module can wipe it, password included
+            if (rx->data8[1] != 'W' || rx->data8[2] != 'I' || rx->data8[3] != 'P' || rx->data8[4] != 'E')
+                break;
+
+            // Keep the CAN id and bitrate: the module stays reachable and can't collide with another at the default id
+            uint16_t nBaseId = stConfig.stDevice.nBaseId;
+            CanBitrate eCanSpeed = stConfig.stDevice.eCanSpeed;
+            LockConfig();
+            SetAllDefaultParams();
+            stConfig.stDevice.nBaseId = nBaseId;
+            stConfig.stDevice.eCanSpeed = eCanSpeed;
+            ApplyAllConfig();
+            UnlockConfig();
+
+            EncodeParamRsp(&tx, static_cast<uint8_t>(MsgCmd::FactoryReset), WriteConfig() ? 1 : 0, 0, 0);
+            PostTxFrameWithRetry(&tx);
+            break;
+        }
+
         case MsgCmd::Read: {
             const ParamInfo* param = FindParam(msg.nIndex, msg.nSubIndex);
             if (param) {
                 uint32_t value = ReadParam(param);
                 EncodeParamRsp(&tx, static_cast<uint8_t>(MsgCmd::Read), msg.nIndex, msg.nSubIndex, value);
-                PostTxFrame(&tx);
+                PostTxFrameWithRetry(&tx);
                 break;
             }
             EncodeParamRsp(&tx, static_cast<uint8_t>(MsgCmd::ReadParamNotFound), msg.nIndex, msg.nSubIndex, 0);
-            PostTxFrame(&tx);
+            PostTxFrameWithRetry(&tx);
             break;
         }
 
         case MsgCmd::Write: {
             const ParamInfo* param = FindParam(msg.nIndex, msg.nSubIndex);
-            if (param && WriteParam(param, msg.nValue)) {
-                uint32_t value = ReadParam(param);
-                EncodeParamRsp(&tx, static_cast<uint8_t>(MsgCmd::Write), msg.nIndex, msg.nSubIndex, value);
-            } else if (param) {
-                // Refused (out of range): say so, with the value the module kept, instead of staying silent
-                // (dingoConfig reported such writes as done and its project drifted from the device).
-                EncodeParamRsp(&tx, static_cast<uint8_t>(MsgCmd::WriteAllOutOfRange), msg.nIndex, msg.nSubIndex, ReadParam(param));
-            } else {
-                EncodeParamRsp(&tx, static_cast<uint8_t>(MsgCmd::WriteAllParamNotFound), msg.nIndex, msg.nSubIndex, msg.nValue);
+            if (!param) {
+                EncodeParamRsp(&tx, static_cast<uint8_t>(MsgCmd::WriteAllParamNotFound), msg.nIndex, msg.nSubIndex, 0);
+                PostTxFrameWithRetry(&tx);
+                break;
             }
-            PostTxFrame(&tx);
+
+            LockConfig();
+            bool bWritten = WriteParam(param, msg.nValue);
+            if (bWritten)
+                ApplyConfig(msg.nIndex);
+            UnlockConfig();
+
+            // Out of range: reply with the value the module kept, so the tool doesn't think it was written
+            EncodeParamRsp(&tx, static_cast<uint8_t>(bWritten ? MsgCmd::Write : MsgCmd::WriteAllOutOfRange),
+                           msg.nIndex, msg.nSubIndex, ReadParam(param));
+            PostTxFrameWithRetry(&tx);
             break;
         }
 
         case MsgCmd::ReadAll:
         case MsgCmd::ReadAllModified:
+            SetParamOpInProgress(true);
             nNumReadParams = 0;
             nReadCrc = 0xFFFFFFFF; // Reset CRC for new batch
             EncodeParamRsp(&tx, static_cast<uint8_t>(msg.eCmd), 0, 0, 0); // Start of params marker
-            PostTxFrame(&tx);
+            PostTxFrameWithRetry(&tx);
             chThdSleepMilliseconds(1);
             SendAllParams(msg.eCmd == MsgCmd::ReadAllModified);
+            SetParamOpInProgress(false); // ReadAllComplete already sent by SendAllParams
             break;
 
         case MsgCmd::WriteAll:
         case MsgCmd::WriteAllModified:
+            SetParamOpInProgress(true); // cleared on WriteAllComplete below
+            bLastWriteWasModified = (msg.eCmd == MsgCmd::WriteAllModified);
             nNumWriteParams = 0;
             nWriteCrc = 0xFFFFFFFF; // Reset CRC for new batch
+            ResetWriteReceivedMask();
             SetAllDefaultParams(true); // Clear temp values
             EncodeParamRsp(&tx, static_cast<uint8_t>(msg.eCmd), 0, 0, 0); // Start of params marker
-            PostTxFrame(&tx);
+            PostTxFrameWithRetry(&tx);
             break;
 
         case MsgCmd::WriteAllVal: {
@@ -182,30 +334,63 @@ MsgCmd ProcessParamMsg(CANRxFrame *rx, uint16_t *nIndex) {
             //Param not found or invalid value, respond with error
             if (!param){
                 EncodeParamRsp(&tx, static_cast<uint8_t>(MsgCmd::WriteAllParamNotFound), msg.nIndex, msg.nSubIndex, 0);
-                PostTxFrame(&tx);
+                PostTxFrameWithRetry(&tx);
                 break;
             }
             //Param out of range, respond with error
             if (!WriteParam(param, msg.nValue, true)) {
                 EncodeParamRsp(&tx, static_cast<uint8_t>(MsgCmd::WriteAllOutOfRange), msg.nIndex, msg.nSubIndex, msg.nValue);
-                PostTxFrame(&tx);
+                PostTxFrameWithRetry(&tx);
                 break;
             }
-            //Param found, in range, staged successfully, respond with value for confirmation
             nWriteCrc = CalculateCRC32Partial(&rx->data8[4], 4, nWriteCrc);
             nNumWriteParams++;
+            MarkParamReceived(param);
             break;
         }
 
         case MsgCmd::WriteAllComplete: {
-            // Ensure all params were written
             uint16_t nExpectedParams = rx->data8[1] | (rx->data8[2] << 8);
-            if (nNumWriteParams == nExpectedParams) {
-                ApplyTempParams();
+            uint32_t nExpectedCrc = msg.nValue; // host's CRC of what it sent, bytes 4-7
+
+            uint16_t nReportedCount;
+            uint32_t nReportedCrc;
+            uint8_t bApplied;
+            bool bNeedsMissingList = false;
+            bool bCrcMismatchOnFullCount = false;
+
+            if (bLastWriteWasModified) {
+                // Only apply if every param was received
+                nWriteCrc = ~nWriteCrc; // Finalize CRC of what we actually received
+                bApplied = (nNumWriteParams == nExpectedParams && nWriteCrc == nExpectedCrc) ? 1 : 0;
+                if (bApplied) {
+                    ApplyLiveConfig();
+                }
+                nReportedCount = nNumWriteParams;
+                nReportedCrc = nWriteCrc;
+            } else {
+                // Full WriteAll, count params instead of relying on receive order
+                uint16_t nReceived = CountReceivedParams();
+                uint32_t nCrc = (nReceived == nExpectedParams) ? CalcParamsCrc(true) : 0;
+                bApplied = (nReceived == nExpectedParams && nCrc == nExpectedCrc) ? 1 : 0;
+                if (bApplied) {
+                    ApplyLiveConfig();
+                } else {
+                    bNeedsMissingList = true;
+                    bCrcMismatchOnFullCount = (nReceived == nExpectedParams); // nothing to enumerate
+                }
+                nReportedCount = nReceived;
+                nReportedCrc = nCrc;
             }
-            nWriteCrc = ~nWriteCrc; // Finalize CRC
-            EncodeParamRsp(&tx, static_cast<uint8_t>(MsgCmd::WriteAllComplete), nNumWriteParams, 0, nWriteCrc); // End of params marker, return number of params written and CRC
-            PostTxFrame(&tx);
+
+            EncodeParamRsp(&tx, static_cast<uint8_t>(MsgCmd::WriteAllComplete), nReportedCount, bApplied, nReportedCrc);
+            PostTxFrameWithRetry(&tx);
+
+            if (bNeedsMissingList) {
+                SendWriteAllMissingList(bCrcMismatchOnFullCount);
+            }
+
+            SetParamOpInProgress(false);
             break;
         }
 
@@ -216,6 +401,50 @@ MsgCmd ProcessParamMsg(CANRxFrame *rx, uint16_t *nIndex) {
         default:
             break;
     }
+}
 
-    return msg.eCmd;
+static CANRxFrame paramFrames[MAILBOX_SIZE];
+static msg_t paramMsgs[MAILBOX_SIZE];
+static objects_fifo_t paramFifo;
+
+bool RouteParamFrame(CANRxFrame *frame)
+{
+    if ((frame->IDE != CAN_IDE_STD) ||
+        (frame->SID != stConfig.stDevice.nBaseId + CONFIG_RX_OFFSET))
+        return false;
+
+    CANRxFrame *pFrame = static_cast<CANRxFrame*>(chFifoTakeObjectTimeout(&paramFifo, TIME_IMMEDIATE));
+    if (pFrame == nullptr)
+        return true; // Queue full, drop - host retries on CRC/count mismatch
+
+    *pFrame = *frame;
+    chFifoSendObject(&paramFifo, pFrame);
+    return true;
+}
+
+static THD_WORKING_AREA(waParamThread, DEVICE_THREAD_STACK);
+static void ParamThread(void *)
+{
+    chRegSetThreadName("Param");
+
+    while (true)
+    {
+        CANRxFrame *pFrame;
+        if (chFifoReceiveObjectTimeout(&paramFifo, reinterpret_cast<void**>(&pFrame), TIME_INFINITE) != MSG_OK)
+            continue;
+
+        CANRxFrame frame = *pFrame;
+        chFifoReturnObject(&paramFifo, pFrame);
+
+        CheckRequestMsgs(&frame);
+        ProcessParamMsg(&frame);
+    }
+}
+
+void InitParamThread()
+{
+    chFifoObjectInit(&paramFifo, sizeof(CANRxFrame), MAILBOX_SIZE, paramFrames, paramMsgs);
+
+    // Priority below DeviceThread
+    chThdCreateStatic(waParamThread, sizeof(waParamThread), NORMALPRIO - 1, ParamThread, nullptr);
 }

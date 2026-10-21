@@ -1,24 +1,17 @@
 #pragma once
 
 #include <cstdint>
-#include "enums.h"
-#ifdef DINGO_HOST_TEST
-#define VAR_MAP_SIZE 1
-#else
 #include "port.h"
-#endif
+#include "enums.h"
 
 extern float *pVarMap[VAR_MAP_SIZE];
 
-// Timer function (FW #61): a single var-map input starts a timer; the output follows one of
-// three classic PLC timer shapes. `eEdge` picks the input level that counts as "active":
-// Rising = input true, Falling = input false (so a timer can run while something is OFF).
 struct Config_Timer{
   bool bEnabled;
   uint16_t nInput;
-  InputEdge eEdge;      // Rising / Falling: which input level is the active (trigger) state
-  TimerMode eMode;      // OnDelay (TON) / OffDelay (TOF) / Pulse (TP)
-  uint32_t nPreset;     // ms
+  uint16_t nResetInput;
+  TimerMode eMode;
+  uint32_t nTime; //ms
 };
 
 class Timer
@@ -27,15 +20,27 @@ public:
     Timer() {
     };
 
-    static const uint16_t nBaseIndex = 0x1B00;
+    static const uint16_t nBaseIndex = 0x1A00;
 
     void SetConfig(Config_Timer* config)
     {
         pConfig = config;
         pInput = pVarMap[config->nInput];
+        pResetInput = pVarMap[config->nResetInput];
     }
 
-    void Update(uint32_t nTimeNow);
+    void Update();
+
+    bool IsRunning() { return bRunning; }
+
+    // ms since the timer started, held at the preset, 0 when not running
+    uint32_t GetElapsed()
+    {
+        if (!bRunning)
+            return 0;
+        uint32_t nElapsed = SYS_TIME - nStartTime;
+        return (nElapsed < pConfig->nTime) ? nElapsed : pConfig->nTime;
+    }
 
     float fVal;
 
@@ -43,8 +48,11 @@ private:
     Config_Timer* pConfig;
 
     float *pInput;
+    float *pResetInput;
 
-    bool bLastActive;
-    bool bTiming;
+    bool bInit;
+    bool bLastIn;
+    bool bRunning;
+    bool bOut;
     uint32_t nStartTime;
 };

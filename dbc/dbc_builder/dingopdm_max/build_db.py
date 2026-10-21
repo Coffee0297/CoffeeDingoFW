@@ -5,7 +5,7 @@ import dingopdm_max
 def build_db(base_id):
     db = cantools.database.Database()
     db.name = "dingoPdm-Max"
-    db.version = "0.5.1"
+    db.version = "0.6.1"
     
     db.messages.append(dingopdm_max.build_msg_0(base_id + 2))
     db.messages.append(dingopdm_max.build_msg_1(base_id + 2))
@@ -35,5 +35,12 @@ def build_db(base_id):
     db.messages.append(dingopdm_max.build_msg_25(base_id + 2))
     db.messages.append(dingopdm_max.build_msg_26(base_id + 2))
     db.messages.append(dingopdm_max.build_msg_27(base_id + 2))
+    db.messages.append(dingopdm_max.build_msg_28(base_id + 2))
+    db.messages.append(dingopdm_max.build_msg_29(base_id + 2))
+    db.messages.append(dingopdm_max.build_msg_30(base_id + 2))
+    db.messages.append(dingopdm_max.build_msg_31(base_id + 2))
+    db.messages.append(dingopdm_max.build_msg_32(base_id + 2))
+    db.messages.append(dingopdm_max.build_msg_33(base_id + 2))
+    db.messages.append(dingopdm_max.build_msg_34(base_id + 2))
 
     return db

@@ -77,6 +77,9 @@ int32_t Dbc::DecodeBE(const uint8_t *pData, uint8_t nStartBit,
 
     for (int i = 0; i < nBitLength; i++)
     {
+        if (byteIndex >= 8)
+            break;
+
         // Extract bit
         if ((pData[byteIndex] >> bitIndex) & 1)
             value |= (1ULL << (nBitLength - 1 - i));
@@ -141,6 +144,9 @@ void Dbc::EncodeBE(uint8_t *pData, int32_t nRawValue,
 
     for (int i = 0; i < nBitLength; i++)
     {
+        if (byteIndex >= 8)
+            break;
+
         if ((value >> (nBitLength - 1 - i)) & 1)
             pData[byteIndex] |=  (1 << bitIndex);
         else
@@ -207,4 +213,30 @@ void Dbc::EncodeFloat(uint8_t *pData, float fValue, uint8_t nStartBit)
     pData[nStartByte + 1] = (raw >> 8) & 0xFF;
     pData[nStartByte + 2] = (raw >> 16) & 0xFF;
     pData[nStartByte + 3] = (raw >> 24) & 0xFF;
+}
+
+// CRC8 kinds: init 0xFF, xorout 0xFF (SAE J1850 poly 0x1D, AUTOSAR poly 0x2F)
+uint8_t Dbc::Checksum(CanOutputKind eKind, const uint8_t *pData, uint8_t nLen, uint8_t nSkipByte)
+{
+    bool bCrc = eKind >= CanOutputKind::Crc8SaeJ1850;
+    uint8_t nPoly = (eKind == CanOutputKind::Crc8Autosar) ? 0x2F : 0x1D;
+    uint8_t nVal = bCrc ? 0xFF : 0;
+
+    for (uint8_t i = 0; i < nLen; i++)
+    {
+        if (i == nSkipByte) continue;
+
+        if (eKind == CanOutputKind::ChecksumXor)
+            nVal ^= pData[i];
+        else if (eKind == CanOutputKind::ChecksumSum)
+            nVal += pData[i];
+        else
+        {
+            nVal ^= pData[i];
+            for (uint8_t b = 0; b < 8; b++)
+                nVal = (nVal & 0x80) ? (uint8_t)((nVal << 1) ^ nPoly) : (uint8_t)(nVal << 1);
+        }
+    }
+
+    return bCrc ? (uint8_t)(nVal ^ 0xFF) : nVal;
 }

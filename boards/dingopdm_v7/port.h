@@ -3,10 +3,9 @@
 #include "hal.h"
 #include "enums.h"
 
-#define PDM_TYPE 0 //0 = PDM
-#define BOARD_ID 0 //device-type id reported in the Version reply (0=dingoPDM, 1=PDM-MAX, 2=CANBoard)
+#define BOARD_ID 0 //Version reply byte 1: 0 PDM, 1 PDM-MAX, 2 CANBoard, 3 PT-DPDM4
 
-#define PROCESS_STACK 0x1000
+#define PDM_TYPE 0 //0 = PDM
 
 #define HAS_SE_LEDS TRUE
 #define HAS_USB TRUE
@@ -18,10 +17,8 @@
 
 #define NUM_OUTPUTS 8
 #define NUM_DIG_OUTPUTS 0
+#define DI_PWM_MAX_FREQ 1000 // Hz, the input circuit's limit
 #define NUM_DIG_INPUTS 2
-// PWM-input frequency cap (param 0x1200 sub 6): 4.7k + 10 nF input RC (HW v7.5 schematic): duty skews above ~1 kHz. Open collector on the
-// internal pull-up (~40k charging the 10 nF) is only good to ~100 Hz: use an external pull-up.
-#define DI_PWM_MAX_FREQ 1000
 #define NUM_ANALOG_INPUTS 0
 #define NUM_VIRT_INPUTS 16
 #define NUM_CAN_INPUTS 32
@@ -31,63 +28,72 @@
 #define NUM_WIPER_SPEED_MAP 8
 #define NUM_COUNTERS 4
 #define NUM_CONDITIONS 32
+#define NUM_MATH 8
+#define NUM_CAN_MSGS 4
+#define NUM_CURVES 4
 #define NUM_TIMERS 8
-#define NUM_TABLES 2
-#define NUM_MATH 8       // Math blocks (5.6)
-#define NUM_CAN_MSGS 4   // CAN Message blocks (5.6)
-#define IGN_STATE_OFFSET 30   // ignition state frame: the first id after this board's own range (5.6)
+#define NUM_TABLES 4
+#define NUM_LATCH_GATES 8
+#define NUM_PIDS 4
 #define NUM_KEYPADS 2
 #define HAS_WIPERS TRUE
+#define HAS_COMFORT_BLINK TRUE
+#define HAS_IGNITION TRUE
 #define HAS_STARTER_DISABLE TRUE
 
 #define KEYPAD_MAX_BUTTONS 20
 #define KEYPAD_MAX_ANALOG_INPUTS 4
 #define KEYPAD_MAX_DIALS 2
 
-// Lua output slots: a pool the Lua program writes via setLuaOut(n,v). Any output/
-// virtual-input/CAN-output is "Lua-driven" by pointing its nInput at one of these.
+#define HAS_LUA TRUE
 #define NUM_LUA_OUTPUTS 32
+#define LUA_HEAP_SIZE (40 * 1024) // as on its own branch, after the mailbox/stack trims; 48 KB does not fit
+#define LUA_SCRIPT_MAX 4096
 
+#define HAS_NEOPIXELS FALSE
+
+//Always false
+//Always true
+//State
+//Temperature sensor
+//Battery voltage
 #define VAR_MAP_SYS_VARS 5
+
 #define VAR_MAP_WIPER_VARS 6
 
 #define VAR_MAP_SIZE ( \
     VAR_MAP_SYS_VARS + \
-    (NUM_DIG_INPUTS * 1) + \
+    (NUM_DIG_INPUTS * 3) + \
     (NUM_ANALOG_INPUTS * 5) + \
     (NUM_DIG_OUTPUTS * 1) + \
     (NUM_CAN_INPUTS * 2) + \
     (NUM_VIRT_INPUTS * 1) + \
-    (NUM_OUTPUTS * 4) + \
+    (NUM_OUTPUTS * 7) + \
     (NUM_FLASHERS * 1) + \
     (NUM_CONDITIONS * 1) + \
     (NUM_COUNTERS * 1) + \
-    VAR_MAP_WIPER_VARS + \
-    (NUM_KEYPADS * (KEYPAD_MAX_BUTTONS + KEYPAD_MAX_DIALS + KEYPAD_MAX_ANALOG_INPUTS)) + \
-    (NUM_LUA_OUTPUTS * 1) + \
     (NUM_TIMERS * 1) + \
+    (NUM_OUTPUTS * 1) + \
+    (NUM_MATH * 1) + \
     (NUM_TABLES * 1) + \
-    (NUM_DIG_INPUTS * 2) + \
-    (NUM_MATH * 1) + (NUM_CAN_MSGS * 1) + 7 /* ignition (5.6) */ + 2 /* comfort blink (5.6.1) */ \
+    (NUM_CURVES * 1) + \
+    (NUM_LATCH_GATES * 1) + \
+    (NUM_PIDS * 4) + \
+    (HAS_COMFORT_BLINK * 2) + \
+    (HAS_IGNITION * 8) + \
+    (NUM_LUA_OUTPUTS * 1) + \
+    VAR_MAP_WIPER_VARS + \
+    (NUM_KEYPADS * (KEYPAD_MAX_BUTTONS + KEYPAD_MAX_DIALS + KEYPAD_MAX_ANALOG_INPUTS)) \
 )
 
-#define MAILBOX_SIZE 128
-#define DEVICE_THREAD_STACK 2048
+#define MAILBOX_SIZE 256 // param FIFO and USB TX queue (USB bursts, not measurable in the Sim)
+#define CAN_RX_MAILBOX_SIZE 64 // Sim peak 4 under a 3000-frame flood; 1 Mbit/s full load is 16 per 2 ms device cycle
+#define CAN_TX_MAILBOX_SIZE 128 // Sim peak 42 (all status frames + Lua)
+#define DEVICE_THREAD_STACK 1536 // device and param threads: Sim peak 568 / 816 B of the 2 KB working area
+#define CAN_THREAD_STACK 512
 
-// Last 2KB sector of flash (sector 31, 0x0800F800)
-// Max program flash size goes to the end of sector 30 (0x0800F000) to leave config space at the end of flash
-// !!! Flash must be smaller thank 63488 bytes !!!
-#define CONFIG_SECTOR       31U
-#define CONFIG_FLASH_OFFSET (CONFIG_SECTOR * 2048U)
-#define CONFIG_FLASH        getBaseFlash(&EFLD1)
-
-#define NUM_TX_MSGS 28   // +Msg 27: table outputs (base+29)
+#define NUM_TX_MSGS 35
 #define DEFAULT_BASE_ID 0x0DE
-
-// Lua: embedded interpreter enabled on this board.
-#define HAS_LUA TRUE
-#define LUA_HEAP_SIZE (48 * 1024)   // static RAM arena (no newlib malloc)
-#define LUA_SCRIPT_MAX 4096         // max assembled program size stored in config
 
 #define ADC1_NUM_CHANNELS 8
 #define ADC1_BUF_DEPTH 1
@@ -96,9 +102,10 @@
 #define BTS7008_2EPA_KILIS 5950
 #define BTS70012_1ESP_KILIS 35000
 
-#define SLEEP_TIMEOUT 30000
 
-#define SYS_TIME TIME_I2MS(chVTGetSystemTimeX())
+// Milliseconds from the 64-bit timestamp, truncated to 32 bits so it wraps cleanly
+// every ~49.7 days. Always compare as (SYS_TIME - start), never as absolute times.
+#define SYS_TIME ((uint32_t)(chVTGetTimeStamp() / (CH_CFG_ST_FREQUENCY / 1000)))
 
 static const float ALWAYS_FALSE = 0.0f;
 static const float ALWAYS_TRUE = 1.0f;

@@ -23,6 +23,12 @@
 #| should be located in ".\Doc\license.html". If not, contact Feaser to obtain a copy.
 #|
 #****************************************************************************************
+# dingoFW: OpenBLT XCP-over-CAN bootloader for the STM32F446 boards (dingopdm_v7, dingopdmmax_v1,
+# pt-dpdm4_1: same clock, CAN pins and transceiver standby pin). Build with arm-none-eabi-gcc on the
+# PATH:  cd bootloader/dingopdm && make   ->  bin/dingopdm_blt.hex (and .srec, .elf)
+# Program it once at 0x08000000 (SWD with the .hex, or USB-DFU with a raw image:
+#   arm-none-eabi-objcopy -O binary bin/dingopdm_blt.elf blt.bin && dfu-util -a 0 -s 0x08000000 -D blt.bin),
+# then the application, which is linked at 0x08004000. Reflash the application over CAN afterwards.
 SHELL = sh
 
 #|--------------------------------------------------------------------------------------|
@@ -95,6 +101,7 @@ PROJ_CSRCS  = $(filter %.c,$(foreach file,$(PROJ_FILES),$(notdir $(file))))
 VPATH    = $(foreach path,$(sort $(foreach file,$(PROJ_FILES),$(dir $(file)))) $(subst \,/,$(OBJ_PATH)),$(path) :)
 OBJ_PATH = obj
 BIN_PATH = bin
+$(shell mkdir -p $(OBJ_PATH) $(BIN_PATH))
 INC_PATH = $(patsubst %/,%,$(patsubst %,-I%,$(sort $(foreach file,$(filter %.h,$(PROJ_FILES)),$(dir $(file))))))
 LIB_PATH  = 
 
@@ -107,7 +114,7 @@ STDFLAGS   += -fdata-sections -ffunction-sections -Wall -g3
 OPTFLAGS    = -Og
 DEPFLAGS    = -MT $@ -MMD -MP -MF $(OBJ_PATH)/$*.d
 CFLAGS      = $(STDFLAGS) $(OPTFLAGS)
-CFLAGS     += -DUSE_FULL_LL_DRIVER -DUSE_HAL_DRIVER -DSTM32F446xx -DPRINTF_INCLUDE_CONFIG_H
+CFLAGS     += -DUSE_FULL_LL_DRIVER -DUSE_HAL_DRIVER -DSTM32F446xx
 # dingoFW: pin the HSE crystal to 8 MHz everywhere (ll_rcc.h's fallback is 25 MHz, which
 # would make LL_RCC_GetSystemClocksFreq mis-compute PCLK1 and pick the wrong CAN bittiming).
 CFLAGS     += -DHSE_VALUE=8000000U

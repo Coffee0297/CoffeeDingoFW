@@ -17,6 +17,7 @@ struct Config_KeypadButton{
   bool bFaultBlink;
   uint8_t nBlinkColors[4];
   uint8_t nFaultBlinkColor;
+  bool bRetain;
 };
 
 class KeypadButton;
@@ -57,11 +58,11 @@ public:
     }
 
     //Blink Marine-specific LED state
-    BlinkMarineButtonColor eLedOnColor = BlinkMarineButtonColor::Off;
-    BlinkMarineButtonColor eLedBlinkColor = BlinkMarineButtonColor::Off;
+    volatile BlinkMarineButtonColor eLedOnColor = BlinkMarineButtonColor::Off;
+    volatile BlinkMarineButtonColor eLedBlinkColor = BlinkMarineButtonColor::Off;
 
     //Grayhill specific LED state
-    bool bLed[3] = {false, false, false};
+    volatile bool bLed[3] = {false, false, false};
 
     Input input;
     bool bVal = false;    

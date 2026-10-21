@@ -66,7 +66,7 @@ const CANConfig &GetCanConfig(CanBitrate bitrate)
     return canConfig500;
 }
 
-adcsample_t adc1_samples[ADC1_NUM_CHANNELS] = {0};
+volatile adcsample_t adc1_samples[ADC1_NUM_CHANNELS] = {0};
 // 0 = OutIS1 - ADC1_IN13
 // 1 = OutIS2 - ADC1_IN12
 // 2 = OutIS3 - ADC1_IN0
@@ -109,7 +109,7 @@ msg_t InitAdc()
 
     adcSTM32EnableTSVREFE(); // Enable temp sensor and vref
 
-    adcStartConversion(&ADCD1, &adc1_cfg, adc1_samples, ADC1_BUF_DEPTH);
+    adcStartConversion(&ADCD1, &adc1_cfg, const_cast<adcsample_t*>(adc1_samples), ADC1_BUF_DEPTH);
 
     return HAL_RET_SUCCESS;
 }
@@ -139,10 +139,14 @@ float GetBattVolt()
 
 float GetTemperature()
 {
-    return (30.0 + ((float)(GetAdcRaw(AnalogChannel::TempSensor) - STM32_TEMP_3V3_30C) / (STM32_TEMP_3V3_110C - STM32_TEMP_3V3_30C)) * (110.0 - 30.0));
+    return (STM32_TS_CAL1_TEMP + ((float)(GetAdcRaw(AnalogChannel::TempSensor) - STM32_TS_CAL1) / (STM32_TS_CAL2 - STM32_TS_CAL1)) * (STM32_TS_CAL2_TEMP - STM32_TS_CAL1_TEMP));
 }
 
 float GetVDDA()
 {
-    return ((float)STM32_VREF_INT_CAL / (float)GetAdcRaw(AnalogChannel::VRefInt)) * 3.3;
+    uint16_t raw = GetAdcRaw(AnalogChannel::VRefInt);
+    if (raw == 0)
+        return 3.3; // No conversion yet, assume nominal
+
+    return ((float)STM32_VREF_INT_CAL / (float)raw) * STM32_CAL_VDDA;
 }

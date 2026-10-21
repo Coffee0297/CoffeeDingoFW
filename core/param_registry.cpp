@@ -1,6 +1,8 @@
 #include "param_registry.h"
 #include "params.h"
+#include "crc.h"
 #include <cstring>
+#include <bit>
 
 //=============================================================================
 // Parameter Table - Lives in flash (.rodata)
@@ -9,6 +11,14 @@
 const ParamInfo stParams[] = {
     // Device Config (0x0000)
     DEVICE_CONFIG_PARAMS(),
+
+    #if CAN_SLEEP
+    // Wake frame (0x0100)
+    WAKE_FRAME_PARAMS(),
+    #endif
+
+    // Config lock (0x0200)
+    LOCK_PARAMS(),
 
     // Outputs (0x1000+)
     #if NUM_OUTPUTS > 0
@@ -35,30 +45,6 @@ const ParamInfo stParams[] = {
     // Flashers (0x1700+)
     ALL_FLASHER_PARAMS,
 
-    #if NUM_TABLES > 0
-    // Tables (0x1A00+)
-    ALL_TABLE_PARAMS,
-    #endif
-
-    // Timers (0x1B00+)
-    ALL_TIMER_PARAMS,
-
-    // Ignition (0x1E00)
-    IGNITION_PARAMS(),
-
-    // Comfort blink (0x1F00)
-    COMFORT_BLINK_PARAMS(),
-
-    #if NUM_MATH > 0
-    // Math blocks (0x1C00+)
-    ALL_MATH_PARAMS,
-    #endif
-
-    #if NUM_CAN_MSGS > 0
-    // CAN Message blocks (0x1D00+)
-    ALL_CAN_MSG_PARAMS,
-    #endif
-
     #if HAS_STARTER_DISABLE > 0
     // Starter (0x1800)
     STARTER_PARAMS(),
@@ -70,6 +56,44 @@ const ParamInfo stParams[] = {
     WIPER_PARAMS(),
     WIPER_SPEED_MAP_PARAMS(),
     WIPER_INTERMIT_PARAMS(),
+    #endif
+
+    #if NUM_TIMERS > 0
+    // Timers (0x1A00+)
+    ALL_TIMER_PARAMS,
+    #endif
+
+    #if NUM_MATH > 0
+    // Math blocks (0x1C00+)
+    ALL_MATH_PARAMS,
+    #endif
+
+    #if NUM_CAN_MSGS > 0
+    // CAN Messages (0x1D00+)
+    ALL_CAN_MSG_PARAMS,
+    #endif
+
+    #if NUM_TABLES > 0
+    // Tables (0x1B00+)
+    ALL_TABLE_PARAMS,
+    #endif
+
+    #if NUM_PIDS > 0
+    // PIDs (0x2300+)
+    ALL_PID_PARAMS,
+    #endif
+
+    #if HAS_COMFORT_BLINK
+    // Comfort Blink (0x1F00)
+    COMFORT_BLINK_PARAMS(),
+    #endif
+
+    #if HAS_IGNITION
+    // Ignition (0x1E00)
+    IGNITION_PARAMS(),
+    #if NUM_OUTPUTS > 0
+    ALL_IGNITION_OUTPUT_PARAMS,
+    #endif
     #endif
 
     // CAN Outputs (0x2000+)
@@ -85,6 +109,16 @@ const ParamInfo stParams[] = {
     ALL_ANALOG_INPUT_PARAMS,
     #endif
 
+    #if NUM_CURVES > 0
+    // Curves (0x2400+)
+    ALL_CURVE_PARAMS,
+    #endif
+
+    #if NUM_LATCH_GATES > 0
+    // Latch / gate blocks (0x2600+)
+    ALL_LATCH_GATE_PARAMS,
+    #endif
+
     #if NUM_KEYPADS > 0
     // Keypads (0x3000+)
     ALL_KEYPAD_PARAMS,
@@ -98,6 +132,33 @@ const ParamInfo stParams[] = {
 };
 
 const uint16_t NUM_PARAMS = sizeof(stParams) / sizeof(stParams[0]);
+
+//=============================================================================
+// WriteAll received-param tracking (full WriteAll only, see param_registry.h)
+//=============================================================================
+
+static uint8_t writeReceivedMask[(NUM_PARAMS + 7) / 8];
+
+void ResetWriteReceivedMask() {
+    memset(writeReceivedMask, 0, sizeof(writeReceivedMask));
+}
+
+void MarkParamReceived(const ParamInfo* param) {
+    if (param == nullptr) return;
+    size_t i = param - stParams; // valid: param always points into stParams[]
+    writeReceivedMask[i / 8] |= static_cast<uint8_t>(1u << (i % 8));
+}
+
+bool IsParamReceived(uint16_t i) {
+    return (writeReceivedMask[i / 8] & (1u << (i % 8))) != 0;
+}
+
+uint16_t CountReceivedParams() {
+    uint16_t count = 0;
+    for (size_t i = 0; i < sizeof(writeReceivedMask); i++)
+        count += static_cast<uint16_t>(std::popcount(writeReceivedMask[i]));
+    return count;
+}
 
 //=============================================================================
 // Parameter Access Functions
@@ -116,6 +177,10 @@ const ParamInfo* FindParam(uint16_t index, uint8_t subindex) {
 uint32_t ReadParam(const ParamInfo* param, bool temp)
 {
     if(param == nullptr || param->pVal == nullptr || param->pTempVal == nullptr)
+        return 0;
+
+    // The password is write-only; the staged copy stays readable so WriteAll can apply and CRC it
+    if (!temp && param->pVal == &stConfig.stLock.nPassword)
         return 0;
 
     void* targetPtr = temp ? param->pTempVal : param->pVal;
@@ -158,7 +223,7 @@ bool WriteParam(const ParamInfo* param, uint32_t value, bool temp)
             memcpy(&fVal, &value,           sizeof(float));
             memcpy(&fMin, &param->nMinVal,  sizeof(float));
             memcpy(&fMax, &param->nMaxVal,  sizeof(float));
-            if (fVal < fMin || fVal > fMax) return false;
+            if (!(fVal >= fMin && fVal <= fMax)) return false; // also refuses NaN
             break;
         }
         case ParamType::Int8:
@@ -215,4 +280,24 @@ bool IsDefaultValue(const ParamInfo* param)
         return false;
 
     return ReadParam(param) == param->nDefaultVal;
+}
+
+uint32_t CalcParamsCrc(bool temp)
+{
+    uint32_t crc = 0xFFFFFFFF;
+
+    for (uint16_t i = 0; i < NUM_PARAMS; i++) {
+        uint32_t value = ReadParam(&stParams[i], temp);
+        // Little-endian wire encoding, matching EncodeParamRsp's data8[4..7] layout,
+        // independent of host byte order.
+        uint8_t bytes[4] = {
+            static_cast<uint8_t>(value & 0xFF),
+            static_cast<uint8_t>((value >> 8) & 0xFF),
+            static_cast<uint8_t>((value >> 16) & 0xFF),
+            static_cast<uint8_t>((value >> 24) & 0xFF)
+        };
+        crc = CalculateCRC32Partial(bytes, 4, crc);
+    }
+
+    return ~crc;
 }

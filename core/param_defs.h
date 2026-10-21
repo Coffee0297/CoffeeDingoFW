@@ -6,23 +6,53 @@
 // Parameter definitions for compile-time registration
 // Index = base + instance, SubIndex = parameter within instance
 
+// {Index, SubIndex, Value Pointer, Temporary Value Pointer, Parameter Type, Default Value, Minimum Value, Maximum Value}
+
 //=============================================================================
 // Device Config Parameters - Base 0x0000
 //=============================================================================
 #define DEVICE_CONFIG_PARAMS() \
-    {0x0000, 0, &stConfig.stDevice.nBaseId,            &stConfigTemp.stDevice.nBaseId,           ParamType::UInt16, DEFAULT_BASE_ID, 0, 0x7FF}, \
-    {0x0000, 1, &stConfig.stDevice.eCanSpeed,          &stConfigTemp.stDevice.eCanSpeed,         ParamType::Enum,   static_cast<uint32_t>(CanBitrate::Bitrate_500K), 0, 4}, \
-    {0x0000, 2, &stConfig.stDevice.bSleepEnabled,      &stConfigTemp.stDevice.bSleepEnabled,     ParamType::Bool,   0, 0, 1}, \
-    {0x0000, 3, &stConfig.stDevice.bCanFilterEnabled,  &stConfigTemp.stDevice.bCanFilterEnabled, ParamType::Bool,   0, 0, 1}, \
-    {0x0000, 4, &stConfig.stDevice.bConnectUsbToCan,   &stConfigTemp.stDevice.bConnectUsbToCan,  ParamType::Bool,   1, 0, 1}, \
-    {0x0000, 5, &stConfig.stDevice.nSleepTimeoutMs,    &stConfigTemp.stDevice.nSleepTimeoutMs,   ParamType::UInt16, 30000, 1000, 60000}, \
-    {0x0000, 9, &stConfig.stDevice.bSleepIgnoreAlwaysOn,  &stConfigTemp.stDevice.bSleepIgnoreAlwaysOn,  ParamType::Bool, 1, 0, 1}, \
-    {0x0000, 10, &stConfig.stDevice.nForceSleepInput,  &stConfigTemp.stDevice.nForceSleepInput,  ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
-    {0x0000, 11, &stConfig.stDevice.nMuteTxInput,      &stConfigTemp.stDevice.nMuteTxInput,      ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
-    {0x0000, 12, &stConfig.stDevice.nWakeDigInputMask, &stConfigTemp.stDevice.nWakeDigInputMask, ParamType::UInt8,  (1u << NUM_DIG_INPUTS) - 1, 0, (1u << NUM_DIG_INPUTS) - 1}, \
-    {0x0000, 13, &stConfig.stDevice.bWakeOnCan,        &stConfigTemp.stDevice.bWakeOnCan,        ParamType::Bool,   1, 0, 1}
-// Sub-indices 6-8 (the digital-input sleep trigger of CONFIG_VERSION 0x000E) are retired, not
-// reused, so an older dingoConfig writing them gets "param not found" instead of a silent re-purpose.
+    {0x0000, 0, &stConfig.stDevice.nBaseId,             &stConfigTemp.stDevice.nBaseId,           ParamType::UInt16, DEFAULT_BASE_ID, 0, 0x7FF}, \
+    {0x0000, 1, &stConfig.stDevice.eCanSpeed,           &stConfigTemp.stDevice.eCanSpeed,         ParamType::Enum,   static_cast<uint32_t>(CanBitrate::Bitrate_500K), 0, 4}, \
+    {0x0000, 2, &stConfig.stDevice.bSleepEnabled,       &stConfigTemp.stDevice.bSleepEnabled,     ParamType::Bool,   0, 0, 1}, \
+    {0x0000, 3, &stConfig.stDevice.bCanFilterEnabled,   &stConfigTemp.stDevice.bCanFilterEnabled, ParamType::Bool,   0, 0, 1}, \
+    {0x0000, 4, &stConfig.stDevice.bDisableDigInWake,   &stConfigTemp.stDevice.bDisableDigInWake, ParamType::Bool,   0, 0, 1}, \
+    {0x0000, 5, &stConfig.stDevice.bDisableCanWake,     &stConfigTemp.stDevice.bDisableCanWake,   ParamType::Bool,   0, 0, 1}, \
+    {0x0000, 6, &stConfig.stDevice.bConnectUsbToCan,    &stConfigTemp.stDevice.bConnectUsbToCan,  ParamType::Bool,   1, 0, 1}, \
+    {0x0000, 7, &stConfig.stDevice.nMuteCanTxInput,     &stConfigTemp.stDevice.nMuteCanTxInput,   ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
+    {0x0000, 8, &stConfig.stDevice.nForceSleepInput,    &stConfigTemp.stDevice.nForceSleepInput,  ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
+    {0x0000, 9, &stConfig.stDevice.nSleepTimeoutMs,     &stConfigTemp.stDevice.nSleepTimeoutMs,   ParamType::UInt16, 30000, 1000, 60000}, \
+    {0x0000, 10, &stConfig.stDevice.bSleepIgnoreAlwaysOn, &stConfigTemp.stDevice.bSleepIgnoreAlwaysOn, ParamType::Bool, 0, 0, 1}, \
+    {0x0000, 11, &stConfig.stDevice.nWakeDigInputMask,  &stConfigTemp.stDevice.nWakeDigInputMask, ParamType::UInt8,  (1u << NUM_DIG_INPUTS) - 1, 0, (1u << NUM_DIG_INPUTS) - 1}, \
+    {0x0000, 12, &stConfig.stDevice.nRetryAllInput,     &stConfigTemp.stDevice.nRetryAllInput,    ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
+    {0x0000, 13, &stConfig.stDevice.nShedInput,         &stConfigTemp.stDevice.nShedInput,        ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}
+
+//=============================================================================
+// Wake Frame Parameters - Base 0x0100
+//=============================================================================
+#define WAKE_FRAME_PARAMS() \
+    {0x0100, 0, &stConfig.stWakeFrame.bEnabled, &stConfigTemp.stWakeFrame.bEnabled, ParamType::Bool,   0, 0, 1}, \
+    {0x0100, 1, &stConfig.stWakeFrame.nId,      &stConfigTemp.stWakeFrame.nId,      ParamType::UInt32, 0, 0, 536870911}, \
+    {0x0100, 2, &stConfig.stWakeFrame.nIde,     &stConfigTemp.stWakeFrame.nIde,     ParamType::UInt8,  0, 0, 1}, \
+    {0x0100, 3, &stConfig.stWakeFrame.nMinLen,  &stConfigTemp.stWakeFrame.nMinLen,  ParamType::UInt8,  0, 0, 8}, \
+    {0x0100, 4, &stConfig.stWakeFrame.nMaskLo,  &stConfigTemp.stWakeFrame.nMaskLo,  ParamType::UInt32, 0, 0, 0xFFFFFFFF}, \
+    {0x0100, 5, &stConfig.stWakeFrame.nMaskHi,  &stConfigTemp.stWakeFrame.nMaskHi,  ParamType::UInt32, 0, 0, 0xFFFFFFFF}, \
+    {0x0100, 6, &stConfig.stWakeFrame.nValueLo, &stConfigTemp.stWakeFrame.nValueLo, ParamType::UInt32, 0, 0, 0xFFFFFFFF}, \
+    {0x0100, 7, &stConfig.stWakeFrame.nValueHi, &stConfigTemp.stWakeFrame.nValueHi, ParamType::UInt32, 0, 0, 0xFFFFFFFF}
+
+//=============================================================================
+// Config Lock Parameters - Base 0x0200
+//=============================================================================
+#define LOCK_PARAMS() \
+    {0x0200, 0, &stConfig.stLock.nPassword,   &stConfigTemp.stLock.nPassword,   ParamType::UInt32, 0, 0, 0xFFFFFFFF}, \
+    {0x0200, 1, &stConfig.stLock.nContact[0], &stConfigTemp.stLock.nContact[0], ParamType::UInt32, 0, 0, 0xFFFFFFFF}, \
+    {0x0200, 2, &stConfig.stLock.nContact[1], &stConfigTemp.stLock.nContact[1], ParamType::UInt32, 0, 0, 0xFFFFFFFF}, \
+    {0x0200, 3, &stConfig.stLock.nContact[2], &stConfigTemp.stLock.nContact[2], ParamType::UInt32, 0, 0, 0xFFFFFFFF}, \
+    {0x0200, 4, &stConfig.stLock.nContact[3], &stConfigTemp.stLock.nContact[3], ParamType::UInt32, 0, 0, 0xFFFFFFFF}, \
+    {0x0200, 5, &stConfig.stLock.nContact[4], &stConfigTemp.stLock.nContact[4], ParamType::UInt32, 0, 0, 0xFFFFFFFF}, \
+    {0x0200, 6, &stConfig.stLock.nContact[5], &stConfigTemp.stLock.nContact[5], ParamType::UInt32, 0, 0, 0xFFFFFFFF}, \
+    {0x0200, 7, &stConfig.stLock.nContact[6], &stConfigTemp.stLock.nContact[6], ParamType::UInt32, 0, 0, 0xFFFFFFFF}, \
+    {0x0200, 8, &stConfig.stLock.nContact[7], &stConfigTemp.stLock.nContact[7], ParamType::UInt32, 0, 0, 0xFFFFFFFF}
 
 //=============================================================================
 // Output Parameters - Base 0x1000
@@ -46,14 +76,24 @@
     {0x1000 + (i), 14, &stConfig.stOutput[i].stPwm.nSoftStartRampTime,   &stConfigTemp.stOutput[i].stPwm.nSoftStartRampTime,   ParamType::UInt16, 0, 0, 10000}, \
     {0x1000 + (i), 15, &stConfig.stOutput[i].stPwm.nDutyCycleInputDenom, &stConfigTemp.stOutput[i].stPwm.nDutyCycleInputDenom, ParamType::UInt16, 100, 1, 5000}, \
     {0x1000 + (i), 16, &stConfig.stOutput[i].stPwm.nMinDutyCycle,        &stConfigTemp.stOutput[i].stPwm.nMinDutyCycle,        ParamType::UInt16, 0, 0, 100}, \
-    {0x1000 + (i), 17, &stConfig.stOutput[i].nPrimaryOutput,             &stConfigTemp.stOutput[i].nPrimaryOutput,             ParamType::Int8,  I8(-1), I8(-1), NUM_OUTPUTS - 1}, /* -1 = unpaired; VAR_MAP_SIZE-1 let 128..258 wrap negative on the int8 and index stOutput[] out of bounds */ \
+    {0x1000 + (i), 17, &stConfig.stOutput[i].nPrimaryOutput,             &stConfigTemp.stOutput[i].nPrimaryOutput,             ParamType::Int8,  I8(-1), I8(-1), NUM_OUTPUTS - 1}, \
     {0x1000 + (i), 18, &stConfig.stOutput[i].fWarnLimit,                 &stConfigTemp.stOutput[i].fWarnLimit,                 ParamType::Float,  F(0.0f), F(0.0f), F(100.0f)}, \
     {0x1000 + (i), 19, &stConfig.stOutput[i].fOpenLoadLimit,             &stConfigTemp.stOutput[i].fOpenLoadLimit,             ParamType::Float,  F(0.0f), F(0.0f), F(100.0f)}, \
     {0x1000 + (i), 20, &stConfig.stOutput[i].nOpenLoadTime,              &stConfigTemp.stOutput[i].nOpenLoadTime,              ParamType::UInt16, 1000, 0, 60000}, \
     {0x1000 + (i), 21, &stConfig.stOutput[i].stPwm.bVariableFreq,        &stConfigTemp.stOutput[i].stPwm.bVariableFreq,        ParamType::Bool,   0, 0, 1}, \
     {0x1000 + (i), 22, &stConfig.stOutput[i].stPwm.nFreqInput,           &stConfigTemp.stOutput[i].stPwm.nFreqInput,           ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
     {0x1000 + (i), 23, &stConfig.stOutput[i].stPwm.nFreqInputDenom,      &stConfigTemp.stOutput[i].stPwm.nFreqInputDenom,      ParamType::UInt16, 1, 1, 5000}, \
-    {0x1000 + (i), 24, &stConfig.stOutput[i].stPwm.bRampDutyChanges,     &stConfigTemp.stOutput[i].stPwm.bRampDutyChanges,     ParamType::Bool,   0, 0, 1}
+    {0x1000 + (i), 24, &stConfig.stOutput[i].stPwm.bRampDutyChanges,     &stConfigTemp.stOutput[i].stPwm.bRampDutyChanges,     ParamType::Bool,   0, 0, 1}, \
+    {0x1000 + (i), 25, &stConfig.stOutput[i].bClearOnReassert,           &stConfigTemp.stOutput[i].bClearOnReassert,           ParamType::Bool,   0, 0, 1}, \
+    {0x1000 + (i), 26, &stConfig.stOutput[i].bShed,                      &stConfigTemp.stOutput[i].bShed,                      ParamType::Bool,   0, 0, 1}, \
+    {0x1000 + (i), 27, &stConfig.stOutput[i].fUnderLimit,                &stConfigTemp.stOutput[i].fUnderLimit,                ParamType::Float,  F(0.0f), F(0.0f), F(100.0f)}, \
+    {0x1000 + (i), 28, &stConfig.stOutput[i].nUnderTime,                 &stConfigTemp.stOutput[i].nUnderTime,                 ParamType::UInt16, 1000, 0, 60000}, \
+    {0x1000 + (i), 29, &stConfig.stOutput[i].bUnderTrip,                 &stConfigTemp.stOutput[i].bUnderTrip,                 ParamType::Bool,   0, 0, 1}, \
+    {0x1000 + (i), 30, &stConfig.stOutput[i].nSoftStartTimeout,          &stConfigTemp.stOutput[i].nSoftStartTimeout,          ParamType::UInt16, 0, 0, 60000}, \
+    {0x1000 + (i), 31, &stConfig.stOutput[i].nSoftStopTime,              &stConfigTemp.stOutput[i].nSoftStopTime,              ParamType::UInt16, 0, 0, 10000}, \
+    {0x1000 + (i), 32, &stConfig.stOutput[i].fHardShortLimit,            &stConfigTemp.stOutput[i].fHardShortLimit,            ParamType::Float,  F(0.0f), F(0.0f), F(100.0f)}, \
+    {0x1000 + (i), 33, &stConfig.stOutput[i].nThermalTau,                &stConfigTemp.stOutput[i].nThermalTau,                ParamType::UInt16, 0, 0, 600}, \
+    {0x1000 + (i), 34, &stConfig.stOutput[i].bStayAlive,                 &stConfigTemp.stOutput[i].bStayAlive,                 ParamType::Bool,   0, 0, 1}
 #endif
 
 //=============================================================================
@@ -65,10 +105,16 @@
     {0x1200 + (i), 1, &stConfig.stDigInput[i].eMode,         &stConfigTemp.stDigInput[i].eMode,        ParamType::Enum,   static_cast<uint32_t>(InputMode::Momentary), 0, 1}, \
     {0x1200 + (i), 2, &stConfig.stDigInput[i].bInvert,       &stConfigTemp.stDigInput[i].bInvert,      ParamType::Bool,   0, 0, 1}, \
     {0x1200 + (i), 3, &stConfig.stDigInput[i].nDebounceTime, &stConfigTemp.stDigInput[i].nDebounceTime,ParamType::UInt16, 20, 0, 1000}, \
-    {0x1200 + (i), 4, &stConfig.stDigInput[i].ePull,         &stConfigTemp.stDigInput[i].ePull,        ParamType::Enum,   static_cast<uint32_t>(InputPull::None), 0, 2}, \
+    {0x1200 + (i), 4, &stConfig.stDigInput[i].ePull,         &stConfigTemp.stDigInput[i].ePull,        ParamType::Enum,   static_cast<uint32_t>(InputPull::None), 0, 2} \
+    DIGITAL_INPUT_PWM_PARAMS(i)
+#if DI_PWM_MAX_FREQ > 0
+#define DIGITAL_INPUT_PWM_PARAMS(i) , \
     {0x1200 + (i), 5, &stConfig.stDigInput[i].bPwm,          &stConfigTemp.stDigInput[i].bPwm,         ParamType::Bool,   0, 0, 1}, \
     {0x1200 + (i), 6, &stConfig.stDigInput[i].nPwmFreq,      &stConfigTemp.stDigInput[i].nPwmFreq,     ParamType::UInt16, 0, 0, DI_PWM_MAX_FREQ}, \
     {0x1200 + (i), 7, &stConfig.stDigInput[i].nPwmMinPulseUs, &stConfigTemp.stDigInput[i].nPwmMinPulseUs, ParamType::UInt16, 0, 0, 10000}
+#else
+#define DIGITAL_INPUT_PWM_PARAMS(i)
+#endif
 #endif
 
 //=============================================================================
@@ -88,11 +134,24 @@
     {0x1300 + (i), 10, &stConfig.stCanInput[i].bSigned,         &stConfigTemp.stCanInput[i].bSigned,         ParamType::Bool,   0, 0, 1}, \
     {0x1300 + (i), 11, &stConfig.stCanInput[i].eOperator,       &stConfigTemp.stCanInput[i].eOperator,       ParamType::Enum,   static_cast<uint32_t>(Operator::Equal), 0, 7}, \
     {0x1300 + (i), 12, &stConfig.stCanInput[i].fOperand,        &stConfigTemp.stCanInput[i].fOperand,        ParamType::Float,  F(0.0f), F(-1e9f), F(1e9f)}, \
-    {0x1300 + (i), 13, &stConfig.stCanInput[i].eMode,           &stConfigTemp.stCanInput[i].eMode,           ParamType::Enum,   static_cast<uint32_t>(InputMode::Momentary), 0, 1},     {0x1300 + (i), 14, &stConfig.stCanInput[i].fTimeoutValue,   &stConfigTemp.stCanInput[i].fTimeoutValue,   ParamType::Float,  F(0.0f), F(-1e9f), F(1e9f)}
+    {0x1300 + (i), 13, &stConfig.stCanInput[i].eMode,           &stConfigTemp.stCanInput[i].eMode,           ParamType::Enum,   static_cast<uint32_t>(InputMode::Momentary), 0, 1}, \
+    {0x1300 + (i), 14, &stConfig.stCanInput[i].fTimeoutValue,   &stConfigTemp.stCanInput[i].fTimeoutValue,   ParamType::Float,  F(0.0f), F(-1e9f), F(1e9f)}, \
+    {0x1300 + (i), 15, &stConfig.stCanInput[i].bTimeoutUseValue, &stConfigTemp.stCanInput[i].bTimeoutUseValue, ParamType::Bool,   0, 0, 1}
     
 //=============================================================================
 // Virtual Input Parameters - Base 0x1400
 //=============================================================================
+// Retain flags keep a value in the FRAM over power cycles and sleep; boards without FRAM don't list them
+#if HAS_EXT_MEMORY
+#define VIRTUAL_INPUT_RETAIN_PARAM(i) \
+    , {0x1400 + (i), 10, &stConfig.stVirtualInput[i].bRetain,  &stConfigTemp.stVirtualInput[i].bRetain,  ParamType::Bool,   0, 0, 1}
+#define COUNTER_RETAIN_PARAM(i) \
+    , {0x1600 + (i), 12, &stConfig.stCounter[i].bRetain,     &stConfigTemp.stCounter[i].bRetain,      ParamType::Bool,   0, 0, 1}
+#else
+#define VIRTUAL_INPUT_RETAIN_PARAM(i)
+#define COUNTER_RETAIN_PARAM(i)
+#endif
+
 #define VIRTUAL_INPUT_PARAMS(i) \
     {0x1400 + (i), 0,  &stConfig.stVirtualInput[i].bEnabled, &stConfigTemp.stVirtualInput[i].bEnabled, ParamType::Bool,   0, 0, 1}, \
     {0x1400 + (i), 1,  &stConfig.stVirtualInput[i].bNot0,    &stConfigTemp.stVirtualInput[i].bNot0,    ParamType::Bool,   0, 0, 1}, \
@@ -103,7 +162,8 @@
     {0x1400 + (i), 6,  &stConfig.stVirtualInput[i].eCond1,   &stConfigTemp.stVirtualInput[i].eCond1,   ParamType::Enum,   static_cast<uint32_t>(BoolOperator::And), 0, 2}, \
     {0x1400 + (i), 7,  &stConfig.stVirtualInput[i].bNot2,    &stConfigTemp.stVirtualInput[i].bNot2,    ParamType::Bool,   0, 0, 1}, \
     {0x1400 + (i), 8,  &stConfig.stVirtualInput[i].nVar2,    &stConfigTemp.stVirtualInput[i].nVar2,    ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
-    {0x1400 + (i), 9,  &stConfig.stVirtualInput[i].eMode,    &stConfigTemp.stVirtualInput[i].eMode,    ParamType::Enum,   static_cast<uint32_t>(InputMode::Momentary), 0, 1}
+    {0x1400 + (i), 9,  &stConfig.stVirtualInput[i].eMode,    &stConfigTemp.stVirtualInput[i].eMode,    ParamType::Enum,   static_cast<uint32_t>(InputMode::Momentary), 0, 1} \
+    VIRTUAL_INPUT_RETAIN_PARAM(i)
 
 //=============================================================================
 // Condition Parameters - Base 0x1500
@@ -113,7 +173,9 @@
     {0x1500 + (i), 1, &stConfig.stCondition[i].nInput,    &stConfigTemp.stCondition[i].nInput,    ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
     {0x1500 + (i), 2, &stConfig.stCondition[i].eOperator, &stConfigTemp.stCondition[i].eOperator, ParamType::Enum,   static_cast<uint32_t>(Operator::Equal), 0, 7}, \
     {0x1500 + (i), 3, &stConfig.stCondition[i].fArg,      &stConfigTemp.stCondition[i].fArg,      ParamType::Float,  F(0.0f), F(-1e9f), F(1e9f)}, \
-    {0x1500 + (i), 4, &stConfig.stCondition[i].fArgOff,   &stConfigTemp.stCondition[i].fArgOff,   ParamType::Float,  F(0.0f), F(-1e9f), F(1e9f)}
+    {0x1500 + (i), 4, &stConfig.stCondition[i].fHyst,     &stConfigTemp.stCondition[i].fHyst,     ParamType::Float,  F(0.0f), F(0.0f), F(1e9f)}, \
+    {0x1500 + (i), 5, &stConfig.stCondition[i].nDelayOn,  &stConfigTemp.stCondition[i].nDelayOn,  ParamType::UInt16, 0, 0, 60000}, \
+    {0x1500 + (i), 6, &stConfig.stCondition[i].nDelayOff, &stConfigTemp.stCondition[i].nDelayOff, ParamType::UInt16, 0, 0, 60000}
 
 //=============================================================================
 // Counter Parameters - Base 0x1600
@@ -130,7 +192,8 @@
     {0x1600 + (i), 8,  &stConfig.stCounter[i].eResetEdge,  &stConfigTemp.stCounter[i].eResetEdge,  ParamType::Enum,   static_cast<uint32_t>(InputEdge::Rising), 0, 2}, \
     {0x1600 + (i), 9,  &stConfig.stCounter[i].bWrapAround, &stConfigTemp.stCounter[i].bWrapAround, ParamType::Bool,   0, 0, 1}, \
     {0x1600 + (i), 10, &stConfig.stCounter[i].bHoldToReset,&stConfigTemp.stCounter[i].bHoldToReset, ParamType::Bool,   0, 0, 1}, \
-    {0x1600 + (i), 11, &stConfig.stCounter[i].nResetTime,  &stConfigTemp.stCounter[i].nResetTime,   ParamType::UInt16, 2000, 0, 10000}
+    {0x1600 + (i), 11, &stConfig.stCounter[i].nResetTime,  &stConfigTemp.stCounter[i].nResetTime,   ParamType::UInt16, 2000, 0, 10000} \
+    COUNTER_RETAIN_PARAM(i)
 
 //=============================================================================
 // Flasher Parameters - Base 0x1700
@@ -141,98 +204,6 @@
     {0x1700 + (i), 2, &stConfig.stFlasher[i].nFlashOnTime,  &stConfigTemp.stFlasher[i].nFlashOnTime,  ParamType::UInt16, 500, 0, 5000}, \
     {0x1700 + (i), 3, &stConfig.stFlasher[i].nFlashOffTime, &stConfigTemp.stFlasher[i].nFlashOffTime, ParamType::UInt16, 500, 0, 5000}, \
     {0x1700 + (i), 4, &stConfig.stFlasher[i].bSingleCycle,  &stConfigTemp.stFlasher[i].bSingleCycle,  ParamType::Bool,   0, 0, 1}
-
-//=============================================================================
-// Table Parameters - Base 0x1A00 (8x8 bilinear lookup, dingoConfig #58)
-// sub 0-4 header, 5-12 X axis, 13-20 Y axis, 21-84 cells (row-major, 21 + y*8 + x)
-//=============================================================================
-#if NUM_TABLES > 0
-#define TABLE_AXIS_PARAM(i, sub, arr, k) \
-    {0x1A00 + (i), (sub) + (k), &stConfig.stTable[i].arr[k], &stConfigTemp.stTable[i].arr[k], ParamType::Float, F(0.0f), F(-1e9f), F(1e9f)}
-#define TABLE_CELL_PARAM(i, r, c) \
-    {0x1A00 + (i), 21 + (r) * TABLE_AXIS_MAX + (c), &stConfig.stTable[i].fCell[r][c], &stConfigTemp.stTable[i].fCell[r][c], ParamType::Float, F(0.0f), F(-1e9f), F(1e9f)}
-#define TABLE_AXIS_PARAMS(i, sub, arr) \
-    TABLE_AXIS_PARAM(i, sub, arr, 0), TABLE_AXIS_PARAM(i, sub, arr, 1), TABLE_AXIS_PARAM(i, sub, arr, 2), TABLE_AXIS_PARAM(i, sub, arr, 3), \
-    TABLE_AXIS_PARAM(i, sub, arr, 4), TABLE_AXIS_PARAM(i, sub, arr, 5), TABLE_AXIS_PARAM(i, sub, arr, 6), TABLE_AXIS_PARAM(i, sub, arr, 7)
-#define TABLE_ROW_PARAMS(i, r) \
-    TABLE_CELL_PARAM(i, r, 0), TABLE_CELL_PARAM(i, r, 1), TABLE_CELL_PARAM(i, r, 2), TABLE_CELL_PARAM(i, r, 3), \
-    TABLE_CELL_PARAM(i, r, 4), TABLE_CELL_PARAM(i, r, 5), TABLE_CELL_PARAM(i, r, 6), TABLE_CELL_PARAM(i, r, 7)
-#define TABLE_PARAMS(i) \
-    {0x1A00 + (i), 0, &stConfig.stTable[i].bEnabled, &stConfigTemp.stTable[i].bEnabled, ParamType::Bool,   0, 0, 1}, \
-    {0x1A00 + (i), 1, &stConfig.stTable[i].nXInput,  &stConfigTemp.stTable[i].nXInput,  ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
-    {0x1A00 + (i), 2, &stConfig.stTable[i].nYInput,  &stConfigTemp.stTable[i].nYInput,  ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
-    {0x1A00 + (i), 3, &stConfig.stTable[i].nXSize,   &stConfigTemp.stTable[i].nXSize,   ParamType::UInt8,  2, 1, TABLE_AXIS_MAX}, \
-    {0x1A00 + (i), 4, &stConfig.stTable[i].nYSize,   &stConfigTemp.stTable[i].nYSize,   ParamType::UInt8,  1, 1, TABLE_AXIS_MAX}, \
-    TABLE_AXIS_PARAMS(i, 5, fXAxis), \
-    TABLE_AXIS_PARAMS(i, 13, fYAxis), \
-    TABLE_ROW_PARAMS(i, 0), TABLE_ROW_PARAMS(i, 1), TABLE_ROW_PARAMS(i, 2), TABLE_ROW_PARAMS(i, 3), \
-    TABLE_ROW_PARAMS(i, 4), TABLE_ROW_PARAMS(i, 5), TABLE_ROW_PARAMS(i, 6), TABLE_ROW_PARAMS(i, 7)
-#endif
-
-//=============================================================================
-// Timer Parameters - Base 0x1B00 (FW #61)
-//=============================================================================
-#define TIMER_PARAMS(i) \
-    {0x1B00 + (i), 0, &stConfig.stTimer[i].bEnabled, &stConfigTemp.stTimer[i].bEnabled, ParamType::Bool,   0, 0, 1}, \
-    {0x1B00 + (i), 1, &stConfig.stTimer[i].nInput,   &stConfigTemp.stTimer[i].nInput,   ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
-    {0x1B00 + (i), 2, &stConfig.stTimer[i].eEdge,    &stConfigTemp.stTimer[i].eEdge,    ParamType::Enum,   static_cast<uint32_t>(InputEdge::Rising), 0, 1}, \
-    {0x1B00 + (i), 3, &stConfig.stTimer[i].eMode,    &stConfigTemp.stTimer[i].eMode,    ParamType::Enum,   static_cast<uint32_t>(TimerMode::OnDelay), 0, 2}, \
-    {0x1B00 + (i), 4, &stConfig.stTimer[i].nPreset,  &stConfigTemp.stTimer[i].nPreset,  ParamType::UInt32, 1000, 0, 3600000}
-
-//=============================================================================
-// Math block Parameters - Base 0x1C00 (5.6)
-//=============================================================================
-#define MATH_PARAMS(i) \
-    {0x1C00 + (i), 0, &stConfig.stMath[i].bEnabled, &stConfigTemp.stMath[i].bEnabled, ParamType::Bool,   0, 0, 1}, \
-    {0x1C00 + (i), 1, &stConfig.stMath[i].eOp,      &stConfigTemp.stMath[i].eOp,      ParamType::Enum,   static_cast<uint32_t>(MathOp::Add), 0, 6}, \
-    {0x1C00 + (i), 2, &stConfig.stMath[i].nInputA,  &stConfigTemp.stMath[i].nInputA,  ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
-    {0x1C00 + (i), 3, &stConfig.stMath[i].nInputB,  &stConfigTemp.stMath[i].nInputB,  ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
-    {0x1C00 + (i), 4, &stConfig.stMath[i].fConstB,  &stConfigTemp.stMath[i].fConstB,  ParamType::Float,  F(0.0f), F(-1e9f), F(1e9f)}, \
-    {0x1C00 + (i), 5, &stConfig.stMath[i].fFactor,  &stConfigTemp.stMath[i].fFactor,  ParamType::Float,  F(1.0f), F(-1e9f), F(1e9f)}, \
-    {0x1C00 + (i), 6, &stConfig.stMath[i].fOffset,  &stConfigTemp.stMath[i].fOffset,  ParamType::Float,  F(0.0f), F(-1e9f), F(1e9f)}
-
-//=============================================================================
-// CAN Message block Parameters - Base 0x1D00 (5.6). Data bytes at sub 6..13.
-//=============================================================================
-#define CAN_MSG_BYTE_PARAM(i, k) \
-    {0x1D00 + (i), 6 + (k), &stConfig.stCanMsg[i].nData[k], &stConfigTemp.stCanMsg[i].nData[k], ParamType::UInt8, 0, 0, 255}
-#define CAN_MSG_PARAMS(i) \
-    {0x1D00 + (i), 0, &stConfig.stCanMsg[i].bEnabled,    &stConfigTemp.stCanMsg[i].bEnabled,    ParamType::Bool,   0, 0, 1}, \
-    {0x1D00 + (i), 1, &stConfig.stCanMsg[i].nInput,      &stConfigTemp.stCanMsg[i].nInput,      ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
-    {0x1D00 + (i), 2, &stConfig.stCanMsg[i].nIDE,        &stConfigTemp.stCanMsg[i].nIDE,        ParamType::UInt8,  0, 0, 1}, \
-    {0x1D00 + (i), 3, &stConfig.stCanMsg[i].nID,         &stConfigTemp.stCanMsg[i].nID,         ParamType::UInt32, 0, 0, 536870911}, \
-    {0x1D00 + (i), 4, &stConfig.stCanMsg[i].nDLC,        &stConfigTemp.stCanMsg[i].nDLC,        ParamType::UInt8,  8, 0, 8}, \
-    {0x1D00 + (i), 5, &stConfig.stCanMsg[i].eMode,       &stConfigTemp.stCanMsg[i].eMode,       ParamType::Enum,   static_cast<uint32_t>(CanMsgMode::Repeat), 0, 1}, \
-    CAN_MSG_BYTE_PARAM(i, 0), CAN_MSG_BYTE_PARAM(i, 1), CAN_MSG_BYTE_PARAM(i, 2), CAN_MSG_BYTE_PARAM(i, 3), \
-    CAN_MSG_BYTE_PARAM(i, 4), CAN_MSG_BYTE_PARAM(i, 5), CAN_MSG_BYTE_PARAM(i, 6), CAN_MSG_BYTE_PARAM(i, 7), \
-    {0x1D00 + (i), 14, &stConfig.stCanMsg[i].nIntervalMs, &stConfigTemp.stCanMsg[i].nIntervalMs, ParamType::UInt16, 100, 10, 60000}
-
-//=============================================================================
-// Ignition Parameters - Base 0x1E00 (single instance, 5.6)
-//=============================================================================
-#define IGNITION_PARAMS() \
-    {0x1E00, 0,  &stConfig.stIgnition.bEnabled,         &stConfigTemp.stIgnition.bEnabled,         ParamType::Bool,   0, 0, 1}, \
-    {0x1E00, 1,  &stConfig.stIgnition.eMode,            &stConfigTemp.stIgnition.eMode,            ParamType::Enum,   static_cast<uint32_t>(IgnMode::SwitchButton), 0, 2}, \
-    {0x1E00, 2,  &stConfig.stIgnition.eRole,            &stConfigTemp.stIgnition.eRole,            ParamType::Enum,   static_cast<uint32_t>(IgnRole::Main), 0, 1}, \
-    {0x1E00, 3,  &stConfig.stIgnition.nIgnInput,        &stConfigTemp.stIgnition.nIgnInput,        ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
-    {0x1E00, 4,  &stConfig.stIgnition.nStartInput,      &stConfigTemp.stIgnition.nStartInput,      ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
-    {0x1E00, 5,  &stConfig.stIgnition.nCrankAllowInput, &stConfigTemp.stIgnition.nCrankAllowInput, ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
-    {0x1E00, 6,  &stConfig.stIgnition.nRunningInput,    &stConfigTemp.stIgnition.nRunningInput,    ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
-    {0x1E00, 7,  &stConfig.stIgnition.nMaxCrankMs,      &stConfigTemp.stIgnition.nMaxCrankMs,      ParamType::UInt16, 5000, 500, 30000}, \
-    {0x1E00, 8,  &stConfig.stIgnition.bCrankWhileHeld,  &stConfigTemp.stIgnition.bCrankWhileHeld,  ParamType::Bool,   1, 0, 1}, \
-    {0x1E00, 9,  &stConfig.stIgnition.nDashHoldMs,      &stConfigTemp.stIgnition.nDashHoldMs,      ParamType::UInt16, 0, 0, 60000}, \
-    {0x1E00, 10, &stConfig.stIgnition.nMainStateId,     &stConfigTemp.stIgnition.nMainStateId,     ParamType::UInt16, 0, 0, 2047}
-
-//=============================================================================
-// Comfort Blink Parameters - Base 0x1F00 (single instance, 5.6.1)
-//=============================================================================
-#define COMFORT_BLINK_PARAMS() \
-    {0x1F00, 0, &stConfig.stComfortBlink.bEnabled,    &stConfigTemp.stComfortBlink.bEnabled,    ParamType::Bool,   0, 0, 1}, \
-    {0x1F00, 1, &stConfig.stComfortBlink.nLeftInput,  &stConfigTemp.stComfortBlink.nLeftInput,  ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
-    {0x1F00, 2, &stConfig.stComfortBlink.nRightInput, &stConfigTemp.stComfortBlink.nRightInput, ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
-    {0x1F00, 3, &stConfig.stComfortBlink.nClockInput, &stConfigTemp.stComfortBlink.nClockInput, ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
-    {0x1F00, 4, &stConfig.stComfortBlink.nTapMs,      &stConfigTemp.stComfortBlink.nTapMs,      ParamType::UInt16, 1000, 100, 5000}, \
-    {0x1F00, 5, &stConfig.stComfortBlink.nBlinks,     &stConfigTemp.stComfortBlink.nBlinks,     ParamType::UInt8,  3, 1, 10}
 
 //=============================================================================
 // Starter Parameters - Base 0x1800 (single instance)
@@ -286,6 +257,167 @@
 #endif
 
 //=============================================================================
+// Timer Parameters - Base 0x1A00
+//=============================================================================
+#if NUM_TIMERS > 0
+#define TIMER_PARAMS(i) \
+    {0x1A00 + (i), 0, &stConfig.stTimer[i].bEnabled,    &stConfigTemp.stTimer[i].bEnabled,    ParamType::Bool,   0, 0, 1}, \
+    {0x1A00 + (i), 1, &stConfig.stTimer[i].nInput,      &stConfigTemp.stTimer[i].nInput,      ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
+    {0x1A00 + (i), 2, &stConfig.stTimer[i].nResetInput, &stConfigTemp.stTimer[i].nResetInput, ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
+    {0x1A00 + (i), 3, &stConfig.stTimer[i].eMode,       &stConfigTemp.stTimer[i].eMode,       ParamType::Enum,   static_cast<uint32_t>(TimerMode::OnDelay), 0, 3}, \
+    {0x1A00 + (i), 4, &stConfig.stTimer[i].nTime,       &stConfigTemp.stTimer[i].nTime,       ParamType::UInt32, 1000, 0, 600000}
+#endif
+
+//=============================================================================
+// Math Parameters - Base 0x1C00
+//=============================================================================
+#if NUM_MATH > 0
+#define MATH_PARAMS(i) \
+    {0x1C00 + (i), 0, &stConfig.stMath[i].bEnabled, &stConfigTemp.stMath[i].bEnabled, ParamType::Bool,   0, 0, 1}, \
+    {0x1C00 + (i), 1, &stConfig.stMath[i].eOp,      &stConfigTemp.stMath[i].eOp,      ParamType::Enum,   static_cast<uint32_t>(MathOp::Add), 0, 6}, \
+    {0x1C00 + (i), 2, &stConfig.stMath[i].nInputA,  &stConfigTemp.stMath[i].nInputA,  ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
+    {0x1C00 + (i), 3, &stConfig.stMath[i].nInputB,  &stConfigTemp.stMath[i].nInputB,  ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
+    {0x1C00 + (i), 4, &stConfig.stMath[i].fConstB,  &stConfigTemp.stMath[i].fConstB,  ParamType::Float,  F(0.0f), F(-1e9f), F(1e9f)}, \
+    {0x1C00 + (i), 5, &stConfig.stMath[i].fFactor,  &stConfigTemp.stMath[i].fFactor,  ParamType::Float,  F(1.0f), F(-1e9f), F(1e9f)}, \
+    {0x1C00 + (i), 6, &stConfig.stMath[i].fOffset,  &stConfigTemp.stMath[i].fOffset,  ParamType::Float,  F(0.0f), F(-1e9f), F(1e9f)}
+#endif
+
+//=============================================================================
+// CAN Message Parameters - Base 0x1D00, data bytes at subs 6-13
+//=============================================================================
+#if NUM_CAN_MSGS > 0
+#define CAN_MSG_DATA_PARAM(i, n) \
+    {0x1D00 + (i), 6 + (n), &stConfig.stCanMsg[i].nData[n], &stConfigTemp.stCanMsg[i].nData[n], ParamType::UInt8, 0, 0, 255}
+#define CAN_MSG_PARAMS(i) \
+    {0x1D00 + (i), 0,  &stConfig.stCanMsg[i].bEnabled,  &stConfigTemp.stCanMsg[i].bEnabled,  ParamType::Bool,   0, 0, 1}, \
+    {0x1D00 + (i), 1,  &stConfig.stCanMsg[i].nInput,    &stConfigTemp.stCanMsg[i].nInput,    ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
+    {0x1D00 + (i), 2,  &stConfig.stCanMsg[i].nIDE,      &stConfigTemp.stCanMsg[i].nIDE,      ParamType::UInt8,  0, 0, 1}, \
+    {0x1D00 + (i), 3,  &stConfig.stCanMsg[i].nID,       &stConfigTemp.stCanMsg[i].nID,       ParamType::UInt32, 0, 0, 536870911}, \
+    {0x1D00 + (i), 4,  &stConfig.stCanMsg[i].nDLC,      &stConfigTemp.stCanMsg[i].nDLC,      ParamType::UInt8,  8, 0, 8}, \
+    {0x1D00 + (i), 5,  &stConfig.stCanMsg[i].eMode,     &stConfigTemp.stCanMsg[i].eMode,     ParamType::Enum,   static_cast<uint32_t>(CanMsgMode::Repeat), 0, 1}, \
+    CAN_MSG_DATA_PARAM(i, 0), CAN_MSG_DATA_PARAM(i, 1), CAN_MSG_DATA_PARAM(i, 2), CAN_MSG_DATA_PARAM(i, 3), \
+    CAN_MSG_DATA_PARAM(i, 4), CAN_MSG_DATA_PARAM(i, 5), CAN_MSG_DATA_PARAM(i, 6), CAN_MSG_DATA_PARAM(i, 7), \
+    {0x1D00 + (i), 14, &stConfig.stCanMsg[i].nInterval, &stConfigTemp.stCanMsg[i].nInterval, ParamType::UInt16, 100, 10, 60000}, \
+    {0x1D00 + (i), 15, &stConfig.stCanMsg[i].eChecksum, &stConfigTemp.stCanMsg[i].eChecksum, ParamType::Enum,   static_cast<uint32_t>(CanOutputKind::Signal), 0, static_cast<uint32_t>(CanOutputKind::Crc8Autosar)}, \
+    {0x1D00 + (i), 16, &stConfig.stCanMsg[i].nChecksumByte, &stConfigTemp.stCanMsg[i].nChecksumByte, ParamType::UInt8, 7, 0, 7}, \
+    {0x1D00 + (i), 17, &stConfig.stCanMsg[i].nCounterByte, &stConfigTemp.stCanMsg[i].nCounterByte, ParamType::UInt8, 0xFF, 0, 0xFF}
+#endif
+
+//=============================================================================
+// Table Parameters - Base 0x1B00
+//=============================================================================
+#if NUM_TABLES > 0
+#define TABLE_AXIS_PARAM(i, sub, arr, k) \
+    {0x1B00 + (i), (sub) + (k), &stConfig.stTable[i].arr[k], &stConfigTemp.stTable[i].arr[k], ParamType::Float, F(0.0f), F(-1e9f), F(1e9f)}
+#define TABLE_AXIS_PARAMS(i, sub, arr) \
+    TABLE_AXIS_PARAM(i, sub, arr, 0), TABLE_AXIS_PARAM(i, sub, arr, 1), TABLE_AXIS_PARAM(i, sub, arr, 2), TABLE_AXIS_PARAM(i, sub, arr, 3), \
+    TABLE_AXIS_PARAM(i, sub, arr, 4), TABLE_AXIS_PARAM(i, sub, arr, 5), TABLE_AXIS_PARAM(i, sub, arr, 6), TABLE_AXIS_PARAM(i, sub, arr, 7)
+#define TABLE_CELL_PARAM(i, r, c) \
+    {0x1B00 + (i), 21 + (r) * TABLE_AXIS_MAX + (c), &stConfig.stTable[i].fCell[r][c], &stConfigTemp.stTable[i].fCell[r][c], ParamType::Float, F(0.0f), F(-1e9f), F(1e9f)}
+#define TABLE_ROW_PARAMS(i, r) \
+    TABLE_CELL_PARAM(i, r, 0), TABLE_CELL_PARAM(i, r, 1), TABLE_CELL_PARAM(i, r, 2), TABLE_CELL_PARAM(i, r, 3), \
+    TABLE_CELL_PARAM(i, r, 4), TABLE_CELL_PARAM(i, r, 5), TABLE_CELL_PARAM(i, r, 6), TABLE_CELL_PARAM(i, r, 7)
+#define TABLE_PARAMS(i) \
+    {0x1B00 + (i), 0, &stConfig.stTable[i].bEnabled, &stConfigTemp.stTable[i].bEnabled, ParamType::Bool,   0, 0, 1}, \
+    {0x1B00 + (i), 1, &stConfig.stTable[i].nXInput,  &stConfigTemp.stTable[i].nXInput,  ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
+    {0x1B00 + (i), 2, &stConfig.stTable[i].nYInput,  &stConfigTemp.stTable[i].nYInput,  ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
+    {0x1B00 + (i), 3, &stConfig.stTable[i].nXSize,   &stConfigTemp.stTable[i].nXSize,   ParamType::UInt8,  2, 1, TABLE_AXIS_MAX}, \
+    {0x1B00 + (i), 4, &stConfig.stTable[i].nYSize,   &stConfigTemp.stTable[i].nYSize,   ParamType::UInt8,  1, 1, TABLE_AXIS_MAX}, \
+    TABLE_AXIS_PARAMS(i, 5, fXAxis), \
+    TABLE_AXIS_PARAMS(i, 13, fYAxis), \
+    TABLE_ROW_PARAMS(i, 0), TABLE_ROW_PARAMS(i, 1), TABLE_ROW_PARAMS(i, 2), TABLE_ROW_PARAMS(i, 3), \
+    TABLE_ROW_PARAMS(i, 4), TABLE_ROW_PARAMS(i, 5), TABLE_ROW_PARAMS(i, 6), TABLE_ROW_PARAMS(i, 7)
+#endif
+
+//=============================================================================
+// Latch / Gate Parameters - Base 0x2600
+//=============================================================================
+#if NUM_LATCH_GATES > 0
+#define LATCH_GATE_PARAMS(i) \
+    {0x2600 + (i), 0, &stConfig.stLatchGate[i].bEnabled,      &stConfigTemp.stLatchGate[i].bEnabled,      ParamType::Bool,   0, 0, 1}, \
+    {0x2600 + (i), 1, &stConfig.stLatchGate[i].eType,         &stConfigTemp.stLatchGate[i].eType,         ParamType::Enum,   static_cast<uint32_t>(LatchGateType::Latch), 0, 1}, \
+    {0x2600 + (i), 2, &stConfig.stLatchGate[i].nInput,        &stConfigTemp.stLatchGate[i].nInput,        ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
+    {0x2600 + (i), 3, &stConfig.stLatchGate[i].nControlInput, &stConfigTemp.stLatchGate[i].nControlInput, ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
+    {0x2600 + (i), 4, &stConfig.stLatchGate[i].nTime,         &stConfigTemp.stLatchGate[i].nTime,         ParamType::UInt32, 0, 0, 600000}
+#endif
+
+//=============================================================================
+// PID Parameters - Base 0x2300
+//=============================================================================
+#if NUM_PIDS > 0
+#define PID_PARAMS(i) \
+    {0x2300 + (i), 0,  &stConfig.stPid[i].bEnabled,       &stConfigTemp.stPid[i].bEnabled,       ParamType::Bool,   0, 0, 1}, \
+    {0x2300 + (i), 1,  &stConfig.stPid[i].nSetpointInput, &stConfigTemp.stPid[i].nSetpointInput, ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
+    {0x2300 + (i), 2,  &stConfig.stPid[i].nProcessInput,  &stConfigTemp.stPid[i].nProcessInput,  ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
+    {0x2300 + (i), 3,  &stConfig.stPid[i].nActivateInput, &stConfigTemp.stPid[i].nActivateInput, ParamType::UInt16, 1, 0, VAR_MAP_SIZE - 1}, \
+    {0x2300 + (i), 4,  &stConfig.stPid[i].fFeedForward,   &stConfigTemp.stPid[i].fFeedForward,   ParamType::Float,  F(0.0f), F(-1e6f), F(1e6f)}, \
+    {0x2300 + (i), 5,  &stConfig.stPid[i].nFeedFwdInput,  &stConfigTemp.stPid[i].nFeedFwdInput,  ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
+    {0x2300 + (i), 6,  &stConfig.stPid[i].fKp,            &stConfigTemp.stPid[i].fKp,            ParamType::Float,  F(1.0f), F(0.0f), F(1e6f)}, \
+    {0x2300 + (i), 7,  &stConfig.stPid[i].fKi,            &stConfigTemp.stPid[i].fKi,            ParamType::Float,  F(0.0f), F(0.0f), F(1e6f)}, \
+    {0x2300 + (i), 8,  &stConfig.stPid[i].fKd,            &stConfigTemp.stPid[i].fKd,            ParamType::Float,  F(0.0f), F(0.0f), F(1e6f)}, \
+    {0x2300 + (i), 9,  &stConfig.stPid[i].fIMin,          &stConfigTemp.stPid[i].fIMin,          ParamType::Float,  F(-100.0f), F(-1e6f), F(1e6f)}, \
+    {0x2300 + (i), 10, &stConfig.stPid[i].fIMax,          &stConfigTemp.stPid[i].fIMax,          ParamType::Float,  F(100.0f), F(-1e6f), F(1e6f)}, \
+    {0x2300 + (i), 11, &stConfig.stPid[i].fOutMin,        &stConfigTemp.stPid[i].fOutMin,        ParamType::Float,  F(0.0f), F(-1e6f), F(1e6f)}, \
+    {0x2300 + (i), 12, &stConfig.stPid[i].fOutMax,        &stConfigTemp.stPid[i].fOutMax,        ParamType::Float,  F(100.0f), F(-1e6f), F(1e6f)}, \
+    {0x2300 + (i), 13, &stConfig.stPid[i].bInvert,        &stConfigTemp.stPid[i].bInvert,        ParamType::Bool,   0, 0, 1}, \
+    {0x2300 + (i), 14, &stConfig.stPid[i].fSpRate,        &stConfigTemp.stPid[i].fSpRate,        ParamType::Float,  F(0.0f), F(0.0f), F(1e6f)}, \
+    {0x2300 + (i), 15, &stConfig.stPid[i].fDeadband,      &stConfigTemp.stPid[i].fDeadband,      ParamType::Float,  F(0.0f), F(0.0f), F(1e6f)}, \
+    {0x2300 + (i), 16, &stConfig.stPid[i].fPvMin,         &stConfigTemp.stPid[i].fPvMin,         ParamType::Float,  F(0.0f), F(-1e6f), F(1e6f)}, \
+    {0x2300 + (i), 17, &stConfig.stPid[i].fPvMax,         &stConfigTemp.stPid[i].fPvMax,         ParamType::Float,  F(0.0f), F(-1e6f), F(1e6f)}, \
+    {0x2300 + (i), 18, &stConfig.stPid[i].fFallback,      &stConfigTemp.stPid[i].fFallback,      ParamType::Float,  F(0.0f), F(-1e6f), F(1e6f)}, \
+    {0x2300 + (i), 19, &stConfig.stPid[i].nPeriodMs,      &stConfigTemp.stPid[i].nPeriodMs,      ParamType::UInt16, 20, 2, 1000}, \
+    {0x2300 + (i), 20, &stConfig.stPid[i].fSetpoint,      &stConfigTemp.stPid[i].fSetpoint,      ParamType::Float,  F(0.0f), F(-1e6f), F(1e6f)}
+#endif
+
+//=============================================================================
+// Comfort Blink Parameters - Base 0x1F00 (single instance)
+//=============================================================================
+#if HAS_COMFORT_BLINK
+#define COMFORT_BLINK_PARAMS() \
+    {0x1F00, 0, &stConfig.stComfortBlink.bEnabled,    &stConfigTemp.stComfortBlink.bEnabled,    ParamType::Bool,   0, 0, 1}, \
+    {0x1F00, 1, &stConfig.stComfortBlink.nLeftInput,  &stConfigTemp.stComfortBlink.nLeftInput,  ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
+    {0x1F00, 2, &stConfig.stComfortBlink.nRightInput, &stConfigTemp.stComfortBlink.nRightInput, ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
+    {0x1F00, 3, &stConfig.stComfortBlink.nClockInput, &stConfigTemp.stComfortBlink.nClockInput, ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
+    {0x1F00, 4, &stConfig.stComfortBlink.nTapMs,      &stConfigTemp.stComfortBlink.nTapMs,      ParamType::UInt16, 1000, 100, 5000}, \
+    {0x1F00, 5, &stConfig.stComfortBlink.nBlinks,     &stConfigTemp.stComfortBlink.nBlinks,     ParamType::UInt8,  3, 1, 10}
+#endif
+
+//=============================================================================
+// Ignition Parameters - Base 0x1E00 (single instance)
+//=============================================================================
+#if HAS_IGNITION
+#define IGNITION_PARAMS() \
+    {0x1E00,  0, &stConfig.stIgnition.bEnabled,         &stConfigTemp.stIgnition.bEnabled,         ParamType::Bool,   0, 0, 1}, \
+    {0x1E00,  1, &stConfig.stIgnition.eMode,            &stConfigTemp.stIgnition.eMode,            ParamType::Enum,   static_cast<uint32_t>(IgnMode::SwitchButton), 0, 2}, \
+    {0x1E00,  2, &stConfig.stIgnition.eRole,            &stConfigTemp.stIgnition.eRole,            ParamType::Enum,   static_cast<uint32_t>(IgnRole::Main), 0, 2}, \
+    {0x1E00,  3, &stConfig.stIgnition.nIgnInput,        &stConfigTemp.stIgnition.nIgnInput,        ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
+    {0x1E00,  4, &stConfig.stIgnition.nStartInput,      &stConfigTemp.stIgnition.nStartInput,      ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
+    {0x1E00,  5, &stConfig.stIgnition.nCrankAllowInput, &stConfigTemp.stIgnition.nCrankAllowInput, ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
+    {0x1E00,  6, &stConfig.stIgnition.nRunningInput,    &stConfigTemp.stIgnition.nRunningInput,    ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
+    {0x1E00,  7, &stConfig.stIgnition.nMaxCrankMs,      &stConfigTemp.stIgnition.nMaxCrankMs,      ParamType::UInt16, 5000, 500, 30000}, \
+    {0x1E00,  8, &stConfig.stIgnition.bCrankWhileHeld,  &stConfigTemp.stIgnition.bCrankWhileHeld,  ParamType::Bool,   1, 0, 1}, \
+    {0x1E00,  9, &stConfig.stIgnition.nDashHoldMs,      &stConfigTemp.stIgnition.nDashHoldMs,      ParamType::UInt16, 0, 0, 60000}, \
+    {0x1E00, 10, &stConfig.stIgnition.nSyncId,          &stConfigTemp.stIgnition.nSyncId,          ParamType::UInt16, 0x6F1, 0, 0x7FF}, \
+    {0x1E00, 11, &stConfig.stIgnition.eSyncMode,        &stConfigTemp.stIgnition.eSyncMode,        ParamType::Enum,   static_cast<uint32_t>(IgnSyncMode::Absolute), 0, 1}, \
+    {0x1E00, 12, &stConfig.stIgnition.nSyncBase,        &stConfigTemp.stIgnition.nSyncBase,        ParamType::UInt16, 0, 0, 0x7FF}, \
+    {0x1E00, 13, &stConfig.stIgnition.nStopInput,       &stConfigTemp.stIgnition.nStopInput,       ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
+    {0x1E00, 14, &stConfig.stIgnition.nButtonIde,       &stConfigTemp.stIgnition.nButtonIde,       ParamType::UInt8,  0, 0, 1}, \
+    {0x1E00, 15, &stConfig.stIgnition.nButtonId,        &stConfigTemp.stIgnition.nButtonId,        ParamType::UInt32, 0, 0, 0x1FFFFFFF}, \
+    {0x1E00, 16, &stConfig.stIgnition.nButtonByte,      &stConfigTemp.stIgnition.nButtonByte,      ParamType::UInt8,  0, 0, 7}, \
+    {0x1E00, 17, &stConfig.stIgnition.nButtonMask,      &stConfigTemp.stIgnition.nButtonMask,      ParamType::UInt8,  0, 0, 255}, \
+    {0x1E00, 18, &stConfig.stIgnition.nButtonTimeoutMs, &stConfigTemp.stIgnition.nButtonTimeoutMs, ParamType::UInt16, 1000, 0, 60000}, \
+    {0x1E00, 19, &stConfig.stIgnition.nDashOffDelayMs,  &stConfigTemp.stIgnition.nDashOffDelayMs,  ParamType::UInt16, 0, 0, 60000}, \
+    {0x1E00, 20, &stConfig.stIgnition.nDoorInput,       &stConfigTemp.stIgnition.nDoorInput,       ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
+    {0x1E00, 21, &stConfig.stIgnition.nDoorOnMs,        &stConfigTemp.stIgnition.nDoorOnMs,        ParamType::UInt32, 60000, 1000, 3600000}, \
+    {0x1E00, 22, &stConfig.stIgnition.nSleepDelayMs,    &stConfigTemp.stIgnition.nSleepDelayMs,    ParamType::UInt32, 0, 0, 3600000}, \
+    {0x1E00, 23, &stConfig.stIgnition.nStatusId,        &stConfigTemp.stIgnition.nStatusId,        ParamType::UInt16, 0, 0, 0x7FF}
+
+// One role per output, sub 0x30 + output
+#define IGNITION_OUTPUT_PARAMS(i) \
+    {0x1E00, 0x30 + (i), &stConfig.stIgnition.eOutputRole[i], &stConfigTemp.stIgnition.eOutputRole[i], ParamType::Enum, static_cast<uint32_t>(IgnOutputRole::None), 0, 4}
+#endif
+
+//=============================================================================
 // CAN Output Parameters - Base 0x2000
 //=============================================================================
 #define CAN_OUTPUT_PARAMS(i) \
@@ -299,36 +431,26 @@
     {0x2000 + (i), 7,  &stConfig.stCanOutput[i].fOffset,    &stConfigTemp.stCanOutput[i].fOffset,    ParamType::Float,  F(0.0f), F(-1e9f), F(1e9f)}, \
     {0x2000 + (i), 8,  &stConfig.stCanOutput[i].eByteOrder, &stConfigTemp.stCanOutput[i].eByteOrder, ParamType::Enum,   static_cast<uint32_t>(ByteOrder::LittleEndian), 0, 1}, \
     {0x2000 + (i), 9,  &stConfig.stCanOutput[i].bSigned,    &stConfigTemp.stCanOutput[i].bSigned,    ParamType::Bool,   0, 0, 1}, \
-    {0x2000 + (i), 10, &stConfig.stCanOutput[i].nInterval,  &stConfigTemp.stCanOutput[i].nInterval,  ParamType::UInt16, 1000, 0, 60000}
+    {0x2000 + (i), 10, &stConfig.stCanOutput[i].nInterval,  &stConfigTemp.stCanOutput[i].nInterval,  ParamType::UInt16, 1000, 0, 60000}, \
+    {0x2000 + (i), 11, &stConfig.stCanOutput[i].eKind,      &stConfigTemp.stCanOutput[i].eKind,      ParamType::Enum,   static_cast<uint32_t>(CanOutputKind::Signal), 0, 5}, \
+    {0x2000 + (i), 12, &stConfig.stCanOutput[i].nTriggerInput, &stConfigTemp.stCanOutput[i].nTriggerInput, ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}
 
 //=============================================================================
 // Digital Output Parameters - Base 0x2100
 //=============================================================================
-#if NUM_DIG_OUTPUTS > 0
-#if HAS_DIG_PWM
-// Sub 2-10 mirror the Profet PWM params (base 0x1000 sub 8-16) for the CanBoard's
-// digital outputs. Same field meanings so the configurator can reuse them.
-#define DIGITAL_OUTPUT_PARAMS(i) \
-    {0x2100 + (i), 0,  &stConfig.stDigOutput[i].bEnabled,                   &stConfigTemp.stDigOutput[i].bEnabled,                   ParamType::Bool,   0, 0, 1}, \
-    {0x2100 + (i), 1,  &stConfig.stDigOutput[i].nInput,                     &stConfigTemp.stDigOutput[i].nInput,                     ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
-    {0x2100 + (i), 2,  &stConfig.stDigOutput[i].stPwm.bEnabled,             &stConfigTemp.stDigOutput[i].stPwm.bEnabled,             ParamType::Bool,   0, 0, 1}, \
-    {0x2100 + (i), 3,  &stConfig.stDigOutput[i].stPwm.bSoftStart,           &stConfigTemp.stDigOutput[i].stPwm.bSoftStart,           ParamType::Bool,   0, 0, 1}, \
-    {0x2100 + (i), 4,  &stConfig.stDigOutput[i].stPwm.bVariableDutyCycle,   &stConfigTemp.stDigOutput[i].stPwm.bVariableDutyCycle,   ParamType::Bool,   0, 0, 1}, \
-    {0x2100 + (i), 5,  &stConfig.stDigOutput[i].stPwm.nDutyCycleInput,      &stConfigTemp.stDigOutput[i].stPwm.nDutyCycleInput,      ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
-    {0x2100 + (i), 6,  &stConfig.stDigOutput[i].stPwm.nFixedDutyCycle,      &stConfigTemp.stDigOutput[i].stPwm.nFixedDutyCycle,      ParamType::UInt8,  100, 0, 100}, \
-    {0x2100 + (i), 7,  &stConfig.stDigOutput[i].stPwm.nFreq,                &stConfigTemp.stDigOutput[i].stPwm.nFreq,                ParamType::UInt16, 100, 0, 400}, \
-    {0x2100 + (i), 8,  &stConfig.stDigOutput[i].stPwm.nSoftStartRampTime,   &stConfigTemp.stDigOutput[i].stPwm.nSoftStartRampTime,   ParamType::UInt16, 0, 0, 10000}, \
-    {0x2100 + (i), 9,  &stConfig.stDigOutput[i].stPwm.nDutyCycleInputDenom, &stConfigTemp.stDigOutput[i].stPwm.nDutyCycleInputDenom, ParamType::UInt16, 100, 1, 5000}, \
-    {0x2100 + (i), 10, &stConfig.stDigOutput[i].stPwm.nMinDutyCycle,        &stConfigTemp.stDigOutput[i].stPwm.nMinDutyCycle,        ParamType::UInt16, 0, 0, 100}, \
-    {0x2100 + (i), 11, &stConfig.stDigOutput[i].stPwm.bVariableFreq,        &stConfigTemp.stDigOutput[i].stPwm.bVariableFreq,        ParamType::Bool,   0, 0, 1}, \
-    {0x2100 + (i), 12, &stConfig.stDigOutput[i].stPwm.nFreqInput,           &stConfigTemp.stDigOutput[i].stPwm.nFreqInput,           ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
-    {0x2100 + (i), 13, &stConfig.stDigOutput[i].stPwm.nFreqInputDenom,      &stConfigTemp.stDigOutput[i].stPwm.nFreqInputDenom,      ParamType::UInt16, 1, 1, 5000}, \
-    {0x2100 + (i), 14, &stConfig.stDigOutput[i].stPwm.bRampDutyChanges,     &stConfigTemp.stDigOutput[i].stPwm.bRampDutyChanges,     ParamType::Bool,   0, 0, 1}
-#else
+#if NUM_DIG_OUTPUTS > 0 
 #define DIGITAL_OUTPUT_PARAMS(i) \
     {0x2100 + (i), 0, &stConfig.stDigOutput[i].bEnabled,     &stConfigTemp.stDigOutput[i].bEnabled,    ParamType::Bool,   0, 0, 1}, \
-    {0x2100 + (i), 1, &stConfig.stDigOutput[i].nInput,       &stConfigTemp.stDigOutput[i].nInput,      ParamType::UInt16,   0, 0, VAR_MAP_SIZE - 1}
-#endif
+    {0x2100 + (i), 1, &stConfig.stDigOutput[i].nInput,       &stConfigTemp.stDigOutput[i].nInput,      ParamType::UInt16,   0, 0, VAR_MAP_SIZE - 1}, \
+    {0x2100 + (i), 2, &stConfig.stDigOutput[i].stPwm.bEnabled,             &stConfigTemp.stDigOutput[i].stPwm.bEnabled,             ParamType::Bool,   0, 0, 1}, \
+    {0x2100 + (i), 3, &stConfig.stDigOutput[i].stPwm.bSoftStart,           &stConfigTemp.stDigOutput[i].stPwm.bSoftStart,           ParamType::Bool,   0, 0, 1}, \
+    {0x2100 + (i), 4, &stConfig.stDigOutput[i].stPwm.bVariableDutyCycle,   &stConfigTemp.stDigOutput[i].stPwm.bVariableDutyCycle,   ParamType::Bool,   0, 0, 1}, \
+    {0x2100 + (i), 5, &stConfig.stDigOutput[i].stPwm.nDutyCycleInput,      &stConfigTemp.stDigOutput[i].stPwm.nDutyCycleInput,      ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
+    {0x2100 + (i), 6, &stConfig.stDigOutput[i].stPwm.nFixedDutyCycle,      &stConfigTemp.stDigOutput[i].stPwm.nFixedDutyCycle,      ParamType::UInt8,  100, 0, 100}, \
+    {0x2100 + (i), 7, &stConfig.stDigOutput[i].stPwm.nFreq,                &stConfigTemp.stDigOutput[i].stPwm.nFreq,                ParamType::UInt16, 100, 0, 400}, \
+    {0x2100 + (i), 8, &stConfig.stDigOutput[i].stPwm.nSoftStartRampTime,   &stConfigTemp.stDigOutput[i].stPwm.nSoftStartRampTime,   ParamType::UInt16, 0, 0, 10000}, \
+    {0x2100 + (i), 9, &stConfig.stDigOutput[i].stPwm.nDutyCycleInputDenom, &stConfigTemp.stDigOutput[i].stPwm.nDutyCycleInputDenom, ParamType::UInt16, 100, 1, 5000}, \
+    {0x2100 + (i), 10, &stConfig.stDigOutput[i].stPwm.nMinDutyCycle,       &stConfigTemp.stDigOutput[i].stPwm.nMinDutyCycle,        ParamType::UInt16, 0, 0, 100}
 #endif
 
 //=============================================================================
@@ -343,16 +465,42 @@
     {0x2200 + (i), 4, &stConfig.stAnalogInput[i].stSwitch.nThreshold, &stConfigTemp.stAnalogInput[i].stSwitch.nThreshold, ParamType::UInt16, 2000, 0, 5000}, \
     {0x2200 + (i), 5, &stConfig.stAnalogInput[i].stRotary.bEnabled, &stConfigTemp.stAnalogInput[i].stRotary.bEnabled, ParamType::Bool, 0, 0, 1}, \
     {0x2200 + (i), 6, &stConfig.stAnalogInput[i].stRotary.bInvert, &stConfigTemp.stAnalogInput[i].stRotary.bInvert, ParamType::Bool, 0, 0, 1}, \
-    {0x2200 + (i), 7, &stConfig.stAnalogInput[i].stRotary.nNumPos, &stConfigTemp.stAnalogInput[i].stRotary.nNumPos, ParamType::UInt8, 2, 2, MAX_SWITCH_POS}, \
-    {0x2200 + (i), 8, &stConfig.stAnalogInput[i].stRotary.nTolerance, &stConfigTemp.stAnalogInput[i].stRotary.nTolerance, ParamType::UInt16, 200, 0, 5000}, \
-    {0x2200 + (i), 9,  &stConfig.stAnalogInput[i].stRotary.nPointPair[0], &stConfigTemp.stAnalogInput[i].stRotary.nPointPair[0], ParamType::UInt32, 0, 0, 0xFFFFFFFF}, \
-    {0x2200 + (i), 10, &stConfig.stAnalogInput[i].stRotary.nPointPair[1], &stConfigTemp.stAnalogInput[i].stRotary.nPointPair[1], ParamType::UInt32, 0, 0, 0xFFFFFFFF}, \
-    {0x2200 + (i), 11, &stConfig.stAnalogInput[i].stRotary.nPointPair[2], &stConfigTemp.stAnalogInput[i].stRotary.nPointPair[2], ParamType::UInt32, 0, 0, 0xFFFFFFFF}, \
-    {0x2200 + (i), 12, &stConfig.stAnalogInput[i].stRotary.nPointPair[3], &stConfigTemp.stAnalogInput[i].stRotary.nPointPair[3], ParamType::UInt32, 0, 0, 0xFFFFFFFF}, \
-    {0x2200 + (i), 13, &stConfig.stAnalogInput[i].stRotary.nPointPair[4], &stConfigTemp.stAnalogInput[i].stRotary.nPointPair[4], ParamType::UInt32, 0, 0, 0xFFFFFFFF}, \
-    {0x2200 + (i), 14, &stConfig.stAnalogInput[i].stScale.bEnabled, &stConfigTemp.stAnalogInput[i].stScale.bEnabled, ParamType::Bool, 0, 0, 1}, \
-    {0x2200 + (i), 15, &stConfig.stAnalogInput[i].stScale.fGain, &stConfigTemp.stAnalogInput[i].stScale.fGain, ParamType::Float, F(0.0f), F(-1e9f), F(1e9f)}, \
-    {0x2200 + (i), 16, &stConfig.stAnalogInput[i].stScale.fOffset, &stConfigTemp.stAnalogInput[i].stScale.fOffset, ParamType::Float, F(0.0f), F(-1e9f), F(1e9f)}
+    {0x2200 + (i), 7, &stConfig.stAnalogInput[i].stRotary.fOffset, &stConfigTemp.stAnalogInput[i].stRotary.fOffset, ParamType::Float, F(0.0f), F(-1e9f), F(1e9f)}, \
+    {0x2200 + (i), 8, &stConfig.stAnalogInput[i].stRotary.fStep, &stConfigTemp.stAnalogInput[i].stRotary.fStep, ParamType::Float, F(100.0f), F(1e-6f), F(1e9f)}, \
+    {0x2200 + (i), 9, &stConfig.stAnalogInput[i].stRotary.fMaxPos, &stConfigTemp.stAnalogInput[i].stRotary.fMaxPos, ParamType::Float, F(10.0f), F(0.0f), F(1e9f)}, \
+    {0x2200 + (i), 10, &stConfig.stAnalogInput[i].bScale, &stConfigTemp.stAnalogInput[i].bScale, ParamType::Bool, 0, 0, 1}, \
+    {0x2200 + (i), 11, &stConfig.stAnalogInput[i].fScaleGain, &stConfigTemp.stAnalogInput[i].fScaleGain, ParamType::Float, F(1.0f), F(-1e9f), F(1e9f)}, \
+    {0x2200 + (i), 12, &stConfig.stAnalogInput[i].fScaleOffset, &stConfigTemp.stAnalogInput[i].fScaleOffset, ParamType::Float, F(0.0f), F(-1e9f), F(1e9f)}, \
+    {0x2200 + (i), 13, &stConfig.stAnalogInput[i].stRotary.eMode, &stConfigTemp.stAnalogInput[i].stRotary.eMode, ParamType::Enum, static_cast<uint32_t>(RotaryMode::Uniform), 0, 1}, \
+    {0x2200 + (i), 14, &stConfig.stAnalogInput[i].stRotary.nNumPos, &stConfigTemp.stAnalogInput[i].stRotary.nNumPos, ParamType::UInt8, 2, 2, ROTARY_MAX_POS}, \
+    {0x2200 + (i), 15, &stConfig.stAnalogInput[i].stRotary.nTolerance, &stConfigTemp.stAnalogInput[i].stRotary.nTolerance, ParamType::UInt16, 200, 0, 5000}, \
+    {0x2200 + (i), 16, &stConfig.stAnalogInput[i].stRotary.nPointPair[0], &stConfigTemp.stAnalogInput[i].stRotary.nPointPair[0], ParamType::UInt32, 0, 0, 0xFFFFFFFF}, \
+    {0x2200 + (i), 17, &stConfig.stAnalogInput[i].stRotary.nPointPair[1], &stConfigTemp.stAnalogInput[i].stRotary.nPointPair[1], ParamType::UInt32, 0, 0, 0xFFFFFFFF}, \
+    {0x2200 + (i), 18, &stConfig.stAnalogInput[i].stRotary.nPointPair[2], &stConfigTemp.stAnalogInput[i].stRotary.nPointPair[2], ParamType::UInt32, 0, 0, 0xFFFFFFFF}, \
+    {0x2200 + (i), 19, &stConfig.stAnalogInput[i].stRotary.nPointPair[3], &stConfigTemp.stAnalogInput[i].stRotary.nPointPair[3], ParamType::UInt32, 0, 0, 0xFFFFFFFF} \
+    ANALOG_INPUT_POINT_PAIR_5(i)
+#if ROTARY_MAX_POS > 8
+#define ANALOG_INPUT_POINT_PAIR_5(i) , \
+    {0x2200 + (i), 20, &stConfig.stAnalogInput[i].stRotary.nPointPair[4], &stConfigTemp.stAnalogInput[i].stRotary.nPointPair[4], ParamType::UInt32, 0, 0, 0xFFFFFFFF}
+#else
+#define ANALOG_INPUT_POINT_PAIR_5(i)
+#endif
+#endif
+
+//=============================================================================
+// Curve Parameters - Base 0x2400
+//=============================================================================
+#if NUM_CURVES > 0
+#define CURVE_POINT_PARAMS(i, k) \
+    {0x2400 + (i), 3 + (k),  &stConfig.stCurve[i].fX[k], &stConfigTemp.stCurve[i].fX[k], ParamType::Float, F(0.0f), F(-1e9f), F(1e9f)}, \
+    {0x2400 + (i), 15 + (k), &stConfig.stCurve[i].fY[k], &stConfigTemp.stCurve[i].fY[k], ParamType::Float, F(0.0f), F(-1e9f), F(1e9f)}
+#define CURVE_PARAMS(i) \
+    {0x2400 + (i), 0, &stConfig.stCurve[i].bEnabled, &stConfigTemp.stCurve[i].bEnabled, ParamType::Bool,   0, 0, 1}, \
+    {0x2400 + (i), 1, &stConfig.stCurve[i].nInput,   &stConfigTemp.stCurve[i].nInput,   ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
+    {0x2400 + (i), 2, &stConfig.stCurve[i].nPoints,  &stConfigTemp.stCurve[i].nPoints,  ParamType::UInt8,  2, 2, CURVE_MAX_POINTS}, \
+    CURVE_POINT_PARAMS(i, 0), CURVE_POINT_PARAMS(i, 1), CURVE_POINT_PARAMS(i, 2),  CURVE_POINT_PARAMS(i, 3), \
+    CURVE_POINT_PARAMS(i, 4), CURVE_POINT_PARAMS(i, 5), CURVE_POINT_PARAMS(i, 6),  CURVE_POINT_PARAMS(i, 7), \
+    CURVE_POINT_PARAMS(i, 8), CURVE_POINT_PARAMS(i, 9), CURVE_POINT_PARAMS(i, 10), CURVE_POINT_PARAMS(i, 11)
 #endif
 
 //=============================================================================
@@ -364,7 +512,7 @@
     {0x3000 + (i), 1,  &stConfig.stKeypad[i].nNodeId,                 &stConfigTemp.stKeypad[i].nNodeId,                  ParamType::UInt8,  0, 0, 127}, \
     {0x3000 + (i), 2,  &stConfig.stKeypad[i].bTimeoutEnabled,         &stConfigTemp.stKeypad[i].bTimeoutEnabled,          ParamType::Bool,   0, 0, 1}, \
     {0x3000 + (i), 3,  &stConfig.stKeypad[i].nTimeout,                &stConfigTemp.stKeypad[i].nTimeout,                 ParamType::UInt16, 0, 0, 60000}, \
-    {0x3000 + (i), 4,  &stConfig.stKeypad[i].eModel,                  &stConfigTemp.stKeypad[i].eModel,                   ParamType::Enum,   static_cast<uint8_t>(KeypadModel::Blink12Key), 0, 24}, /* Grayhill models are 20..24 — the old 0..13 cap made them unconfigurable */ \
+    {0x3000 + (i), 4,  &stConfig.stKeypad[i].eModel,                  &stConfigTemp.stKeypad[i].eModel,                   ParamType::Enum,   static_cast<uint8_t>(KeypadModel::Blink12Key), 0, static_cast<uint8_t>(KeypadModel::Grayhill20Key)}, \
     {0x3000 + (i), 5,  &stConfig.stKeypad[i].nBacklightBrightness,    &stConfigTemp.stKeypad[i].nBacklightBrightness,     ParamType::UInt8,  63, 0, 63}, \
     {0x3000 + (i), 6,  &stConfig.stKeypad[i].nDimBacklightBrightness, &stConfigTemp.stKeypad[i].nDimBacklightBrightness,  ParamType::UInt8,  32, 0, 63}, \
     {0x3000 + (i), 7,  &stConfig.stKeypad[i].nBacklightColor,         &stConfigTemp.stKeypad[i].nBacklightColor,          ParamType::UInt8,  0, 0, 9}, \
@@ -397,7 +545,8 @@
     {0x3100 + (k) * 32 + (b), 18, &stConfig.stKeypad[k].stButton[b].nBlinkColors[1],       &stConfigTemp.stKeypad[k].stButton[b].nBlinkColors[1], ParamType::UInt8,  0, 0, 7}, \
     {0x3100 + (k) * 32 + (b), 19, &stConfig.stKeypad[k].stButton[b].nBlinkColors[2],       &stConfigTemp.stKeypad[k].stButton[b].nBlinkColors[2], ParamType::UInt8,  0, 0, 7}, \
     {0x3100 + (k) * 32 + (b), 20, &stConfig.stKeypad[k].stButton[b].nBlinkColors[3],       &stConfigTemp.stKeypad[k].stButton[b].nBlinkColors[3], ParamType::UInt8,  0, 0, 7}, \
-    {0x3100 + (k) * 32 + (b), 21, &stConfig.stKeypad[k].stButton[b].nFaultBlinkColor,      &stConfigTemp.stKeypad[k].stButton[b].nFaultBlinkColor,ParamType::UInt8,  0, 0, 7}
+    {0x3100 + (k) * 32 + (b), 21, &stConfig.stKeypad[k].stButton[b].nFaultBlinkColor,      &stConfigTemp.stKeypad[k].stButton[b].nFaultBlinkColor,ParamType::UInt8,  0, 0, 7}, \
+    {0x3100 + (k) * 32 + (b), 22, &stConfig.stKeypad[k].stButton[b].bRetain,               &stConfigTemp.stKeypad[k].stButton[b].bRetain,         ParamType::Bool,   0, 0, 1}
 
 //=============================================================================
 // Keypad Dial Parameters - Base 0x3200 + (keypad * 4) + dial
@@ -407,4 +556,15 @@
     {0x3200 + (k) * 4 + (d), 1, &stConfig.stKeypad[k].stDial[d].nMinCount,    &stConfigTemp.stKeypad[k].stDial[d].nMinCount,    ParamType::UInt8, 0, 0, 16},  \
     {0x3200 + (k) * 4 + (d), 2, &stConfig.stKeypad[k].stDial[d].nMaxCount,    &stConfigTemp.stKeypad[k].stDial[d].nMaxCount,    ParamType::UInt8, 16, 0, 16}, \
     {0x3200 + (k) * 4 + (d), 3, &stConfig.stKeypad[k].stDial[d].nLedOffset,   &stConfigTemp.stKeypad[k].stDial[d].nLedOffset,   ParamType::UInt8, 0, 0, 16}
+#endif
+
+//=============================================================================
+// NeoPixel (external) Parameters - Base 0x4000
+//=============================================================================
+#if HAS_NEOPIXELS
+#define NEOPIXEL_PARAMS(i) \
+    {0x4000 + (i), 0, &stConfig.stNeoPixel[i].bEnabled, &stConfigTemp.stNeoPixel[i].bEnabled, ParamType::Bool, 0, 0, 1}, \
+    {0x4000 + (i), 1, &stConfig.stNeoPixel[i].nInput,   &stConfigTemp.stNeoPixel[i].nInput,   ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
+    {0x4000 + (i), 2, &stConfig.stNeoPixel[i].nNumLEDs, &stConfigTemp.stNeoPixel[i].nNumLEDs, ParamType::UInt8, 1, 0, 255}, \
+    {0x4000 + (i), 3, &stConfig.stNeoPixel[i].eMode,    &stConfigTemp.stNeoPixel[i].eMode,    ParamType::Enum, static_cast<uint32_t>(NeoPixelMode::Static), 0, 3}
 #endif

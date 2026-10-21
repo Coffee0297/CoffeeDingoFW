@@ -1,23 +1,78 @@
 #include "digital_input.h"
 
-// PWM mode: no edge for 3 periods (configured, or the last measured one) reads as a steady level, 0 % or
-// 100 %; clamped to 50 ms .. 3 s, so auto-detect covers ~1 Hz upward. ponytail: edge IRQ per transition,
-// fine to a few kHz; a timer input-capture channel per pin if faster signals are ever needed.
-#define PWM_MAX_PERIOD_MS 1000U
+#if DI_PWM_MAX_FREQ > 0
+// No edge for 3 periods (the configured one, or the last measured one) reads as a steady 0 % or 100 %,
+// clamped to 50 ms .. 3 s. ponytail: one EXTI interrupt per edge, fine to a few kHz; a timer
+// input-capture channel per pin if faster signals are ever needed.
 #define PWM_MIN_TIMEOUT_MS 50U
+#define PWM_MAX_TIMEOUT_MS 3000U
 
 static void PwmEdgeCb(void *arg)
 {
     static_cast<Digital_Input *>(arg)->OnEdge();
 }
 
+// The EXTI line is also the sleep wake source, so sleep stops the PWM measurement first
+void Digital_Input::StopPwm()
+{
+    if (!bPwmActive)
+        return;
+    palDisableLineEvent(m_line);
+    bPwmActive = false;
+}
+
+void Digital_Input::OnEdge()
+{
+    rtcnt_t now = chSysGetRealtimeCounterX();
+    chSysLockFromISR();
+    if (meter.Edge(palReadLine(m_line), now))
+        nLastEdgeMs = SYS_TIME; // filtered-out spikes don't keep a dead signal alive
+    chSysUnlockFromISR();
+}
+
+void Digital_Input::UpdatePwm()
+{
+    chSysLock();
+    PwmMeter::Sample s = meter.Take();
+    uint32_t nLastEdge = nLastEdgeMs;
+    chSysUnlock();
+
+    uint32_t nTimeout;
+    if (pConfig->nPwmFreq > 0)
+        nTimeout = 3000U / pConfig->nPwmFreq;
+    else
+        nTimeout = 3U * (s.lastPeriod / (STM32_HCLK / 1000U));
+    if (nTimeout < PWM_MIN_TIMEOUT_MS) nTimeout = PWM_MIN_TIMEOUT_MS;
+    if (nTimeout > PWM_MAX_TIMEOUT_MS) nTimeout = PWM_MAX_TIMEOUT_MS;
+
+    if ((SYS_TIME - nLastEdge) > nTimeout)
+    {
+        fDuty = (palReadLine(m_line) != pConfig->bInvert) ? 100.0f : 0.0f;
+        fFreq = 0;
+        fVal = 0;
+        return;
+    }
+
+    if (s.periods > 0)
+    {
+        float fMeasured = PwmMeter::Duty(s);
+        fDuty = pConfig->bInvert ? 100.0f - fMeasured : fMeasured;
+        fFreq = (pConfig->nPwmFreq > 0) ? (float)pConfig->nPwmFreq : PwmMeter::Freq(s, STM32_HCLK);
+    }
+    fVal = 1;
+}
+#endif
+
 void Digital_Input::SetConfig(Config_DigInput *config)
 {
+    #if DI_PWM_MAX_FREQ > 0
     StopPwm();
+    #endif
     pConfig = config;
 
     SetPull(config->ePull);
 
+    #if DI_PWM_MAX_FREQ > 0
     fDuty = 0;
     fFreq = 0;
     if (config->bEnabled && config->bPwm)
@@ -31,59 +86,7 @@ void Digital_Input::SetConfig(Config_DigInput *config)
         bPwmActive = true;
         chSysUnlock();
     }
-}
-
-void Digital_Input::StopPwm()
-{
-    if (!bPwmActive)
-        return;
-    palDisableLineEvent(m_line);
-    bPwmActive = false;
-}
-
-// Both edges, from the EXTI ISR (cycle-counter timestamps).
-void Digital_Input::OnEdge()
-{
-    rtcnt_t now = chSysGetRealtimeCounterX();
-    chSysLockFromISR();
-    if (meter.Edge(palReadLine(m_line), now))
-        nLastEdgeMs = SYS_TIME;   // filtered-out spikes do not keep a dead signal alive
-    chSysUnlockFromISR();
-}
-
-void Digital_Input::UpdatePwm()
-{
-    chSysLock();
-    PwmMeter::Sample s = meter.Take();
-    uint32_t lastEdge = nLastEdgeMs;
-    chSysUnlock();
-
-    const uint32_t clk = STM32_HCLK;
-    uint32_t timeout;
-    if (pConfig->nPwmFreq > 0)
-        timeout = 3000U / pConfig->nPwmFreq;   // 3 periods of the configured frequency
-    else
-        timeout = 3U * (uint32_t)(((uint64_t)s.lastPeriod * 1000U) / clk);
-    if (timeout < PWM_MIN_TIMEOUT_MS) timeout = PWM_MIN_TIMEOUT_MS;
-    if (timeout > 3U * PWM_MAX_PERIOD_MS) timeout = 3U * PWM_MAX_PERIOD_MS;
-
-    bool level = palReadLine(m_line) != pConfig->bInvert;
-    if ((SYS_TIME - lastEdge) > timeout)
-    {
-        // no signal: a steady level is 0 % or 100 %
-        fDuty = level ? 100.0f : 0.0f;
-        fFreq = 0;
-        fVal = 0;
-        return;
-    }
-
-    if (s.periods > 0)
-    {
-        float duty = PwmMeter::Duty(s);
-        fDuty = pConfig->bInvert ? 100.0f - duty : duty;
-        fFreq = (pConfig->nPwmFreq > 0) ? (float)pConfig->nPwmFreq : PwmMeter::Freq(s, clk);
-    }
-    fVal = 1;
+    #endif
 }
 
 void Digital_Input::Update()
@@ -91,16 +94,20 @@ void Digital_Input::Update()
     if(!pConfig->bEnabled)
     {
         fVal = 0;
+        #if DI_PWM_MAX_FREQ > 0
         fDuty = 0;
         fFreq = 0;
+        #endif
         return;
     }
 
+    #if DI_PWM_MAX_FREQ > 0
     if (pConfig->bPwm)
     {
         UpdatePwm();
         return;
     }
+    #endif
 
     bool bIn;
 

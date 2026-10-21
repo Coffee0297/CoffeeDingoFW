@@ -1,11 +1,7 @@
 #pragma once
 
 #include <cstdint>
-#ifdef DINGO_HOST_TEST
-#include "enums.h"
-#else
 #include "config.h"
-#endif
 
 class Edge
 {

@@ -26,10 +26,10 @@ static InfoMsg OutputOvercurrentMsg[NUM_OUTPUTS];
 static InfoMsg OutputFaultMsg[NUM_OUTPUTS];
 static InfoMsg OutputWarningMsg[NUM_OUTPUTS];
 static InfoMsg OutputOpenLoadMsg[NUM_OUTPUTS];
+static InfoMsg OutputUndercurrentMsg[NUM_OUTPUTS];
 #endif
 
 extern DeviceConfig stConfig;
-extern DeviceState eState;
 
 #if HAS_BATT_VOLT_SENSE
 extern float fBattVolt;
@@ -66,6 +66,7 @@ void CheckInfoMsgs()
         OutputFaultMsg[i].Check(GetOutputState(i) == ProfetState::Fault, stConfig.stDevice.nBaseId, i, GetOutputCurrent(i), 0);
         OutputWarningMsg[i].Check(GetOutputState(i) == ProfetState::Warning, stConfig.stDevice.nBaseId, i, GetOutputCurrent(i), 0);
         OutputOpenLoadMsg[i].Check(GetOutputState(i) == ProfetState::OpenLoad, stConfig.stDevice.nBaseId, i, GetOutputCurrent(i), 0);
+        OutputUndercurrentMsg[i].Check(GetOutputState(i) == ProfetState::Undercurrent, stConfig.stDevice.nBaseId, i, GetOutputCurrent(i), 0);
     }
     #endif
 }
@@ -95,6 +96,7 @@ void InitInfoMsgs()
         OutputFaultMsg[i] = InfoMsg(MsgType::Error, MsgSrc::Overcurrent);
         OutputWarningMsg[i] = InfoMsg(MsgType::Warning, MsgSrc::OutputWarning);
         OutputOpenLoadMsg[i] = InfoMsg(MsgType::Warning, MsgSrc::OpenLoad);
+        OutputUndercurrentMsg[i] = InfoMsg(MsgType::Warning, MsgSrc::Undercurrent);
     }
     #endif
 }
@@ -109,10 +111,12 @@ void InfoMsg::Check(bool bTrigger, uint16_t nId, uint16_t nData0, uint16_t nData
 
     if (bSent)
         return;
-#if CAN_SLEEP
-    if (QuietWake())   // a quiet wake sends nothing (it would wake the others); it goes when the quiet ends
+
+    #if CAN_SLEEP
+    // Held back until a quiet wake ends, it would wake the others
+    if (QuietWake())
         return;
-#endif
+    #endif
 
     SendInfoMsg(m_type, m_src, nId, nData0, nData1, nData2);
     bSent = true;

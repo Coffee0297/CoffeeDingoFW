@@ -26,4 +26,11 @@ from .build_msg_24 import build_msg_24
 from .build_msg_25 import build_msg_25
 from .build_msg_26 import build_msg_26
 from .build_msg_27 import build_msg_27
+from .build_msg_28 import build_msg_28
+from .build_msg_29 import build_msg_29
+from .build_msg_30 import build_msg_30
+from .build_msg_31 import build_msg_31
+from .build_msg_32 import build_msg_32
+from .build_msg_33 import build_msg_33
+from .build_msg_34 import build_msg_34
 from .build_db import build_db

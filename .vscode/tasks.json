@@ -39,8 +39,10 @@
             "description": "Select board type",
             "options": [
                 "dingopdm_v7",
+                "dingopdm_v8",
                 "dingopdmmax_v1",
-                "canboard_v2"
+                "canboard_v2",
+                "pt-dpdm4_1"
             ],
             "default": "dingopdm_v7"
         }
