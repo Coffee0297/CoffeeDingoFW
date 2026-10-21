@@ -297,6 +297,9 @@ void CyclicUpdate()
     for (uint8_t i = 0; i < NUM_DIG_INPUTS; i++)
         digIn[i].Update();
     #endif
+    #if CAN_SLEEP
+    CheckQuietWakeInputs();
+    #endif
 
     #if NUM_ANALOG_INPUTS > 0
     for (uint8_t i = 0; i < NUM_ANALOG_INPUTS; i++)
