@@ -1,0 +1,33 @@
+# Build dingoFW with Pixi
+#
+#   git submodule update --init --recursive
+#   pixi install
+#   pixi run build-fw                      # default: canboard_v2
+#   pixi run clean                         # clean before switching boards
+#   pixi run build-fw BOARD=dingopdm_v7
+#
+# Other boards: dingopdmmax_v1, pt-dpdm4_1.
+# Use `pixi shell` for an interactive shell with the toolchain on PATH.
+# On Windows, use `pixi run` / `pixi shell` to activate the Unix tools as well.
+
+[workspace]
+name = "dingofw"
+channels = ["conda-forge", "xtitoris"]
+platforms = ["win-64", "linux-64", "osx-arm64"]
+
+[dependencies]
+make = ">=4.4.1,<5"
+arm-gnu-toolchain = ">=14,<15"
+
+# ChibiOS Makefiles use a Unix shell and utilities. Linux/macOS supply these;
+# on Windows, provide them in the environment so Git Bash/WSL is not required.
+[target.win-64.dependencies]
+m2-bash = "*"
+m2-sed = "*"
+m2-gawk = "*"
+m2-grep = "*"
+m2-coreutils = "*"
+
+[tasks]
+build-fw = "make -j12"
+clean = "make clean"

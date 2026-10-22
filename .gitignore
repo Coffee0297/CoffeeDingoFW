@@ -5,6 +5,10 @@ deliver
 build/
 .dep/
 
+# Local Pixi environment and lockfile
+.pixi/
+pixi.lock
+
 # cortex-debug vscode extension local state
 .vscode/.cortex-debug*state.json
 
