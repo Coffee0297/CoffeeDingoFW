@@ -4,7 +4,7 @@ Read the [shared contributing guide](https://github.com/corygrant/dingoElec/blob
 
 ## Build
 
-You need `arm-none-eabi-gcc` (CI uses 13.3.rel1) and `make`.
+You need `arm-none-eabi-gcc` (CI uses 14.2.Rel1) and `make`.
 
 ```bash
 git clone --recursive https://github.com/corygrant/dingoFW.git   # ChibiOS is a submodule

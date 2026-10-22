@@ -64,12 +64,11 @@ jobs:
             echo "exists=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: Download & Install ARM GCC Toolchain
+      - name: Install Arm GNU Toolchain
         if: steps.check_release.outputs.exists == 'false'
-        run: |
-          wget 'https://developer.arm.com/-/media/Files/downloads/gnu/13.3.rel1/binrel/arm-gnu-toolchain-13.3.rel1-x86_64-arm-none-eabi.tar.xz' -O compiler.tar.xz
-          tar -xf compiler.tar.xz
-          echo "$(pwd)/arm-gnu-toolchain-13.3.rel1-x86_64-arm-none-eabi/bin" >> $GITHUB_PATH
+        uses: carlosperate/arm-none-eabi-gcc-action@v1.14.0
+        with:
+          release: '14.2.Rel1'
 
       - name: Verify Compiler
         if: steps.check_release.outputs.exists == 'false'

@@ -55,11 +55,10 @@ jobs:
           # Delete the tag so it can be recreated at the new commit
           git push origin :refs/tags/testing-latest || true
 
-      - name: Download & Install ARM GCC Toolchain
-        run: |
-          wget 'https://developer.arm.com/-/media/Files/downloads/gnu/13.3.rel1/binrel/arm-gnu-toolchain-13.3.rel1-x86_64-arm-none-eabi.tar.xz' -O compiler.tar.xz
-          tar -xf compiler.tar.xz
-          echo "$(pwd)/arm-gnu-toolchain-13.3.rel1-x86_64-arm-none-eabi/bin" >> $GITHUB_PATH
+      - name: Install Arm GNU Toolchain
+        uses: carlosperate/arm-none-eabi-gcc-action@v1.14.0
+        with:
+          release: '14.2.Rel1'
 
       - name: Verify Compiler
         run: arm-none-eabi-gcc -v
