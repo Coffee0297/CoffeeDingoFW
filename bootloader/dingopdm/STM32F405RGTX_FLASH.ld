@@ -45,11 +45,13 @@ _Min_Stack_Size = 0x800; /* required amount of stack */
 /* Memories definition */
 MEMORY
 {
-  /* dingoFW: 16 kB bootloader in flash sector 0. RAM is 16 bytes short of 128 kB; those top
-   * 16 bytes (0x2001FFF0..0x20020000) are the param block the application passes in (magic,
-   * base id, CAN speed - see can.c DingoLoadCanConfig / RequestBootloaderCan), kept outside
-   * the bootloader's .bss and stack. STM32F446 has no CCM RAM. */
-  RAM       (xrw)    : ORIGIN = 0x20000000,   LENGTH = 0x1FFF0
+  /* dingoFW: 16 kB bootloader in flash sector 0. RAM is 48 bytes short of 128 kB; those top
+   * bytes are the application's, kept outside the bootloader's .bss and stack (the stack
+   * starts below them): 0x2001FFF0..0x20020000 the param block the application passes in
+   * (magic, base id, CAN speed - see can.c DingoLoadCanConfig / RequestBootloaderCan), and
+   * 0x2001FFD0..0x2001FFF0 for what the application keeps across the reset after a sleep
+   * wake (0x2001FFDC, the wake record). STM32F446 has no CCM RAM. */
+  RAM       (xrw)    : ORIGIN = 0x20000000,   LENGTH = 0x1FFD0
   FLASH     (rx)     : ORIGIN = 0x08000000,   LENGTH = 16K
 }
 
