@@ -254,11 +254,12 @@ void EnterSleep()
 
     // Stop the CAN controller before its pins change: left running it answers the lost RX pin with an error
     // frame, and the error flags the other nodes send back wake this module straight up again. Park TX recessive.
+    // Standby first and the output latch high before the pin turns output: the other order drives TX dominant
+    // for a few cycles, and that edge wakes every sleeping module on the bus.
     StopCan();
-    palSetLineMode(LINE_CAN_TX, PAL_MODE_OUTPUT_PUSHPULL);
-    palSetLine(LINE_CAN_TX);
-
     palSetLine(LINE_CAN_STANDBY); // CAN disabled
+    palSetLine(LINE_CAN_TX);
+    palSetLineMode(LINE_CAN_TX, PAL_MODE_OUTPUT_PUSHPULL);
 
     // Let the transceiver settle in standby before a wake source is armed
     chThdSleepMilliseconds(20);
