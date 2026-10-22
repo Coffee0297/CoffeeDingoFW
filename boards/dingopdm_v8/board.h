@@ -68,10 +68,10 @@
 #define GPIOA_PIN6                  6U
 #define GPIOA_PIN7                  7U
 #define GPIOA_PIN8                  8U
-#define GPIOA_VBUS                  9U
+#define GPIOA_PIN9                  9U
 #define GPIOA_PIN10                 10U
-#define GPIOA_USB_DM                11U
-#define GPIOA_USB_DP                12U
+#define GPIOA_PIN11                11U
+#define GPIOA_PIN12                12U
 #define GPIOA_SWDIO                 13U
 #define GPIOA_SWCLK                 14U
 #define GPIOA_PIN15                 15U
@@ -198,47 +198,71 @@
 /*
  * IO lines assignments.
  */
-#define LINE_PF1_IS                 PAL_LINE(GPIOA, 0U)
-#define LINE_PF1_IN                 PAL_LINE(GPIOB, 10U)
-#define LINE_PF1_DEN                PAL_LINE(GPIOB, 2U)
-#define LINE_PF2_IS                 PAL_LINE(GPIOC, 2U)
-#define LINE_PF2_IN                 PAL_LINE(GPIOC, 8U)
-#define LINE_PF2_DEN                PAL_LINE(GPIOC, 7U)
-#define LINE_PF3_4_IS               PAL_LINE(GPIOC, 3U)
-#define LINE_PF3_IN                 PAL_LINE(GPIOC, 6U)
-#define LINE_PF4_IN                 PAL_LINE(GPIOB, 12U)
-#define LINE_PF3_4_DSEL             PAL_LINE(GPIOB, 14U)
-#define LINE_PF3_4_DEN              PAL_LINE(GPIOB, 15U)
-#define LINE_PF5_6_IS               PAL_LINE(GPIOA, 1U)
-#define LINE_PF5_IN                 PAL_LINE(GPIOB, 1U)
-#define LINE_PF6_IN                 PAL_LINE(GPIOC, 4U)
-#define LINE_PF5_6_DSEL             PAL_LINE(GPIOC, 5U)
-#define LINE_PF5_6_DEN              PAL_LINE(GPIOB, 0U)
-#define LINE_PF7_8_IS               PAL_LINE(GPIOA, 2U)
-#define LINE_PF7_IN                 PAL_LINE(GPIOA, 7U)
-#define LINE_PF8_IN                 PAL_LINE(GPIOA, 4U)
-#define LINE_PF7_8_DSEL             PAL_LINE(GPIOA, 5U)
-#define LINE_PF7_8_DEN              PAL_LINE(GPIOA, 6U)
-#define LINE_DI1                    PAL_LINE(GPIOA, 10U)
-#define LINE_DI2                    PAL_LINE(GPIOC, 9U)
-#define LINE_LED_ERROR              PAL_LINE(GPIOC, 0U)
-#define LINE_LED_STATUS             PAL_LINE(GPIOC, 1U)
-#define LINE_BATT_SENSE             PAL_LINE(GPIOA, 3U)
-#define LINE_USB_VBUS               PAL_LINE(GPIOA, 9U)
+#define LINE_PF1_IS                 PAL_LINE(GPIOC, 0U)
+#define LINE_PF1_IN                 PAL_LINE(GPIOF, 2U)
+#define LINE_PF2_IS                 PAL_LINE(GPIOA, 4U)
+#define LINE_PF2_IN                 PAL_LINE(GPIOC, 15U)
+#define LINE_PF3_IS                 PAL_LINE(GPIOC, 3U)
+#define LINE_PF3_IN                 PAL_LINE(GPIOE, 7U)
+#define LINE_PF4_IS                 PAL_LINE(GPIOA, 5U)
+#define LINE_PF4_IN                 PAL_LINE(GPIOE, 8U)
+#define LINE_PF5_IS                 PAL_LINE(GPIOC, 4U)
+#define LINE_PF5_IN                 PAL_LINE(GPIOB, 12U)
+#define LINE_PF6_IS                 PAL_LINE(GPIOC, 2U)
+#define LINE_PF6_IN                 PAL_LINE(GPIOB, 15U)
+#define LINE_PF7_IS                 PAL_LINE(GPIOB, 2U)
+#define LINE_PF7_IN                 PAL_LINE(GPIOD, 8U)
+#define LINE_PF8_IS                 PAL_LINE(GPIOC, 1U)
+#define LINE_PF8_IN                 PAL_LINE(GPIOD, 10U)
+#define LINE_PF9_IS                 PAL_LINE(GPIOC, 5U)
+#define LINE_PF9_IN                 PAL_LINE(GPIOE, 14U)
+#define LINE_PF10_IS                PAL_LINE(GPIOA, 2U)
+#define LINE_PF10_IN                PAL_LINE(GPIOE, 15U)
+#define LINE_PF11_IS                PAL_LINE(GPIOB, 1U)
+#define LINE_PF11_IN                PAL_LINE(GPIOB, 10U)
+#define LINE_PF12_IS                PAL_LINE(GPIOA, 1U)
+#define LINE_PF12_IN                PAL_LINE(GPIOB, 11U)
+#define LINE_PF13_IS                PAL_LINE(GPIOA, 0U)
+#define LINE_PF13_IN                PAL_LINE(GPIOE, 10U)
+#define LINE_PF14_IS                PAL_LINE(GPIOA, 6U)
+#define LINE_PF14_IN                PAL_LINE(GPIOE, 11U)
+#define LINE_PF15_IS                PAL_LINE(GPIOC, 4U)
+#define LINE_PF15_IN                PAL_LINE(GPIOE, 12U)
+#define LINE_PF16_IS                PAL_LINE(GPIOA, 7U)
+#define LINE_PF16_IN                PAL_LINE(GPIOE, 13U)
+#define LINE_AI1                    PAL_LINE(GPIOB, 13U)
+#define LINE_AI2                    PAL_LINE(GPIOB, 14U)
+#define LINE_AI3                    PAL_LINE(GPIOD, 9U)
+#define LINE_AI4                    PAL_LINE(GPIOD, 11U)
+#define LINE_DI1                    PAL_LINE(GPIOC, 9U)
+#define LINE_DI2                    PAL_LINE(GPIOC, 8U)
+#define LINE_DI3                    PAL_LINE(GPIOC, 7U)
+#define LINE_DI4                    PAL_LINE(GPIOC, 6U)
+#define LINE_DI5                    PAL_LINE(GPIOD, 15U)
+#define LINE_DI6                    PAL_LINE(GPIOD, 14U)
+#define LINE_LED_ERROR              PAL_LINE(GPIOC, 13U)
+#define LINE_LED_STATUS             PAL_LINE(GPIOC, 14U)
+#define LINE_BATT_SENSE             PAL_LINE(GPIOD, 12U)
+#define LINE_USB_VBUS               PAL_LINE(GPIOA, 10U)
 #define LINE_CAN_STANDBY            PAL_LINE(GPIOC, 12U)
-#define LINE_I2C1_SCL               PAL_LINE(GPIOB, 6U)
+#define LINE_I2C1_SCL               PAL_LINE(GPIOA, 15U)
 #define LINE_I2C1_SDA               PAL_LINE(GPIOB, 7U)
-#define LINE_CAN_RX                 PAL_LINE(GPIOB, 8U)
-#define LINE_CAN_TX                 PAL_LINE(GPIOB, 9U)
+#define LINE_I2C2_SCL               PAL_LINE(GPIOA, 9U)
+#define LINE_I2C2_SDA               PAL_LINE(GPIOA, 8U)
+#define LINE_CAN_RX                 PAL_LINE(GPIOD, 0U)
+#define LINE_CAN_TX                 PAL_LINE(GPIOD, 1U)
 #define LINE_USB_DM                 PAL_LINE(GPIOA, 11U)
 #define LINE_USB_DP                 PAL_LINE(GPIOA, 12U)
 #define LINE_SWDIO                  PAL_LINE(GPIOA, 13U)
 #define LINE_SWCLK                  PAL_LINE(GPIOA, 14U)
 #define LINE_SWO                    PAL_LINE(GPIOB, 3U)
-#define LINE_E1                     PAL_LINE(GPIOC, 10U)
-#define LINE_E2                     PAL_LINE(GPIOC, 11U)
-#define LINE_E3                     PAL_LINE(GPIOC, 13U)
-#define LINE_UNUSED                 PAL_LINE(GPIOA, 15U)
+#define LINE_E1                     PAL_LINE(GPIOE, 1U)
+#define LINE_E2                     PAL_LINE(GPIOE, 2U)
+#define LINE_E3                     PAL_LINE(GPIOE, 3U)
+#define LINE_E4                     PAL_LINE(GPIOE, 4U)
+#define LINE_E5                     PAL_LINE(GPIOE, 5U)
+#define LINE_E6                     PAL_LINE(GPIOE, 6U)
+#define LINE_UNUSED                 PAL_LINE(GPIOE, 0U)
 
 
 /*===========================================================================*/
@@ -282,36 +306,36 @@
 /*
  * GPIOA setup:
  *
- * PA0  - PF1_IS                    (analog in).
- * PA1  - PF5_6_IS                  (analog in).
- * PA2  - PF7_8_IS                  (analog in).
- * PA3  - BATT_SENSE                (analog in).
- * PA4  - PF8_IN                    (output pushpull pulldown).
- * PA5  - PF7_8_DSEl                (output pushpull pulldown).
- * PA6  - PF7_8_DEN                 (output pushpull pulldown).
- * PA7  - PF7_IN                    (output pushpull pulldown).
- * PA8  -                           (input pullup).
- * PA9  - USB_VBUS                  (input pulldown).
- * PA10 - DIG_IN1                   (input).
+ * PA0  - PF                (analog in).
+ * PA1  - PF                (analog in).
+ * PA2  -                 (analog in).
+ * PA3  -                 (analog in).
+ * PA4  -                 (analog in).
+ * PA5  -                 (analog in).
+ * PA6  -                 (analog in).
+ * PA7  -                 (analog in).
+ * PA8  - I2C2_SDA                  (alternate 4, i2c_sda).
+ * PA9  - I2C2_SCL                  (alternate 4, i2c_scl).
+ * PA10 - USB_VBUS                  (input pulldown).
  * PA11 - USB_DM                    (alternate 10, usb dm).
  * PA12 - USB_DP                    (alternate 10, usb dp).
  * PA13 - SWDIO                     (alternate 0, swdio).
  * PA14 - SWCLK                     (alternate 0, swclk).
- * PA15 -                           (input pullup).
+ * PA15 - I2C1_SCL                  (alternate 4, i2c_scl).
  */
 #define VAL_GPIOA_MODER             (PIN_MODE_ANALOG(GPIOA_PIN0) |          \
                                      PIN_MODE_ANALOG(GPIOA_PIN1) |          \
                                      PIN_MODE_ANALOG(GPIOA_PIN2) |          \
                                      PIN_MODE_ANALOG(GPIOA_PIN3) |          \
-                                     PIN_MODE_OUTPUT(GPIOA_PIN4) |          \
-                                     PIN_MODE_OUTPUT(GPIOA_PIN5) |          \
-                                     PIN_MODE_OUTPUT(GPIOA_PIN6) |          \
-                                     PIN_MODE_OUTPUT(GPIOA_PIN7) |          \
+                                     PIN_MODE_ANALOG(GPIOA_PIN4) |          \
+                                     PIN_MODE_ANALOG(GPIOA_PIN5) |          \
+                                     PIN_MODE_ANALOG(GPIOA_PIN6) |          \
+                                     PIN_MODE_ANALOG(GPIOA_PIN7) |          \
                                      PIN_MODE_INPUT(GPIOA_PIN8) |           \
-                                     PIN_MODE_INPUT(GPIOA_VBUS) |           \
+                                     PIN_MODE_INPUT(GPIOA_PIN9) |           \
                                      PIN_MODE_INPUT(GPIOA_PIN10) |          \
-                                     PIN_MODE_ALTERNATE(GPIOA_USB_DM) |     \
-                                     PIN_MODE_ALTERNATE(GPIOA_USB_DP) |     \
+                                     PIN_MODE_ALTERNATE(GPIOA_PIN11) |     \
+                                     PIN_MODE_ALTERNATE(GPIOA_PIN12) |     \
                                      PIN_MODE_ALTERNATE(GPIOA_SWDIO) |      \
                                      PIN_MODE_ALTERNATE(GPIOA_SWCLK) |      \
                                      PIN_MODE_INPUT(GPIOA_PIN15))  
@@ -324,10 +348,10 @@
                                      PIN_OTYPE_PUSHPULL(GPIOA_PIN6) |       \
                                      PIN_OTYPE_PUSHPULL(GPIOA_PIN7) |       \
                                      PIN_OTYPE_PUSHPULL(GPIOA_PIN8) |       \
-                                     PIN_OTYPE_PUSHPULL(GPIOA_VBUS) |       \
+                                     PIN_OTYPE_PUSHPULL(GPIOA_PIN9) |       \
                                      PIN_OTYPE_PUSHPULL(GPIOA_PIN10) |      \
-                                     PIN_OTYPE_PUSHPULL(GPIOA_USB_DM) |     \
-                                     PIN_OTYPE_PUSHPULL(GPIOA_USB_DP) |     \
+                                     PIN_OTYPE_PUSHPULL(GPIOA_PIN11) |      \
+                                     PIN_OTYPE_PUSHPULL(GPIOA_PIN12) |      \
                                      PIN_OTYPE_PUSHPULL(GPIOA_SWDIO) |      \
                                      PIN_OTYPE_PUSHPULL(GPIOA_SWCLK) |      \
                                      PIN_OTYPE_PUSHPULL(GPIOA_PIN15))  
@@ -340,10 +364,10 @@
                                      PIN_OSPEED_LOW(GPIOA_PIN6) |           \
                                      PIN_OSPEED_HIGH(GPIOA_PIN7) |          \
                                      PIN_OSPEED_LOW(GPIOA_PIN8) |           \
-                                     PIN_OSPEED_HIGH(GPIOA_VBUS) |          \
+                                     PIN_OSPEED_HIGH(GPIOA_PIN9) |          \
                                      PIN_OSPEED_LOW(GPIOA_PIN10) |          \
-                                     PIN_OSPEED_HIGH(GPIOA_USB_DM) |        \
-                                     PIN_OSPEED_HIGH(GPIOA_USB_DP) |        \
+                                     PIN_OSPEED_HIGH(GPIOA_PIN11) |        \
+                                     PIN_OSPEED_HIGH(GPIOA_PIN12) |        \
                                      PIN_OSPEED_HIGH(GPIOA_SWDIO) |         \
                                      PIN_OSPEED_HIGH(GPIOA_SWCLK) |         \
                                      PIN_OSPEED_LOW(GPIOA_PIN15))
@@ -356,10 +380,10 @@
                                      PIN_PUPDR_PULLDOWN(GPIOA_PIN6) |       \
                                      PIN_PUPDR_PULLDOWN(GPIOA_PIN7) |       \
                                      PIN_PUPDR_PULLUP(GPIOA_PIN8) |         \
-                                     PIN_PUPDR_FLOATING(GPIOA_VBUS) |       \
+                                     PIN_PUPDR_FLOATING(GPIOA_PIN9) |       \
                                      PIN_PUPDR_PULLUP(GPIOA_PIN10) |        \
-                                     PIN_PUPDR_FLOATING(GPIOA_USB_DM) |     \
-                                     PIN_PUPDR_FLOATING(GPIOA_USB_DP) |     \
+                                     PIN_PUPDR_FLOATING(GPIOA_PIN11) |     \
+                                     PIN_PUPDR_FLOATING(GPIOA_PIN12) |     \
                                      PIN_PUPDR_PULLUP(GPIOA_SWDIO) |        \
                                      PIN_PUPDR_PULLDOWN(GPIOA_SWCLK) |      \
                                      PIN_PUPDR_PULLUP(GPIOA_PIN15))
@@ -372,10 +396,10 @@
                                      PIN_ODR_LOW(GPIOA_PIN6) |              \
                                      PIN_ODR_LOW(GPIOA_PIN7) |              \
                                      PIN_ODR_LOW(GPIOA_PIN8) |              \
-                                     PIN_ODR_HIGH(GPIOA_VBUS) |             \
+                                     PIN_ODR_HIGH(GPIOA_PIN9) |             \
                                      PIN_ODR_LOW(GPIOA_PIN10) |             \
-                                     PIN_ODR_HIGH(GPIOA_USB_DM) |           \
-                                     PIN_ODR_HIGH(GPIOA_USB_DP) |           \
+                                     PIN_ODR_HIGH(GPIOA_PIN11) |           \
+                                     PIN_ODR_HIGH(GPIOA_PIN12) |           \
                                      PIN_ODR_LOW(GPIOA_SWDIO) |             \
                                      PIN_ODR_LOW(GPIOA_SWCLK) |             \
                                      PIN_ODR_LOW(GPIOA_PIN15))
@@ -388,10 +412,10 @@
                                      PIN_AFIO_AF(GPIOA_PIN6, 0U) |          \
                                      PIN_AFIO_AF(GPIOA_PIN7, 0U))
 #define VAL_GPIOA_AFRH              (PIN_AFIO_AF(GPIOA_PIN8, 0U) |          \
-                                     PIN_AFIO_AF(GPIOA_VBUS, 10U) |         \
+                                     PIN_AFIO_AF(GPIOA_PIN9, 10U) |         \
                                      PIN_AFIO_AF(GPIOA_PIN10, 0U) |         \
-                                     PIN_AFIO_AF(GPIOA_USB_DM, 10U) |       \
-                                     PIN_AFIO_AF(GPIOA_USB_DP, 10U) |       \
+                                     PIN_AFIO_AF(GPIOA_PIN11, 10U) |       \
+                                     PIN_AFIO_AF(GPIOA_PIN12, 10U) |       \
                                      PIN_AFIO_AF(GPIOA_SWDIO, 0U) |         \
                                      PIN_AFIO_AF(GPIOA_SWCLK, 0U) |         \
                                      PIN_AFIO_AF(GPIOA_PIN15, 0U))

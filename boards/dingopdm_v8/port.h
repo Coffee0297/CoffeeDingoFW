@@ -3,7 +3,7 @@
 #include "hal.h"
 #include "enums.h"
 
-#define PDM_TYPE 0 //0 = PDM
+#define PDM_TYPE 3 //3 = dingoPDM-v8
 
 #define PROCESS_STACK 0x1000
 
@@ -15,10 +15,10 @@
 #define HAS_BATT_VOLT_SENSE TRUE
 #define CAN_SLEEP TRUE
 
-#define NUM_OUTPUTS 8
+#define NUM_OUTPUTS 16
 #define NUM_DIG_OUTPUTS 0
-#define NUM_DIG_INPUTS 2
-#define NUM_ANALOG_INPUTS 0
+#define NUM_DIG_INPUTS 6
+#define NUM_ANALOG_INPUTS 4
 #define NUM_VIRT_INPUTS 16
 #define NUM_CAN_INPUTS 32
 #define NUM_CAN_OUTPUTS 32
@@ -36,7 +36,7 @@
 #define KEYPAD_MAX_ANALOG_INPUTS 4
 #define KEYPAD_MAX_DIALS 2
 
-#define HAS_NEOPIXELS FALSE
+#define HAS_NEOPIXELS TRUE
 
 //Always false
 //Always true
@@ -70,12 +70,22 @@
 #define NUM_TX_MSGS 30
 #define DEFAULT_BASE_ID 0x0DE
 
-#define ADC1_NUM_CHANNELS 8
+#define ADC1_NUM_CHANNELS 7
 #define ADC1_BUF_DEPTH 1
 
+#define ADC2_NUM_CHANNELS 11
+#define ADC2_BUF_DEPTH 1
+
+#define ADC3_NUM_CHANNELS 2
+#define ADC3_BUF_DEPTH 1
+
+#define ADC4_NUM_CHANNELS 1
+#define ADC4_BUF_DEPTH 1
+
+#define ADC5_NUM_CHANNELS 2
+#define ADC5_BUF_DEPTH 1
+
 #define BTS7002_1EPP_KILIS 22950
-#define BTS7008_2EPA_KILIS 5950
-#define BTS70012_1ESP_KILIS 35000
 
 #define SLEEP_TIMEOUT 30000
 
@@ -90,9 +100,24 @@ enum class AnalogChannel
 {
     IS1 = 0,
     IS2,
-    IS3_4,
-    IS5_6,
-    IS7_8,
+    IS3,
+    IS4,
+    IS5,
+    IS6,
+    IS7,
+    IS8,
+    IS9,
+    IS10,
+    IS11,
+    IS12,
+    IS13,
+    IS14,
+    IS15,
+    IS16,
+    AIN1,
+    AIN2,
+    AIN3,
+    AIN4,
     BattVolt,
     TempSensor,
     VRefInt
