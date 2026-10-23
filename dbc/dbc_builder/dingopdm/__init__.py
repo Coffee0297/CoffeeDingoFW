@@ -29,4 +29,5 @@ from .build_msg_27 import build_msg_27
 from .build_msg_28 import build_msg_28
 from .build_msg_29 import build_msg_29
 from .build_msg_31 import build_msg_31
+from .build_msg_32 import build_msg_32
 from .build_db import build_db
