@@ -83,14 +83,16 @@ void Pwm::UpdateFrequency()
     // Frequency within range and
     // (Frequency setting has changed or
     // PWM driver frequency != Frequency setting)
-    if (((pConfig->nFreq <= 400) && (pConfig->nFreq > 0)) &&
-        ((pConfig->nFreq != nLastFreq) ||
-        (m_pwm->period != (m_pwmCfg->frequency / pConfig->nFreq))))
+    uint16_t nFreq = (pConfig->nFreq > 0 && pConfig->nFreq < PWM_MIN_FREQ) ? PWM_MIN_FREQ : pConfig->nFreq;
+
+    if (((nFreq <= 400) && (nFreq > 0)) &&
+        ((nFreq != nLastFreq) ||
+        (m_pwm->period != (m_pwmCfg->frequency / nFreq))))
     {
-        pwmChangePeriod(m_pwm, m_pwmCfg->frequency / pConfig->nFreq);
+        pwmChangePeriod(m_pwm, m_pwmCfg->frequency / nFreq);
     }
 
-    nLastFreq = pConfig->nFreq;
+    nLastFreq = nFreq;
 }
 
 msg_t Pwm::Init()
@@ -106,6 +108,9 @@ void Pwm::EnsureStarted()
 
 void Pwm::OverrideFrequency(uint16_t nFreq)
 {
+    if (nFreq > 0 && nFreq < PWM_MIN_FREQ)
+        nFreq = PWM_MIN_FREQ;
+
     if (nFreq > 0 && nFreq <= 400 &&
         m_pwm->period != (m_pwmCfg->frequency / nFreq))
     {

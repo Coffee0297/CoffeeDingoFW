@@ -15,7 +15,9 @@ bool ReadConfig(){
     }
 
     #if !HAS_EXT_MEMORY
-    DeviceConfig tempConfig;
+    // Not a local: DeviceConfig is larger than the 1 KB main thread stack. The staging copy is unused until the
+    // param thread starts and WriteAll resets it to defaults before use
+    DeviceConfig &tempConfig = stConfigTemp;
 
     flash_error_t err = flashRead(CONFIG_FLASH, CONFIG_FLASH_OFFSET,
                                   sizeof(DeviceConfig), (uint8_t*)&tempConfig);

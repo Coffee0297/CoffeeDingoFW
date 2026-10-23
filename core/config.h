@@ -89,6 +89,11 @@ struct DeviceConfig{
   #endif
 };
 
+// Without external memory the config and its CRC32 live in one flash sector: fail the build, not the flash write
+#if !HAS_EXT_MEMORY
+static_assert(sizeof(DeviceConfig) + sizeof(uint32_t) <= CONFIG_SECTOR_SIZE, "DeviceConfig no longer fits its flash sector");
+#endif
+
 extern DeviceConfig stConfig;
 extern DeviceConfig stConfigTemp; // Used for staging new config before applying
 

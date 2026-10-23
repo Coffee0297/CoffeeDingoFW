@@ -2,6 +2,7 @@
 // the board's port.h. From the repo root:
 //   g++ -std=c++20 -I tests/host -I functions -I core -I utils tests/host_selftest.cpp functions/timer.cpp -o build/host_selftest && build/host_selftest
 //   g++ -std=c++20 -DMATH_ONLY -I tests/host -I functions -I core -I utils tests/host_selftest.cpp functions/math_block.cpp -o build/host_math && build/host_math
+//   g++ -std=c++20 -DCONDITION_ONLY -I tests/host -I functions -I core -I utils tests/host_selftest.cpp functions/condition.cpp -o build/host_condition && build/host_condition
 // Each feature adds its own section below, picked with -D<NAME>_ONLY, and its build line here.
 #include <cassert>
 #include <cstdio>
@@ -41,6 +42,24 @@ int main()
     c.bEnabled = false; m.Update(); assert(m.fVal == 0);
 
     std::puts("host_selftest MATH OK");
+    return 0;
+}
+#elif defined(CONDITION_ONLY)
+#include "condition.h"
+
+int main()
+{
+    float a = 0;
+    pVarMap[0] = &a;
+    Config_Condition k{};
+    k.bEnabled = true; k.nInput = 0; k.eOperator = Operator::BitwiseAnd; k.fArg = 4;
+    Condition c; c.SetConfig(&k);
+    a = 6; c.Update(); assert(c.fVal == 1);    // was 4: the CAN status bit (fVal & 1) read it as off
+    a = 3; c.Update(); assert(c.fVal == 0);
+    k.eOperator = Operator::BitwiseNand;
+    a = 3; c.Update(); assert(c.fVal == 1);
+    a = 6; c.Update(); assert(c.fVal == 0);
+    std::puts("host_condition OK");
     return 0;
 }
 #else

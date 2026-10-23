@@ -200,7 +200,7 @@ void ApplyConfig(uint16_t nIndex)
         {
             int8_t pri = stConfig.stOutput[i].nPrimaryOutput;
 
-            if (pri == -1)                                           continue; // unpaired
+            if (pri < 0)                                             continue; // unpaired
             if (pri == i)                                            continue; // self-pair
             if (pri >= NUM_OUTPUTS)                                  continue; // out of range
             if (stConfig.stOutput[pri].nPrimaryOutput != -1)         continue; // primary is itself a follower (no chains)

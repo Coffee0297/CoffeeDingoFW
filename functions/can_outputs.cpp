@@ -1,6 +1,7 @@
 #include "can_outputs.h"
 #include "mailbox.h"
 #include "dbc.h"
+#include "can.h"
 
 Config_CanOutput* CanOutputs::pConfigs[NUM_CAN_OUTPUTS];
 float* CanOutputs::pInput[NUM_CAN_OUTPUTS];
@@ -91,6 +92,9 @@ void CanOutputs::InitAllFrames()
 
 void CanOutputs::Update()
 {
+    if (CanTxMuted())
+        return;
+
     for (int i = 0; i < CAN_OUT_FRAMES; ++i)
     {
         if (canOut[i].stFrame.DLC == 0) continue; // Skip unused frames
