@@ -33,3 +33,13 @@ void EnterStopMode()
     // Resume here after wakeup, interrupts still disabled; the caller resets (after CaptureWake: a reset here
     // lost the wake reason, so every CAN wake looked like a power-on and skipped the quiet wake)
 }
+
+void RequestBootloader()
+{
+    // The OpenBLT bootloader (bootloader/canboard/hooks.c) stays in CAN update mode when it finds
+    // this in the last CCM word (kept out of the app's ram4); a plain reset doesn't clear CCM
+    *((volatile uint32_t *)0x10000FFC) = 0xB00710AD;
+    __DSB();
+
+    NVIC_SystemReset();
+}

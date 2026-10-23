@@ -19,7 +19,8 @@
  */
 MEMORY
 {
-    flash0 (rx) : org = 0x08000000, len = 62k
+    /* OpenBLT bootloader in sectors 0-3 (8 KB, bootloader/canboard) */
+    flash0 (rx) : org = 0x08002000, len = 54k
     flash_config (r) : org = 0x0800F800, len = 2k
     flash1 (rx) : org = 0x00000000, len = 0
     flash2 (rx) : org = 0x00000000, len = 0
@@ -32,7 +33,8 @@ MEMORY
     ram1   (wx) : org = 0x00000000, len = 0
     ram2   (wx) : org = 0x00000000, len = 0
     ram3   (wx) : org = 0x00000000, len = 0
-    ram4   (wx) : org = 0x10000000, len = 4k
+    /* last CCM word: bootloader request magic (RequestBootloader) */
+    ram4   (wx) : org = 0x10000000, len = 4k - 4
     ram5   (wx) : org = 0x00000000, len = 0
     ram6   (wx) : org = 0x00000000, len = 0
     ram7   (wx) : org = 0x00000000, len = 0

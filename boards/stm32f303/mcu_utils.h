@@ -10,3 +10,5 @@
 #define STM32_VREF_INT_CAL *((uint16_t *)0x1FFFF7BA)
 
 void EnterStopMode();
+
+void RequestBootloader();

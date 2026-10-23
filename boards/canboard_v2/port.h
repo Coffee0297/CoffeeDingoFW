@@ -87,8 +87,8 @@
 )
 
 // Last 2KB sector of flash (sector 31, 0x0800F800)
-// Max program flash size goes to the end of sector 30 (0x0800F000) to leave config space at the end of flash
-// !!! Flash must be smaller thank 63488 bytes !!!
+// Program flash runs from 0x08002000 (after the 8 KB OpenBLT bootloader) to the end of sector 30
+// !!! Flash must be smaller than 55296 bytes !!!
 #define CONFIG_SECTOR       31U
 #define CONFIG_SECTOR_SIZE  2048U // STM32F3 flash page, = STM32_FLASH_SECTOR_SIZE in ChibiOS hal_efl_lld.c
 #define CONFIG_FLASH_OFFSET (CONFIG_SECTOR * CONFIG_SECTOR_SIZE)
