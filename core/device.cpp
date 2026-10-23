@@ -21,6 +21,7 @@
 #include "curve.h"
 #include "latch_gate.h"
 #include "pid.h"
+#include "table.h"
 #include "mailbox.h"
 #include "msg.h"
 #include "error.h"
@@ -70,6 +71,9 @@ LatchGate latchGate[NUM_LATCH_GATES];
 #endif
 #if NUM_PIDS > 0
 Pid pid[NUM_PIDS];
+#endif
+#if NUM_TABLES > 0
+Table table[NUM_TABLES];
 #endif
 #if HAS_WIPERS > 0
 Wiper wiper;
@@ -396,6 +400,11 @@ void CyclicUpdate()
         latchGate[i].Update();
     #endif
 
+    #if NUM_TABLES > 0
+    for (uint8_t i = 0; i < NUM_TABLES; i++)
+        table[i].Update();
+    #endif
+
     #if NUM_KEYPADS > 0
     for (uint8_t i = 0; i < NUM_KEYPADS; i++)
         keypad[i].Update();
@@ -672,6 +681,10 @@ void InitVarMap()
         pVarMap[index++] = &pid[i].fI;
         pVarMap[index++] = &pid[i].fD;
     }
+    #endif
+    #if NUM_TABLES > 0
+    for (uint8_t i = 0; i < NUM_TABLES; i++)
+        pVarMap[index++] = &table[i].fVal;
     #endif
 
     //VarMap size must match the expected size

@@ -568,3 +568,19 @@ CANTxMsg TxMsg33()
 
     return stMsg;
 }
+
+CANTxMsg TxMsg31()
+{
+    CANTxMsg stMsg;
+    //=======================================================
+    // Build Msg 31 (Table 1-2 outputs, float32 little-endian)
+    //=======================================================
+    stMsg.frame.SID = stConfig.stDevice.nBaseId + CYCLIC_TX_OFFSET + 31;
+    stMsg.frame.DLC = 8;
+    Dbc::EncodeFloat(stMsg.frame.data8, GetTableVal(0), 0);
+    Dbc::EncodeFloat(stMsg.frame.data8, GetTableVal(1), 32);
+
+    stMsg.bSend = GetAnyTableEnable();
+
+    return stMsg;
+}

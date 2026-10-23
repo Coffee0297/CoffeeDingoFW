@@ -32,6 +32,7 @@
 #define NUM_TIMERS 8
 #define NUM_LATCH_GATES 8
 #define NUM_PIDS 4
+#define NUM_TABLES 2
 #define NUM_KEYPADS 2
 #define HAS_WIPERS TRUE
 #define HAS_COMFORT_BLINK TRUE
@@ -71,6 +72,7 @@
     (NUM_CURVES * 1) + \
     (NUM_LATCH_GATES * 1) + \
     (NUM_PIDS * 4) + \
+    (NUM_TABLES * 1) + \
     VAR_MAP_WIPER_VARS + \
     (NUM_KEYPADS * (KEYPAD_MAX_BUTTONS + KEYPAD_MAX_DIALS + KEYPAD_MAX_ANALOG_INPUTS)) \
 )   
@@ -79,7 +81,7 @@
 #define DEVICE_THREAD_STACK 2048
 #define CAN_THREAD_STACK 512
 
-#define NUM_TX_MSGS 33
+#define NUM_TX_MSGS 34
 #define DEFAULT_BASE_ID 0x0DE
 
 #define ADC1_NUM_CHANNELS 9

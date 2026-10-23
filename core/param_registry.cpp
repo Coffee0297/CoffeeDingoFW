@@ -68,6 +68,10 @@ const ParamInfo stParams[] = {
     // Comfort Blink (0x1F00)
     COMFORT_BLINK_PARAMS(),
     #endif
+    #if NUM_TABLES > 0
+    // Tables (0x1B00+)
+    ALL_TABLE_PARAMS,
+    #endif
 
     // CAN Outputs (0x2000+)
     ALL_CAN_OUTPUT_PARAMS,
