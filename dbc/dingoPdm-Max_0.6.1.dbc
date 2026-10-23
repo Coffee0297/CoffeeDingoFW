@@ -313,6 +313,12 @@ BO_ 253 dingoPdmMaxMsg29: 8 Vector__XXX
  SG_ TimerElapsed_6 : 16|16@1+ (0.01,0) [0|655.35] "s" Vector__XXX
  SG_ TimerElapsed_5 : 0|16@1+ (0.01,0) [0|655.35] "s" Vector__XXX
 
+BO_ 257 dingoPdmMaxMsg33: 8 Vector__XXX
+ SG_ PidOutput_4 : 48|16@1- (0.1,0) [0|0] "" Vector__XXX
+ SG_ PidOutput_3 : 32|16@1- (0.1,0) [0|0] "" Vector__XXX
+ SG_ PidOutput_2 : 16|16@1- (0.1,0) [0|0] "" Vector__XXX
+ SG_ PidOutput_1 : 0|16@1- (0.1,0) [0|0] "" Vector__XXX
+
 
 
 

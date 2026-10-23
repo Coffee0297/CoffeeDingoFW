@@ -8,6 +8,7 @@
 #include "condition.h"
 #include "timer.h"
 #include "math_block.h"
+#include "pid.h"
 #include "flasher.h"
 #include "virtual_input.h"
 #if NUM_OUTPUTS > 0
@@ -44,6 +45,9 @@ extern Timer timer[NUM_TIMERS];
 #endif
 #if NUM_MATH > 0
 extern MathBlock mathBlock[NUM_MATH];
+#endif
+#if NUM_PIDS > 0
+extern Pid pid[NUM_PIDS];
 #endif
 #if NUM_OUTPUTS > 0
 extern Profet pf[NUM_OUTPUTS];
@@ -92,6 +96,9 @@ void ApplyAllConfig()
     #endif
     #if NUM_MATH > 0
     ApplyConfig(MathBlock::nBaseIndex);
+    #endif
+    #if NUM_PIDS > 0
+    ApplyConfig(Pid::nBaseIndex);
     #endif
     #if NUM_OUTPUTS > 0
     ApplyConfig(Profet::nBaseIndex);
@@ -179,6 +186,13 @@ void ApplyConfig(uint16_t nIndex)
     {
         for (uint8_t i = 0; i < NUM_MATH; i++)
             mathBlock[i].SetConfig(&stConfig.stMath[i]);
+    }
+    #endif
+    #if NUM_PIDS > 0
+    if (nBaseIndex == Pid::nBaseIndex)
+    {
+        for (uint8_t i = 0; i < NUM_PIDS; i++)
+            pid[i].SetConfig(&stConfig.stPid[i]);
     }
     #endif
 

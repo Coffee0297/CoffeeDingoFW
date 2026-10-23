@@ -558,3 +558,22 @@ CANTxMsg TxMsg30()
 
     return stMsg;
 }
+
+CANTxMsg TxMsg34()
+{
+    CANTxMsg stMsg;
+    //=======================================================
+    // Build Msg 34 (PID 1-4 outputs, x10)
+    //=======================================================
+    stMsg.frame.IDE = CAN_IDE_STD;
+    stMsg.frame.SID = stConfig.stDevice.nBaseId + CYCLIC_TX_OFFSET + 34;
+    stMsg.frame.DLC = 8;
+    stMsg.frame.data16[0] = (uint16_t)GetPidOutput(0);
+    stMsg.frame.data16[1] = (uint16_t)GetPidOutput(1);
+    stMsg.frame.data16[2] = (uint16_t)GetPidOutput(2);
+    stMsg.frame.data16[3] = (uint16_t)GetPidOutput(3);
+
+    stMsg.bSend = GetAnyPidEnable();
+
+    return stMsg;
+}

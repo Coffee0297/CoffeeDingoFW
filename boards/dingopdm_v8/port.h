@@ -29,6 +29,7 @@
 #define NUM_CONDITIONS 32
 #define NUM_MATH 8
 #define NUM_TIMERS 8
+#define NUM_PIDS 4
 #define NUM_KEYPADS 2
 #define HAS_WIPERS TRUE
 #define HAS_STARTER_DISABLE TRUE
@@ -61,6 +62,7 @@
     (NUM_COUNTERS * 1) + \
     (NUM_TIMERS * 1) + \
     (NUM_MATH * 1) + \
+    (NUM_PIDS * 4) + \
     VAR_MAP_WIPER_VARS + \
     (NUM_KEYPADS * (KEYPAD_MAX_BUTTONS + KEYPAD_MAX_DIALS + KEYPAD_MAX_ANALOG_INPUTS)) \
 )
@@ -69,7 +71,7 @@
 #define DEVICE_THREAD_STACK 2048
 #define CAN_THREAD_STACK 512
 
-#define NUM_TX_MSGS 30
+#define NUM_TX_MSGS 31
 #define DEFAULT_BASE_ID 0x0DE
 
 #define ADC1_NUM_CHANNELS 7
