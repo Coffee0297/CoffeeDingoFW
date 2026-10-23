@@ -170,3 +170,21 @@ CANTxMsg TxMsg8()
     return stMsg;
 }
 
+
+CANTxMsg TxMsg11()
+{
+    CANTxMsg stMsg;
+    //=======================================================
+    // Build Msg 11 (PID outputs, same bytes as the PDM PID frame)
+    //=======================================================
+    stMsg.frame.SID = stConfig.stDevice.nBaseId + CYCLIC_TX_OFFSET + 11;
+    stMsg.frame.DLC = 8;
+    stMsg.frame.data16[0] = (uint16_t)GetPidOutput(0);
+    stMsg.frame.data16[1] = (uint16_t)GetPidOutput(1);
+    stMsg.frame.data16[2] = (uint16_t)GetPidOutput(2);
+    stMsg.frame.data16[3] = (uint16_t)GetPidOutput(3);
+
+    stMsg.bSend = GetAnyPidEnable();
+
+    return stMsg;
+}

@@ -32,7 +32,7 @@
 #define NUM_CONDITIONS 8
 #define NUM_MATH 0
 #define NUM_TIMERS 0
-#define NUM_PIDS 0
+#define NUM_PIDS 2
 #define NUM_KEYPADS 0
 #define HAS_WIPERS FALSE
 #define HAS_STARTER_DISABLE FALSE
@@ -80,7 +80,7 @@
 #define DEVICE_THREAD_STACK 512
 #define CAN_THREAD_STACK 256
 
-#define NUM_TX_MSGS 9
+#define NUM_TX_MSGS 10
 #define DEFAULT_BASE_ID 0x640
 
 #define ADC1_NUM_CHANNELS 6
