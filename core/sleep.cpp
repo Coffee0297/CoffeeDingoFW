@@ -286,11 +286,12 @@ void EnterSleep()
     // flag the other nodes send back arrives just after the transceiver went to
     // standby - which wakes this device straight back up whenever anything else
     // is on the bus.
+    // Standby first and the output latch high before the pin turns output: the other order drives TX dominant
+    // for a few cycles with the transceiver still awake, and that edge wakes every sleeping module on the bus.
     StopCan();
-    palSetLineMode(LINE_CAN_TX, PAL_MODE_OUTPUT_PUSHPULL);
-    palSetLine(LINE_CAN_TX); // Recessive
-
     palSetLine(LINE_CAN_STANDBY); // CAN disabled
+    palSetLine(LINE_CAN_TX); // Recessive
+    palSetLineMode(LINE_CAN_TX, PAL_MODE_OUTPUT_PUSHPULL);
 
     // Let the transceiver settle in standby before any wake source is armed
     chThdSleepMilliseconds(20);
