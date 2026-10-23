@@ -39,17 +39,17 @@ BU_:
 BO_ 224 dingoPdmMaxMsg0: 8 Vector__XXX
  SG_ BoardTemperature : 48|16@1+ (0.1,0) [0|215] "degC" Vector__XXX
  SG_ BatteryVoltage : 32|16@1+ (0.1,0) [0|655.35] "V" Vector__XXX
- SG_ TotalCurrent : 16|16@1+ (1,0) [0|65535] "A" Vector__XXX
+ SG_ TotalCurrent : 16|16@1+ (0.1,0) [0|65535] "A" Vector__XXX
  SG_ PDMType : 12|4@1+ (1,0) [0|15] "" Vector__XXX
  SG_ DeviceState : 8|4@1+ (1,0) [0|3] "" Vector__XXX
  SG_ DigitalInput_2 : 1|1@1+ (1,0) [0|0] "" Vector__XXX
  SG_ DigitalInput_1 : 0|1@1+ (1,0) [0|0] "" Vector__XXX
 
 BO_ 225 dingoPdmMaxMsg1: 8 Vector__XXX
- SG_ OutputCurrent_4 : 48|16@1+ (1,0) [0|0] "A" Vector__XXX
- SG_ OutputCurrent_3 : 32|16@1+ (1,0) [0|0] "A" Vector__XXX
- SG_ OutputCurrent_2 : 16|16@1+ (1,0) [0|0] "A" Vector__XXX
- SG_ OutputCurrent_1 : 0|16@1+ (1,0) [0|0] "A" Vector__XXX
+ SG_ OutputCurrent_4 : 48|16@1+ (0.1,0) [0|0] "A" Vector__XXX
+ SG_ OutputCurrent_3 : 32|16@1+ (0.1,0) [0|0] "A" Vector__XXX
+ SG_ OutputCurrent_2 : 16|16@1+ (0.1,0) [0|0] "A" Vector__XXX
+ SG_ OutputCurrent_1 : 0|16@1+ (0.1,0) [0|0] "A" Vector__XXX
 
 BO_ 227 dingoPdmMaxMsg3: 8 Vector__XXX
  SG_ Flasher_4 : 51|1@1+ (1,0) [0|0] "" Vector__XXX
