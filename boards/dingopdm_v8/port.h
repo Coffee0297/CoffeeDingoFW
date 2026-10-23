@@ -29,6 +29,7 @@
 #define NUM_CONDITIONS 32
 #define NUM_MATH 8
 #define NUM_CURVES 4
+#define NUM_CAN_MSGS 4
 #define NUM_TIMERS 8
 #define NUM_LATCH_GATES 8
 #define NUM_PIDS 4

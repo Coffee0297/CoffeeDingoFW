@@ -149,6 +149,16 @@ enum class ByteOrder : uint8_t
     BigEndian = 1     // Motorola byte order
 };
 
+enum class CanOutputKind : uint8_t
+{
+    Signal = 0,
+    RollingCounter = 1,
+    ChecksumXor = 2,
+    ChecksumSum = 3,
+    Crc8SaeJ1850 = 4,
+    Crc8Autosar = 5
+};
+
 //=============================================================================
 // Input
 //=============================================================================
@@ -204,6 +214,15 @@ enum class LatchGateType : uint8_t
 {
     Latch, // Set by a rising edge of the input, cleared by a rising edge of the control input or the auto-cancel time
     Gate   // Follows the input while the control input is on, holds the last value otherwise
+};
+
+//=============================================================================
+// CAN message
+//=============================================================================
+enum class CanMsgMode : uint8_t
+{
+    Repeat, // Every interval while the input is on
+    Once    // One frame each time the input turns on
 };
 
 //=============================================================================

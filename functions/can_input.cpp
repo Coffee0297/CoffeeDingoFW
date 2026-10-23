@@ -21,42 +21,41 @@ bool CanInput::CheckMsg(CANRxFrame rx)
                             pConfig->eByteOrder, pConfig->bSigned);
 
     // Use Input to enable momentary/latching
+    fOutput = input.Check(pConfig->eMode, false, Compare(fVal));
+
+    return true;
+}
+
+bool CanInput::Compare(float fIn)
+{
     switch (pConfig->eOperator)
     {
     case Operator::Equal:
-        fOutput = input.Check(pConfig->eMode, false, fVal == pConfig->fOperand);
-        break;
+        return fIn == pConfig->fOperand;
 
     case Operator::NotEqual:
-        fOutput = input.Check(pConfig->eMode, false, fVal != pConfig->fOperand);
-        break;
+        return fIn != pConfig->fOperand;
 
     case Operator::GreaterThan:
-        fOutput = input.Check(pConfig->eMode, false, fVal > pConfig->fOperand);
-        break;
+        return fIn > pConfig->fOperand;
 
     case Operator::LessThan:
-        fOutput = input.Check(pConfig->eMode, false, fVal < pConfig->fOperand);
-        break;
+        return fIn < pConfig->fOperand;
 
     case Operator::GreaterThanOrEqual:
-        fOutput = input.Check(pConfig->eMode, false, fVal >= pConfig->fOperand);
-        break;
+        return fIn >= pConfig->fOperand;
 
     case Operator::LessThanOrEqual:
-        fOutput = input.Check(pConfig->eMode, false, fVal <= pConfig->fOperand);
-        break;
+        return fIn <= pConfig->fOperand;
 
     case Operator::BitwiseAnd:
-        fOutput = input.Check(pConfig->eMode, false, ((uint32_t)fVal & (uint32_t)pConfig->fOperand) > 0);
-        break;
+        return ((uint32_t)fIn & (uint32_t)pConfig->fOperand) > 0;
 
     case Operator::BitwiseNand:
-        fOutput = input.Check(pConfig->eMode, false, !(((uint32_t)fVal & (uint32_t)pConfig->fOperand) > 0));
-        break;
+        return !(((uint32_t)fIn & (uint32_t)pConfig->fOperand) > 0);
     }
 
-    return true;
+    return false;
 }
 
 void CanInput::CheckTimeout()
@@ -66,7 +65,10 @@ void CanInput::CheckTimeout()
 
     if (SYS_TIME - nLastRxTime > pConfig->nTimeout)
     {
-        fVal = 0;
-        fOutput = 0;
+        // Sender lost: read 0 and off, or act as if fTimeoutValue had arrived (e.g. coolant temp 120 so a fan
+        // rule turns on). The rule is applied directly, not through the latch, so a latching input can't toggle.
+        bool bUseValue = pConfig->bEnabled && pConfig->bTimeoutUseValue;
+        fVal = bUseValue ? pConfig->fTimeoutValue : 0;
+        fOutput = bUseValue && Compare(fVal);
     }
 }

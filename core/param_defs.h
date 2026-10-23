@@ -94,7 +94,9 @@
     {0x1300 + (i), 10, &stConfig.stCanInput[i].bSigned,         &stConfigTemp.stCanInput[i].bSigned,         ParamType::Bool,   0, 0, 1}, \
     {0x1300 + (i), 11, &stConfig.stCanInput[i].eOperator,       &stConfigTemp.stCanInput[i].eOperator,       ParamType::Enum,   static_cast<uint32_t>(Operator::Equal), 0, 7}, \
     {0x1300 + (i), 12, &stConfig.stCanInput[i].fOperand,        &stConfigTemp.stCanInput[i].fOperand,        ParamType::Float,  F(0.0f), F(-1e9f), F(1e9f)}, \
-    {0x1300 + (i), 13, &stConfig.stCanInput[i].eMode,           &stConfigTemp.stCanInput[i].eMode,           ParamType::Enum,   static_cast<uint32_t>(InputMode::Momentary), 0, 1}
+    {0x1300 + (i), 13, &stConfig.stCanInput[i].eMode,           &stConfigTemp.stCanInput[i].eMode,           ParamType::Enum,   static_cast<uint32_t>(InputMode::Momentary), 0, 1}, \
+    {0x1300 + (i), 14, &stConfig.stCanInput[i].fTimeoutValue,   &stConfigTemp.stCanInput[i].fTimeoutValue,   ParamType::Float,  F(0.0f), F(-1e9f), F(1e9f)}, \
+    {0x1300 + (i), 15, &stConfig.stCanInput[i].bTimeoutUseValue, &stConfigTemp.stCanInput[i].bTimeoutUseValue, ParamType::Bool,   0, 0, 1}
     
 //=============================================================================
 // Virtual Input Parameters - Base 0x1400
@@ -320,6 +322,27 @@
 #endif
 
 //=============================================================================
+// CAN Message Parameters - Base 0x1D00, data bytes at subs 6-13
+//=============================================================================
+#if NUM_CAN_MSGS > 0
+#define CAN_MSG_DATA_PARAM(i, n) \
+    {0x1D00 + (i), 6 + (n), &stConfig.stCanMsg[i].nData[n], &stConfigTemp.stCanMsg[i].nData[n], ParamType::UInt8, 0, 0, 255}
+#define CAN_MSG_PARAMS(i) \
+    {0x1D00 + (i), 0,  &stConfig.stCanMsg[i].bEnabled,  &stConfigTemp.stCanMsg[i].bEnabled,  ParamType::Bool,   0, 0, 1}, \
+    {0x1D00 + (i), 1,  &stConfig.stCanMsg[i].nInput,    &stConfigTemp.stCanMsg[i].nInput,    ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
+    {0x1D00 + (i), 2,  &stConfig.stCanMsg[i].nIDE,      &stConfigTemp.stCanMsg[i].nIDE,      ParamType::UInt8,  0, 0, 1}, \
+    {0x1D00 + (i), 3,  &stConfig.stCanMsg[i].nID,       &stConfigTemp.stCanMsg[i].nID,       ParamType::UInt32, 0, 0, 536870911}, \
+    {0x1D00 + (i), 4,  &stConfig.stCanMsg[i].nDLC,      &stConfigTemp.stCanMsg[i].nDLC,      ParamType::UInt8,  8, 0, 8}, \
+    {0x1D00 + (i), 5,  &stConfig.stCanMsg[i].eMode,     &stConfigTemp.stCanMsg[i].eMode,     ParamType::Enum,   static_cast<uint32_t>(CanMsgMode::Repeat), 0, 1}, \
+    CAN_MSG_DATA_PARAM(i, 0), CAN_MSG_DATA_PARAM(i, 1), CAN_MSG_DATA_PARAM(i, 2), CAN_MSG_DATA_PARAM(i, 3), \
+    CAN_MSG_DATA_PARAM(i, 4), CAN_MSG_DATA_PARAM(i, 5), CAN_MSG_DATA_PARAM(i, 6), CAN_MSG_DATA_PARAM(i, 7), \
+    {0x1D00 + (i), 14, &stConfig.stCanMsg[i].nInterval, &stConfigTemp.stCanMsg[i].nInterval, ParamType::UInt16, 100, 10, 60000}, \
+    {0x1D00 + (i), 15, &stConfig.stCanMsg[i].eChecksum, &stConfigTemp.stCanMsg[i].eChecksum, ParamType::Enum,   static_cast<uint32_t>(CanOutputKind::Signal), 0, static_cast<uint32_t>(CanOutputKind::Crc8Autosar)}, \
+    {0x1D00 + (i), 16, &stConfig.stCanMsg[i].nChecksumByte, &stConfigTemp.stCanMsg[i].nChecksumByte, ParamType::UInt8, 7, 0, 7}, \
+    {0x1D00 + (i), 17, &stConfig.stCanMsg[i].nCounterByte, &stConfigTemp.stCanMsg[i].nCounterByte, ParamType::UInt8, 0xFF, 0, 0xFF}
+#endif
+
+//=============================================================================
 // CAN Output Parameters - Base 0x2000
 //=============================================================================
 #define CAN_OUTPUT_PARAMS(i) \
@@ -333,7 +356,9 @@
     {0x2000 + (i), 7,  &stConfig.stCanOutput[i].fOffset,    &stConfigTemp.stCanOutput[i].fOffset,    ParamType::Float,  F(0.0f), F(-1e9f), F(1e9f)}, \
     {0x2000 + (i), 8,  &stConfig.stCanOutput[i].eByteOrder, &stConfigTemp.stCanOutput[i].eByteOrder, ParamType::Enum,   static_cast<uint32_t>(ByteOrder::LittleEndian), 0, 1}, \
     {0x2000 + (i), 9,  &stConfig.stCanOutput[i].bSigned,    &stConfigTemp.stCanOutput[i].bSigned,    ParamType::Bool,   0, 0, 1}, \
-    {0x2000 + (i), 10, &stConfig.stCanOutput[i].nInterval,  &stConfigTemp.stCanOutput[i].nInterval,  ParamType::UInt16, 1000, 0, 60000}
+    {0x2000 + (i), 10, &stConfig.stCanOutput[i].nInterval,  &stConfigTemp.stCanOutput[i].nInterval,  ParamType::UInt16, 1000, 0, 60000}, \
+    {0x2000 + (i), 11, &stConfig.stCanOutput[i].eKind,      &stConfigTemp.stCanOutput[i].eKind,      ParamType::Enum,   static_cast<uint32_t>(CanOutputKind::Signal), 0, 5}, \
+    {0x2000 + (i), 12, &stConfig.stCanOutput[i].nTriggerInput, &stConfigTemp.stCanOutput[i].nTriggerInput, ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}
 
 //=============================================================================
 // Digital Output Parameters - Base 0x2100

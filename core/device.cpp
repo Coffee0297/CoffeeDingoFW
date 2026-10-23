@@ -22,6 +22,7 @@
 #include "latch_gate.h"
 #include "pid.h"
 #include "table.h"
+#include "can_msg.h"
 #include "mailbox.h"
 #include "msg.h"
 #include "error.h"
@@ -74,6 +75,9 @@ Pid pid[NUM_PIDS];
 #endif
 #if NUM_TABLES > 0
 Table table[NUM_TABLES];
+#endif
+#if NUM_CAN_MSGS > 0
+CanMsg canMsg[NUM_CAN_MSGS];
 #endif
 #if HAS_WIPERS > 0
 Wiper wiper;
@@ -477,6 +481,25 @@ void CyclicUpdate()
 
     #if NUM_CAN_OUTPUTS > 0
     canOutputs.Update();
+    #endif
+
+    #if NUM_CAN_MSGS > 0 && !defined(STM32G4XX) // FDCAN frames have no SID/EID/IDE; ported with the rest of v8's CAN code
+    for (uint8_t i = 0; i < NUM_CAN_MSGS; i++)
+    {
+        if (!canMsg[i].Due(*pVarMap[stConfig.stDevice.nMuteCanTxInput]))
+            continue;
+
+        const Config_CanMsg &c = stConfig.stCanMsg[i];
+        CANTxFrame tx;
+        tx.IDE = c.nIDE ? CAN_IDE_EXT : CAN_IDE_STD;
+        if (c.nIDE)
+            tx.EID = c.nID;
+        else
+            tx.SID = c.nID;
+        tx.DLC = c.nDLC;
+        canMsg[i].Fill(tx.data8);
+        PostTxFrame(&tx);
+    }
     #endif
 
     #if HAS_NEOPIXELS
