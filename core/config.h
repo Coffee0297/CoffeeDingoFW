@@ -23,6 +23,7 @@
 #if HAS_IGNITION
 #include "ignition.h"
 #endif
+#include "lua_script.h"
 #if NUM_OUTPUTS > 0
 #include "profet.h"
 #endif
@@ -144,6 +145,9 @@ struct DeviceConfig{
   #endif
   #if NUM_ANALOG_INPUTS > 0
   Config_AnalogInput stAnalogInput[NUM_ANALOG_INPUTS];
+  #endif
+  #if HAS_LUA
+  Config_Lua stLua;
   #endif
 };
 

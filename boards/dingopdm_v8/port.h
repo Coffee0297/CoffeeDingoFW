@@ -47,6 +47,8 @@
 #define KEYPAD_MAX_ANALOG_INPUTS 4
 #define KEYPAD_MAX_DIALS 2
 
+#define HAS_LUA FALSE // the Lua CAN API uses bxCAN frame fields; enable once v8's FDCAN is ported
+
 #define HAS_NEOPIXELS TRUE
 
 //Always false

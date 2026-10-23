@@ -82,6 +82,11 @@ enum class MsgCmd : uint8_t
     FactoryReset = 57, // [57, 'W', 'I', 'P', 'E'] -> [57, burned ok]
     Locked = 58,       // Reply to a command refused while locked: [58, idxLo, idxHi, sub, refused cmd]
 
+    LuaWrite = 40,         // [cmd, offHi, offLo, 5 script bytes] -> [cmd, offHi, offLo] (DLC 3)
+    LuaWriteComplete = 41, // [cmd, lenHi, lenLo] -> store, reload -> [cmd, lenHi, lenLo, stored 0/1] (DLC 4)
+    LuaRead = 42,          // [cmd, offHi, offLo] -> [cmd, offHi, offLo, 5 script bytes]
+    LuaErr = 43,           // [cmd, offHi, offLo] -> [cmd, offHi, offLo, 5 bytes of the last error, 0 past the end]
+
     Invalid = 0xFF
 };
 

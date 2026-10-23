@@ -23,6 +23,7 @@
 #include "pid.h"
 #include "table.h"
 #include "can_msg.h"
+#include "lua_script.h"
 #include "mailbox.h"
 #include "msg.h"
 #include "error.h"
@@ -256,6 +257,10 @@ void InitDevice()
     #endif
 
     deviceThread.start(NORMALPRIO);
+
+    #if HAS_LUA
+    InitLua();
+    #endif
 }
 
 void States()
@@ -372,6 +377,10 @@ void CyclicUpdate()
 
         #if HAS_IGNITION && !defined(STM32G4XX) // FDCAN frames have no SID/IDE; ported with the rest of v8's CAN code
         ignition.CheckMsg(rxMsg, SYS_TIME);
+        #endif
+
+        #if HAS_LUA
+        LuaCanRx(rxMsg);
         #endif
     }
 
@@ -809,6 +818,11 @@ void InitVarMap()
     // Appended last, so every index above keeps its meaning
     #if HAS_IGNITION
     pVarMap[index++] = &ignition.fDashShutdown;
+    #endif
+
+    #if HAS_LUA
+    for (uint8_t i = 0; i < NUM_LUA_OUTPUTS; i++)
+        pVarMap[index++] = &fLuaOut[i];
     #endif
 
     //VarMap size must match the expected size
