@@ -14,6 +14,10 @@ void Profet::Update(bool bOutEnabled)
         eState = ProfetState::Off;
         fCurrent = 0;
         fOutput = 0;
+        fWarning = 0;
+        fOpenLoad = 0;
+        fUndercurrent = 0;
+        fI2 = fLoad = 0;
         return;
     }
 
@@ -49,6 +53,11 @@ void Profet::Update(bool bOutEnabled)
         eState = ProfetState::Fault;
 
     bInRushActive = (SYS_TIME - nInRushOnTime) < pConfig->nInrushTime;
+
+    // Current-limited soft start: the ramp holds above the inrush limit instead of tripping,
+    // and the output trips if the ramp hasn't finished within the timeout
+    bool bLimitedStart = pConfig->nSoftStartTimeout > 0 && pwm.IsSoftStarting();
+    bool bHoldSoftStart = false;
 
     switch (eState)
     {
@@ -88,11 +97,30 @@ void Profet::Update(bool bOutEnabled)
         }
 
         // Inrush overcurrent
-        if (fCurrent > pConfig->fInrushLimit && bInRushActive)
+        if (fCurrent > pConfig->fInrushLimit && bInRushActive && !bLimitedStart)
         {
             nOcTriggerTime = SYS_TIME;
             nOcCount++;
             eState = ProfetState::Overcurrent;
+        }
+
+        if (bLimitedStart)
+        {
+            bHoldSoftStart = fCurrent > pConfig->fInrushLimit;
+
+            if ((SYS_TIME - nInRushOnTime) > pConfig->nSoftStartTimeout)
+            {
+                nOcTriggerTime = SYS_TIME;
+                nOcCount++;
+                eState = ProfetState::Overcurrent;
+            }
+        }
+
+        // Hard short - straight to Fault, inrush window or not, no retry
+        if (pConfig->fHardShortLimit > 0 && fCurrent > pConfig->fHardShortLimit)
+        {
+            nOcCount++;
+            eState = ProfetState::Fault;
         }
 
         break;
@@ -127,18 +155,68 @@ void Profet::Update(bool bOutEnabled)
         pwm.Off();
 
         palClearLine(m_in);
-        // Fault requires power cycle, no way out
+        // Fault requires power cycle, a retry-all or (if enabled) the input going off
+        if (pConfig->bClearOnReassert && !(*pInput))
+            ClearFault();
+        break;
+
+    default: // Warning/OpenLoad/Undercurrent are overlays, never in eState
         break;
     }
 
-    pwm.Update();
+    pwm.Update(bHoldSoftStart);
+
+    // Past inrush: Warning above fWarnLimit, OpenLoad below fOpenLoadLimit for nOpenLoadTime,
+    // Undercurrent below fUnderLimit for nUnderTime (report only, or a trip to Fault with bUnderTrip)
+    bool bReportOn = (eState == ProfetState::On) && ((SYS_TIME - nInRushOnTime) >= pConfig->nInrushTime);
+    bool bOpenLoad = bReportOn && (pConfig->fOpenLoadLimit > 0) && (fCurrent < pConfig->fOpenLoadLimit);
+    bool bUnder = bReportOn && (pConfig->fUnderLimit > 0) && (fCurrent < pConfig->fUnderLimit);
+    if (!bOpenLoad)
+        nOpenLoadStart = SYS_TIME;
+    if (!bUnder)
+        nUnderStart = SYS_TIME;
+    bOpenLoad = bOpenLoad && ((SYS_TIME - nOpenLoadStart) >= pConfig->nOpenLoadTime);
+    bUnder = bUnder && ((SYS_TIME - nUnderStart) >= pConfig->nUnderTime);
+
+    if (bUnder && pConfig->bUnderTrip)
+    {
+        pwm.Off();
+        palClearLine(m_in);
+        eState = ProfetState::Fault;
+    }
+
+    if (bOpenLoad)
+        eOverlay = ProfetState::OpenLoad;
+    else if (bUnder)
+        eOverlay = ProfetState::Undercurrent;
+    else if (bReportOn && (pConfig->fWarnLimit > 0) && (fCurrent > pConfig->fWarnLimit))
+        eOverlay = ProfetState::Warning;
+    else
+        eOverlay = ProfetState::On;
 
     // Set var map values
     fOutput = eState == ProfetState::On ? 1 : 0;
     fOvercurrent = eState == ProfetState::Overcurrent ? 1 : 0;
     fFault = eState == ProfetState::Fault ? 1 : 0;
+    fWarning = GetReportedState() == ProfetState::Warning ? 1 : 0;
+    fOpenLoad = GetReportedState() == ProfetState::OpenLoad ? 1 : 0;
+    fUndercurrent = GetReportedState() == ProfetState::Undercurrent ? 1 : 0;
 
     palClearLine(LINE_E2);
+}
+
+// Back to Off with the retry count cleared, so the output turns on again if requested
+void Profet::ClearFault()
+{
+    if (eState == ProfetState::Overcurrent || eState == ProfetState::Fault)
+    {
+        eState = ProfetState::Off;
+        nOcCount = 0;
+    }
+
+    // A follower latches Fault when it mirrors its primary's, and would hold the primary in Fault
+    if (pFollower != nullptr && pFollower->eState == ProfetState::Fault)
+        pFollower->eState = ProfetState::Off;
 }
 
 void Profet::FollowerUpdate()
@@ -240,9 +318,24 @@ void Profet::MeasureCurrent()
         }
     }
     else
+    {
+        // Also the PWM fallback: at turn-on a low duty has no sample window yet, so it must not
+        // reuse the last on-time reading (a held soft start would never start again after a trip)
         nIS = GetAdcRaw(m_ain);
+        nLastIS = nIS;
+    }
 
     CalculateCurrent();
+
+    // Wire load from this output's own current, before a follower's is added
+    if (pConfig->nThermalTau > 0 && pConfig->fCurrentLimit > 0)
+    {
+        fI2 = FilterI2(fI2, fCurrent, SYS_TIME - nLoadTime, pConfig->nThermalTau);
+        fLoad = 100.0f * fI2 / (pConfig->fCurrentLimit * pConfig->fCurrentLimit);
+    }
+    else
+        fI2 = fLoad = 0;
+    nLoadTime = SYS_TIME;
 }
 
 void Profet::CalculateCurrent()

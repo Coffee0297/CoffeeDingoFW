@@ -20,7 +20,8 @@
     {0x0000, 5, &stConfig.stDevice.bDisableCanWake,     &stConfigTemp.stDevice.bDisableCanWake,   ParamType::Bool,   0, 0, 1}, \
     {0x0000, 6, &stConfig.stDevice.bConnectUsbToCan,    &stConfigTemp.stDevice.bConnectUsbToCan,  ParamType::Bool,   1, 0, 1}, \
     {0x0000, 7, &stConfig.stDevice.nMuteCanTxInput,     &stConfigTemp.stDevice.nMuteCanTxInput,   ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
-    {0x0000, 8, &stConfig.stDevice.nForceSleepInput,    &stConfigTemp.stDevice.nForceSleepInput,  ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}
+    {0x0000, 8, &stConfig.stDevice.nForceSleepInput,    &stConfigTemp.stDevice.nForceSleepInput,  ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
+    {0x0000, 12, &stConfig.stDevice.nRetryAllInput,     &stConfigTemp.stDevice.nRetryAllInput,    ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}
 
 //=============================================================================
 // Output Parameters - Base 0x1000
@@ -44,7 +45,17 @@
     {0x1000 + (i), 14, &stConfig.stOutput[i].stPwm.nSoftStartRampTime,   &stConfigTemp.stOutput[i].stPwm.nSoftStartRampTime,   ParamType::UInt16, 0, 0, 10000}, \
     {0x1000 + (i), 15, &stConfig.stOutput[i].stPwm.nDutyCycleInputDenom, &stConfigTemp.stOutput[i].stPwm.nDutyCycleInputDenom, ParamType::UInt16, 100, 1, 5000}, \
     {0x1000 + (i), 16, &stConfig.stOutput[i].stPwm.nMinDutyCycle,        &stConfigTemp.stOutput[i].stPwm.nMinDutyCycle,        ParamType::UInt16, 0, 0, 100}, \
-    {0x1000 + (i), 17, &stConfig.stOutput[i].nPrimaryOutput,             &stConfigTemp.stOutput[i].nPrimaryOutput,             ParamType::Int8,  I8(-1), I8(-1), NUM_OUTPUTS - 1}
+    {0x1000 + (i), 17, &stConfig.stOutput[i].nPrimaryOutput,             &stConfigTemp.stOutput[i].nPrimaryOutput,             ParamType::Int8,  I8(-1), I8(-1), NUM_OUTPUTS - 1}, \
+    {0x1000 + (i), 18, &stConfig.stOutput[i].fWarnLimit,                 &stConfigTemp.stOutput[i].fWarnLimit,                 ParamType::Float,  F(0.0f), F(0.0f), F(100.0f)}, \
+    {0x1000 + (i), 19, &stConfig.stOutput[i].fOpenLoadLimit,             &stConfigTemp.stOutput[i].fOpenLoadLimit,             ParamType::Float,  F(0.0f), F(0.0f), F(100.0f)}, \
+    {0x1000 + (i), 20, &stConfig.stOutput[i].nOpenLoadTime,              &stConfigTemp.stOutput[i].nOpenLoadTime,              ParamType::UInt16, 1000, 0, 60000}, \
+    {0x1000 + (i), 27, &stConfig.stOutput[i].fUnderLimit,                &stConfigTemp.stOutput[i].fUnderLimit,                ParamType::Float,  F(0.0f), F(0.0f), F(100.0f)}, \
+    {0x1000 + (i), 28, &stConfig.stOutput[i].nUnderTime,                 &stConfigTemp.stOutput[i].nUnderTime,                 ParamType::UInt16, 1000, 0, 60000}, \
+    {0x1000 + (i), 29, &stConfig.stOutput[i].bUnderTrip,                 &stConfigTemp.stOutput[i].bUnderTrip,                 ParamType::Bool,   0, 0, 1}, \
+    {0x1000 + (i), 32, &stConfig.stOutput[i].fHardShortLimit,            &stConfigTemp.stOutput[i].fHardShortLimit,            ParamType::Float,  F(0.0f), F(0.0f), F(100.0f)}, \
+    {0x1000 + (i), 33, &stConfig.stOutput[i].nThermalTau,                &stConfigTemp.stOutput[i].nThermalTau,                ParamType::UInt16, 0, 0, 600}, \
+    {0x1000 + (i), 25, &stConfig.stOutput[i].bClearOnReassert,           &stConfigTemp.stOutput[i].bClearOnReassert,           ParamType::Bool,   0, 0, 1}, \
+    {0x1000 + (i), 30, &stConfig.stOutput[i].nSoftStartTimeout,          &stConfigTemp.stOutput[i].nSoftStartTimeout,          ParamType::UInt16, 0, 0, 60000}
 #endif
 
 //=============================================================================

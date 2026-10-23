@@ -4,6 +4,7 @@
 #include "port.h"
 #include "enums.h"
 #include "pwm.h"
+#include "wire_load.h"
 
 #if NUM_OUTPUTS > 0
 
@@ -19,8 +20,19 @@ struct Config_Output{
   uint16_t nResetTime; //ms
   uint8_t nResetLimit;
   int8_t nPrimaryOutput;  //index of primary to follow, -1 = unpaired
+  float fWarnLimit;       //A, 0 = off
+  float fOpenLoadLimit;   //A, 0 = off
+  uint16_t nOpenLoadTime; //ms
+  float fUnderLimit;      //A, 0 = off
+  uint16_t nUnderTime;    //ms
+  bool bUnderTrip;        //false = report only, true = trip to Fault
 
   Config_PwmOutput stPwm;
+
+  float fHardShortLimit; //A, 0 = off, above it trips to Fault at once
+  uint16_t nThermalTau; //s, 0 = off, wire load time constant
+  bool bClearOnReassert; //latched fault clears when the input goes off
+  uint16_t nSoftStartTimeout; //ms, 0 = off, soft start held above the inrush limit, trips if not done in time
 };
 
 //=============================================================================
@@ -113,8 +125,12 @@ public:
         fOutput = 0;
     }
 
+    void ClearFault();
+
     float GetCurrent() { return *const_cast<volatile float*>(&fCurrent); }
     ProfetState GetState() { return eState; }
+    // Warning/OpenLoad/Undercurrent are reported on top of On only, protection uses eState
+    ProfetState GetReportedState() { return eState == ProfetState::On ? eOverlay : eState; }
     uint16_t GetOcCount() { return nOcCount; }
     uint8_t GetDutyCycle()
     {
@@ -134,6 +150,10 @@ public:
     float fCurrent;
     float fOvercurrent;
     float fFault;
+    float fWarning;
+    float fOpenLoad;
+    float fUndercurrent;
+    float fLoad;  // wire load %, 100 = steady current at the limit
 
 private:
     const uint16_t m_num;
@@ -156,6 +176,9 @@ private:
     volatile ProfetState eState;
     ProfetState eReqState;
     ProfetState eLastState;
+    volatile ProfetState eOverlay = ProfetState::On;
+    uint32_t nOpenLoadStart;
+    uint32_t nUnderStart;
 
     uint16_t nIS;         // Raw analog current value
     uint16_t nLastIS = 0; // Last analog current value
@@ -163,6 +186,9 @@ private:
 
     bool bInRushActive;
     uint32_t nInRushOnTime;
+
+    float fI2;            // filtered current squared
+    uint32_t nLoadTime;
 
     volatile uint16_t nOcCount;       // Number of overcurrents
     uint32_t nOcTriggerTime; // Time of overcurrent

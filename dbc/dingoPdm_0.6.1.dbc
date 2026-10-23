@@ -39,23 +39,23 @@ BU_:
 BO_ 224 dingoPdmMsg0: 8 Vector__XXX
  SG_ BoardTemperature : 48|16@1+ (0.1,0) [0|215] "degC" Vector__XXX
  SG_ BatteryVoltage : 32|16@1+ (0.1,0) [0|655.35] "V" Vector__XXX
- SG_ TotalCurrent : 16|16@1+ (1,0) [0|65535] "A" Vector__XXX
+ SG_ TotalCurrent : 16|16@1+ (0.1,0) [0|65535] "A" Vector__XXX
  SG_ PDMType : 12|4@1+ (1,0) [0|15] "" Vector__XXX
  SG_ DeviceState : 8|4@1+ (1,0) [0|3] "" Vector__XXX
  SG_ DigitalInput_2 : 1|1@1+ (1,0) [0|0] "" Vector__XXX
  SG_ DigitalInput_1 : 0|1@1+ (1,0) [0|0] "" Vector__XXX
 
 BO_ 225 dingoPdmMsg1: 8 Vector__XXX
- SG_ OutputCurrent_4 : 48|16@1+ (1,0) [0|0] "A" Vector__XXX
- SG_ OutputCurrent_3 : 32|16@1+ (1,0) [0|0] "A" Vector__XXX
- SG_ OutputCurrent_2 : 16|16@1+ (1,0) [0|0] "A" Vector__XXX
- SG_ OutputCurrent_1 : 0|16@1+ (1,0) [0|0] "A" Vector__XXX
+ SG_ OutputCurrent_4 : 48|16@1+ (0.1,0) [0|0] "A" Vector__XXX
+ SG_ OutputCurrent_3 : 32|16@1+ (0.1,0) [0|0] "A" Vector__XXX
+ SG_ OutputCurrent_2 : 16|16@1+ (0.1,0) [0|0] "A" Vector__XXX
+ SG_ OutputCurrent_1 : 0|16@1+ (0.1,0) [0|0] "A" Vector__XXX
 
 BO_ 226 dingoPdmMsg2: 8 Vector__XXX
- SG_ OutputCurrent_8 : 48|16@1+ (1,0) [0|0] "A" Vector__XXX
- SG_ OutputCurrent_7 : 32|16@1+ (1,0) [0|0] "A" Vector__XXX
- SG_ OutputCurrent_6 : 16|16@1+ (1,0) [0|0] "A" Vector__XXX
- SG_ OutputCurrent_5 : 0|16@1+ (1,0) [0|0] "A" Vector__XXX
+ SG_ OutputCurrent_8 : 48|16@1+ (0.1,0) [0|0] "A" Vector__XXX
+ SG_ OutputCurrent_7 : 32|16@1+ (0.1,0) [0|0] "A" Vector__XXX
+ SG_ OutputCurrent_6 : 16|16@1+ (0.1,0) [0|0] "A" Vector__XXX
+ SG_ OutputCurrent_5 : 0|16@1+ (0.1,0) [0|0] "A" Vector__XXX
 
 BO_ 227 dingoPdmMsg3: 8 Vector__XXX
  SG_ Flasher_4 : 51|1@1+ (1,0) [0|0] "" Vector__XXX
@@ -327,6 +327,16 @@ BO_ 253 dingoPdmMsg29: 8 Vector__XXX
  SG_ TimerElapsed_6 : 16|16@1+ (0.01,0) [0|655.35] "s" Vector__XXX
  SG_ TimerElapsed_5 : 0|16@1+ (0.01,0) [0|655.35] "s" Vector__XXX
 
+BO_ 254 dingoPdmMsg30: 8 Vector__XXX
+ SG_ OutputLoad_8 : 56|8@1+ (1,0) [0|255] "%" Vector__XXX
+ SG_ OutputLoad_7 : 48|8@1+ (1,0) [0|255] "%" Vector__XXX
+ SG_ OutputLoad_6 : 40|8@1+ (1,0) [0|255] "%" Vector__XXX
+ SG_ OutputLoad_5 : 32|8@1+ (1,0) [0|255] "%" Vector__XXX
+ SG_ OutputLoad_4 : 24|8@1+ (1,0) [0|255] "%" Vector__XXX
+ SG_ OutputLoad_3 : 16|8@1+ (1,0) [0|255] "%" Vector__XXX
+ SG_ OutputLoad_2 : 8|8@1+ (1,0) [0|255] "%" Vector__XXX
+ SG_ OutputLoad_1 : 0|8@1+ (1,0) [0|255] "%" Vector__XXX
+
 
 
 
@@ -338,14 +348,14 @@ VAL_ 224 PDMType 0 "dingoPDM" 1 "dingoPDM-Max" ;
 VAL_ 224 DeviceState 0 "Run" 1 "Sleep" 2 "Overtemp" 3 "Error" ;
 VAL_ 227 WiperState 0 "Park" 1 "Parking" 2 "Slow" 3 "Fast" 4 "Intermit Pause" 5 "Intermit On" 6 "Wash" 7 "Swipe" ;
 VAL_ 227 WiperSpeed 0 "Park" 1 "Slow" 2 "Fast" 3 "Intermit Speed 1" 4 "Intermit Speed 2" 5 "Intermit Speed 3" 6 "Intermit Speed 4" 7 "Intermit Speed 5" 8 "Intermit Speed 6" ;
-VAL_ 227 OutputState_8 0 "Off" 1 "On" 2 "Overcurrent" 3 "Fault" ;
-VAL_ 227 OutputState_7 0 "Off" 1 "On" 2 "Overcurrent" 3 "Fault" ;
-VAL_ 227 OutputState_6 0 "Off" 1 "On" 2 "Overcurrent" 3 "Fault" ;
-VAL_ 227 OutputState_5 0 "Off" 1 "On" 2 "Overcurrent" 3 "Fault" ;
-VAL_ 227 OutputState_4 0 "Off" 1 "On" 2 "Overcurrent" 3 "Fault" ;
-VAL_ 227 OutputState_3 0 "Off" 1 "On" 2 "Overcurrent" 3 "Fault" ;
-VAL_ 227 OutputState_2 0 "Off" 1 "On" 2 "Overcurrent" 3 "Fault" ;
-VAL_ 227 OutputState_1 0 "Off" 1 "On" 2 "Overcurrent" 3 "Fault" ;
+VAL_ 227 OutputState_8 0 "Off" 1 "On" 2 "Overcurrent" 3 "Fault" 4 "Warning" 5 "OpenLoad" 6 "Undercurrent" ;
+VAL_ 227 OutputState_7 0 "Off" 1 "On" 2 "Overcurrent" 3 "Fault" 4 "Warning" 5 "OpenLoad" 6 "Undercurrent" ;
+VAL_ 227 OutputState_6 0 "Off" 1 "On" 2 "Overcurrent" 3 "Fault" 4 "Warning" 5 "OpenLoad" 6 "Undercurrent" ;
+VAL_ 227 OutputState_5 0 "Off" 1 "On" 2 "Overcurrent" 3 "Fault" 4 "Warning" 5 "OpenLoad" 6 "Undercurrent" ;
+VAL_ 227 OutputState_4 0 "Off" 1 "On" 2 "Overcurrent" 3 "Fault" 4 "Warning" 5 "OpenLoad" 6 "Undercurrent" ;
+VAL_ 227 OutputState_3 0 "Off" 1 "On" 2 "Overcurrent" 3 "Fault" 4 "Warning" 5 "OpenLoad" 6 "Undercurrent" ;
+VAL_ 227 OutputState_2 0 "Off" 1 "On" 2 "Overcurrent" 3 "Fault" 4 "Warning" 5 "OpenLoad" 6 "Undercurrent" ;
+VAL_ 227 OutputState_1 0 "Off" 1 "On" 2 "Overcurrent" 3 "Fault" 4 "Warning" 5 "OpenLoad" 6 "Undercurrent" ;
 
 
 

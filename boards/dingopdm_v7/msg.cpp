@@ -15,7 +15,7 @@ CANTxMsg TxMsg0()
     stMsg.frame.DLC = 8; // Bytes to send
     stMsg.frame.data8[0] = (GetDigInputVal(1) << 1) + GetDigInputVal(0);
     stMsg.frame.data8[1] = static_cast<uint8_t>(GetDeviceState()) + (PDM_TYPE << 4);
-    stMsg.frame.data16[1] = (uint16_t)GetTotalCurrent();
+    stMsg.frame.data16[1] = (uint16_t)(GetTotalCurrent() * 10.0); // 0.1 A/bit
     stMsg.frame.data16[2] = (uint16_t)(GetBattVolt() * 10.0);
     stMsg.frame.data16[3] = (uint16_t)(GetBoardTemp() * 10.0);
 
@@ -32,10 +32,10 @@ CANTxMsg TxMsg1()
     //=======================================================
     stMsg.frame.SID = stConfig.stDevice.nBaseId + CYCLIC_TX_OFFSET + 1;
     stMsg.frame.DLC = 8; // Bytes to send
-    stMsg.frame.data16[0] = (uint16_t)GetOutputCurrent(0);
-    stMsg.frame.data16[1] = (uint16_t)GetOutputCurrent(1);
-    stMsg.frame.data16[2] = (uint16_t)GetOutputCurrent(2);
-    stMsg.frame.data16[3] = (uint16_t)GetOutputCurrent(3);
+    stMsg.frame.data16[0] = (uint16_t)(GetOutputCurrent(0) * 10.0);
+    stMsg.frame.data16[1] = (uint16_t)(GetOutputCurrent(1) * 10.0);
+    stMsg.frame.data16[2] = (uint16_t)(GetOutputCurrent(2) * 10.0);
+    stMsg.frame.data16[3] = (uint16_t)(GetOutputCurrent(3) * 10.0);
 
     stMsg.bSend = true; // Always send
 
@@ -50,10 +50,10 @@ CANTxMsg TxMsg2()
     //=======================================================
     stMsg.frame.SID = stConfig.stDevice.nBaseId + CYCLIC_TX_OFFSET + 2;
     stMsg.frame.DLC = 8; // Bytes to send
-    stMsg.frame.data16[0] = (uint16_t)GetOutputCurrent(4);
-    stMsg.frame.data16[1] = (uint16_t)GetOutputCurrent(5);
-    stMsg.frame.data16[2] = (uint16_t)GetOutputCurrent(6);
-    stMsg.frame.data16[3] = (uint16_t)GetOutputCurrent(7);
+    stMsg.frame.data16[0] = (uint16_t)(GetOutputCurrent(4) * 10.0);
+    stMsg.frame.data16[1] = (uint16_t)(GetOutputCurrent(5) * 10.0);
+    stMsg.frame.data16[2] = (uint16_t)(GetOutputCurrent(6) * 10.0);
+    stMsg.frame.data16[3] = (uint16_t)(GetOutputCurrent(7) * 10.0);
 
     stMsg.bSend = true; // Always send
 
@@ -534,6 +534,22 @@ CANTxMsg TxMsg29()
     stMsg.frame.data16[3] = GetTimerElapsed(7);
 
     stMsg.bSend = GetAnyTimerEnable();
+
+    return stMsg;
+}
+
+CANTxMsg TxMsg30()
+{
+    CANTxMsg stMsg;
+    //=======================================================
+    // Build Msg 30 (Out 1-8 Wire Load %)
+    //=======================================================
+    stMsg.frame.SID = stConfig.stDevice.nBaseId + CYCLIC_TX_OFFSET + 30;
+    stMsg.frame.DLC = 8;
+    for (uint8_t i = 0; i < 8; i++)
+        stMsg.frame.data8[i] = GetOutputLoad(i);
+
+    stMsg.bSend = GetAnyWireLoadEnable();
 
     return stMsg;
 }

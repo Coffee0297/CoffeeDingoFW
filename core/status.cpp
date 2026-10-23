@@ -101,7 +101,7 @@ ProfetState GetOutputState(uint8_t nOutput)
     if (nOutput >= NUM_OUTPUTS)
         return ProfetState::Off;
 
-    return pf[nOutput].GetState();
+    return pf[nOutput].GetReportedState();
 }
 
 uint8_t GetOutputOcCount(uint8_t nOutput)
@@ -125,6 +125,26 @@ bool GetAnyPwmEnable()
     for (uint8_t i = 0; i < NUM_OUTPUTS; i++)
     {
         if (stConfig.stOutput[i].stPwm.bEnabled)
+            return true;
+    }
+    return false;
+}
+
+// Wire load %, saturated to 255
+uint8_t GetOutputLoad(uint8_t nOutput)
+{
+    if (nOutput >= NUM_OUTPUTS)
+        return 0;
+
+    const float fLoad = VolatileRead(pf[nOutput].fLoad);
+    return fLoad >= 255.0f ? 255 : (uint8_t)fLoad;
+}
+
+bool GetAnyWireLoadEnable()
+{
+    for (uint8_t i = 0; i < NUM_OUTPUTS; i++)
+    {
+        if (stConfig.stOutput[i].nThermalTau > 0)
             return true;
     }
     return false;

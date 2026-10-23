@@ -21,6 +21,9 @@ static InfoMsg BattUndervoltageMsg(MsgType::Warning, MsgSrc::Voltage);
 #if NUM_OUTPUTS > 0
 static InfoMsg OutputOvercurrentMsg[NUM_OUTPUTS];
 static InfoMsg OutputFaultMsg[NUM_OUTPUTS];
+static InfoMsg OutputWarningMsg[NUM_OUTPUTS];
+static InfoMsg OutputOpenLoadMsg[NUM_OUTPUTS];
+static InfoMsg OutputUndercurrentMsg[NUM_OUTPUTS];
 #endif
 
 extern DeviceConfig stConfig;
@@ -58,6 +61,9 @@ void CheckInfoMsgs()
     {
         OutputOvercurrentMsg[i].Check(GetOutputState(i) == ProfetState::Overcurrent, stConfig.stDevice.nBaseId, i, GetOutputCurrent(i), 0);
         OutputFaultMsg[i].Check(GetOutputState(i) == ProfetState::Fault, stConfig.stDevice.nBaseId, i, GetOutputCurrent(i), 0);
+        OutputWarningMsg[i].Check(GetOutputState(i) == ProfetState::Warning, stConfig.stDevice.nBaseId, i, GetOutputCurrent(i), 0);
+        OutputOpenLoadMsg[i].Check(GetOutputState(i) == ProfetState::OpenLoad, stConfig.stDevice.nBaseId, i, GetOutputCurrent(i), 0);
+        OutputUndercurrentMsg[i].Check(GetOutputState(i) == ProfetState::Undercurrent, stConfig.stDevice.nBaseId, i, GetOutputCurrent(i), 0);
     }
     #endif
 }
@@ -85,6 +91,9 @@ void InitInfoMsgs()
     {
         OutputOvercurrentMsg[i] = InfoMsg(MsgType::Warning, MsgSrc::Overcurrent);
         OutputFaultMsg[i] = InfoMsg(MsgType::Error, MsgSrc::Overcurrent);
+        OutputWarningMsg[i] = InfoMsg(MsgType::Warning, MsgSrc::OutputWarning);
+        OutputOpenLoadMsg[i] = InfoMsg(MsgType::Warning, MsgSrc::OpenLoad);
+        OutputUndercurrentMsg[i] = InfoMsg(MsgType::Warning, MsgSrc::Undercurrent);
     }
     #endif
 }

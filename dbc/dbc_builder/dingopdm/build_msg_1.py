@@ -10,6 +10,6 @@ def build_msg_1(base_id):
         signals=[]
     )
 
-    output_current_sigs = create_duplicate_signals("OutputCurrent", 4, 1, 0, 16, 1, 0, "A")
+    output_current_sigs = create_duplicate_signals("OutputCurrent", 4, 1, 0, 16, 0.1, 0, "A")
     message.signals.extend(output_current_sigs)
     return message

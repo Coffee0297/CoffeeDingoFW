@@ -2,7 +2,7 @@
 #include "dbc.h"
 
 #if NUM_OUTPUTS > 0
-void Pwm::Update()
+void Pwm::Update(bool bHoldSoftStart)
 {
     bChannelEnabled = (bool)(m_pwm->enabled & (1 << 0));
 
@@ -21,6 +21,10 @@ void Pwm::Update()
         if (bChannelEnabled != bLastChannelEnabled) {
             InitSoftStart();
         }
+        // Hold the ramp by moving its start forward by the time held
+        else if (bHoldSoftStart && !bSoftStartComplete) {
+            nSoftStartTime += SYS_TIME - nLastUpdateTime;
+        }
         
         // Update soft start
         if (!bSoftStartComplete) {
@@ -35,6 +39,7 @@ void Pwm::Update()
     UpdateFrequency();
     
     bLastChannelEnabled = bChannelEnabled;
+    nLastUpdateTime = SYS_TIME;
 }
 
 uint8_t Pwm::GetTargetDutyCycle() {

@@ -54,7 +54,7 @@ def build_msg_0(base_id):
         length=16,
         byte_order="little_endian",
         is_signed=False,
-        conversion=LinearConversion(1, 0, False),
+        conversion=LinearConversion(0.1, 0, False),
         minimum=0,
         maximum=65535,
         unit="A"
