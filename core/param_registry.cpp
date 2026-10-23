@@ -60,6 +60,11 @@ const ParamInfo stParams[] = {
     ALL_MATH_PARAMS,
     #endif
 
+    #if HAS_COMFORT_BLINK
+    // Comfort Blink (0x1F00)
+    COMFORT_BLINK_PARAMS(),
+    #endif
+
     // CAN Outputs (0x2000+)
     ALL_CAN_OUTPUT_PARAMS,
 
@@ -71,6 +76,15 @@ const ParamInfo stParams[] = {
     #if NUM_ANALOG_INPUTS > 0
     // Analog Inputs (0x2200+)
     ALL_ANALOG_INPUT_PARAMS,
+    #endif
+
+    #if NUM_CURVES > 0
+    // Curves (0x2400+)
+    ALL_CURVE_PARAMS,
+    #endif
+    #if NUM_LATCH_GATES > 0
+    // Latch / gate blocks (0x2600+)
+    ALL_LATCH_GATE_PARAMS,
     #endif
 
     #if NUM_KEYPADS > 0

@@ -153,11 +153,14 @@ CPPSRC = $(ALLCPPSRC) \
 				 core/device.cpp \
 				 functions/can_input.cpp \
 				 functions/can_outputs.cpp \
+				 functions/comfort_blink.cpp \
 				 functions/condition.cpp \
 				 functions/counter.cpp \
+				 functions/curve.cpp \
 				 functions/flasher.cpp \
 				 functions/input.cpp \
 				 functions/math_block.cpp \
+				 functions/latch_gate.cpp \
 				 functions/timer.cpp \
 				 functions/virtual_input.cpp \
 				 utils/crc.cpp \

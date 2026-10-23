@@ -99,6 +99,17 @@
 //=============================================================================
 // Virtual Input Parameters - Base 0x1400
 //=============================================================================
+// Retain flags keep a value in the FRAM over power cycles and sleep; boards without FRAM don't list them
+#if HAS_EXT_MEMORY
+#define VIRTUAL_INPUT_RETAIN_PARAM(i) \
+    , {0x1400 + (i), 10, &stConfig.stVirtualInput[i].bRetain,  &stConfigTemp.stVirtualInput[i].bRetain,  ParamType::Bool,   0, 0, 1}
+#define COUNTER_RETAIN_PARAM(i) \
+    , {0x1600 + (i), 12, &stConfig.stCounter[i].bRetain,     &stConfigTemp.stCounter[i].bRetain,      ParamType::Bool,   0, 0, 1}
+#else
+#define VIRTUAL_INPUT_RETAIN_PARAM(i)
+#define COUNTER_RETAIN_PARAM(i)
+#endif
+
 #define VIRTUAL_INPUT_PARAMS(i) \
     {0x1400 + (i), 0,  &stConfig.stVirtualInput[i].bEnabled, &stConfigTemp.stVirtualInput[i].bEnabled, ParamType::Bool,   0, 0, 1}, \
     {0x1400 + (i), 1,  &stConfig.stVirtualInput[i].bNot0,    &stConfigTemp.stVirtualInput[i].bNot0,    ParamType::Bool,   0, 0, 1}, \
@@ -109,7 +120,8 @@
     {0x1400 + (i), 6,  &stConfig.stVirtualInput[i].eCond1,   &stConfigTemp.stVirtualInput[i].eCond1,   ParamType::Enum,   static_cast<uint32_t>(BoolOperator::And), 0, 2}, \
     {0x1400 + (i), 7,  &stConfig.stVirtualInput[i].bNot2,    &stConfigTemp.stVirtualInput[i].bNot2,    ParamType::Bool,   0, 0, 1}, \
     {0x1400 + (i), 8,  &stConfig.stVirtualInput[i].nVar2,    &stConfigTemp.stVirtualInput[i].nVar2,    ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
-    {0x1400 + (i), 9,  &stConfig.stVirtualInput[i].eMode,    &stConfigTemp.stVirtualInput[i].eMode,    ParamType::Enum,   static_cast<uint32_t>(InputMode::Momentary), 0, 1}
+    {0x1400 + (i), 9,  &stConfig.stVirtualInput[i].eMode,    &stConfigTemp.stVirtualInput[i].eMode,    ParamType::Enum,   static_cast<uint32_t>(InputMode::Momentary), 0, 1} \
+    VIRTUAL_INPUT_RETAIN_PARAM(i)
 
 //=============================================================================
 // Condition Parameters - Base 0x1500
@@ -118,7 +130,10 @@
     {0x1500 + (i), 0, &stConfig.stCondition[i].bEnabled,  &stConfigTemp.stCondition[i].bEnabled,  ParamType::Bool,   0, 0, 1}, \
     {0x1500 + (i), 1, &stConfig.stCondition[i].nInput,    &stConfigTemp.stCondition[i].nInput,    ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
     {0x1500 + (i), 2, &stConfig.stCondition[i].eOperator, &stConfigTemp.stCondition[i].eOperator, ParamType::Enum,   static_cast<uint32_t>(Operator::Equal), 0, 7}, \
-    {0x1500 + (i), 3, &stConfig.stCondition[i].fArg,      &stConfigTemp.stCondition[i].fArg,      ParamType::Float,  F(0.0f), F(-1e9f), F(1e9f)}
+    {0x1500 + (i), 3, &stConfig.stCondition[i].fArg,      &stConfigTemp.stCondition[i].fArg,      ParamType::Float,  F(0.0f), F(-1e9f), F(1e9f)}, \
+    {0x1500 + (i), 4, &stConfig.stCondition[i].fHyst,     &stConfigTemp.stCondition[i].fHyst,     ParamType::Float,  F(0.0f), F(0.0f), F(1e9f)}, \
+    {0x1500 + (i), 5, &stConfig.stCondition[i].nDelayOn,  &stConfigTemp.stCondition[i].nDelayOn,  ParamType::UInt16, 0, 0, 60000}, \
+    {0x1500 + (i), 6, &stConfig.stCondition[i].nDelayOff, &stConfigTemp.stCondition[i].nDelayOff, ParamType::UInt16, 0, 0, 60000}
 
 //=============================================================================
 // Counter Parameters - Base 0x1600
@@ -135,7 +150,8 @@
     {0x1600 + (i), 8,  &stConfig.stCounter[i].eResetEdge,  &stConfigTemp.stCounter[i].eResetEdge,  ParamType::Enum,   static_cast<uint32_t>(InputEdge::Rising), 0, 2}, \
     {0x1600 + (i), 9,  &stConfig.stCounter[i].bWrapAround, &stConfigTemp.stCounter[i].bWrapAround, ParamType::Bool,   0, 0, 1}, \
     {0x1600 + (i), 10, &stConfig.stCounter[i].bHoldToReset,&stConfigTemp.stCounter[i].bHoldToReset, ParamType::Bool,   0, 0, 1}, \
-    {0x1600 + (i), 11, &stConfig.stCounter[i].nResetTime,  &stConfigTemp.stCounter[i].nResetTime,   ParamType::UInt16, 2000, 0, 10000}
+    {0x1600 + (i), 11, &stConfig.stCounter[i].nResetTime,  &stConfigTemp.stCounter[i].nResetTime,   ParamType::UInt16, 2000, 0, 10000} \
+    COUNTER_RETAIN_PARAM(i)
 
 //=============================================================================
 // Flasher Parameters - Base 0x1700
@@ -225,6 +241,31 @@
 #endif
 
 //=============================================================================
+// Comfort Blink Parameters - Base 0x1F00 (single instance)
+//=============================================================================
+#if HAS_COMFORT_BLINK
+#define COMFORT_BLINK_PARAMS() \
+    {0x1F00, 0, &stConfig.stComfortBlink.bEnabled,    &stConfigTemp.stComfortBlink.bEnabled,    ParamType::Bool,   0, 0, 1}, \
+    {0x1F00, 1, &stConfig.stComfortBlink.nLeftInput,  &stConfigTemp.stComfortBlink.nLeftInput,  ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
+    {0x1F00, 2, &stConfig.stComfortBlink.nRightInput, &stConfigTemp.stComfortBlink.nRightInput, ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
+    {0x1F00, 3, &stConfig.stComfortBlink.nClockInput, &stConfigTemp.stComfortBlink.nClockInput, ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
+    {0x1F00, 4, &stConfig.stComfortBlink.nTapMs,      &stConfigTemp.stComfortBlink.nTapMs,      ParamType::UInt16, 1000, 100, 5000}, \
+    {0x1F00, 5, &stConfig.stComfortBlink.nBlinks,     &stConfigTemp.stComfortBlink.nBlinks,     ParamType::UInt8,  3, 1, 10}
+#endif
+
+//=============================================================================
+// Latch / Gate Parameters - Base 0x2600
+//=============================================================================
+#if NUM_LATCH_GATES > 0
+#define LATCH_GATE_PARAMS(i) \
+    {0x2600 + (i), 0, &stConfig.stLatchGate[i].bEnabled,      &stConfigTemp.stLatchGate[i].bEnabled,      ParamType::Bool,   0, 0, 1}, \
+    {0x2600 + (i), 1, &stConfig.stLatchGate[i].eType,         &stConfigTemp.stLatchGate[i].eType,         ParamType::Enum,   static_cast<uint32_t>(LatchGateType::Latch), 0, 1}, \
+    {0x2600 + (i), 2, &stConfig.stLatchGate[i].nInput,        &stConfigTemp.stLatchGate[i].nInput,        ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
+    {0x2600 + (i), 3, &stConfig.stLatchGate[i].nControlInput, &stConfigTemp.stLatchGate[i].nControlInput, ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
+    {0x2600 + (i), 4, &stConfig.stLatchGate[i].nTime,         &stConfigTemp.stLatchGate[i].nTime,         ParamType::UInt32, 0, 0, 600000}
+#endif
+
+//=============================================================================
 // CAN Output Parameters - Base 0x2000
 //=============================================================================
 #define CAN_OUTPUT_PARAMS(i) \
@@ -264,6 +305,22 @@
     {0x2200 + (i), 7, &stConfig.stAnalogInput[i].stRotary.fOffset, &stConfigTemp.stAnalogInput[i].stRotary.fOffset, ParamType::Float, F(0.0f), F(-1e9f), F(1e9f)}, \
     {0x2200 + (i), 8, &stConfig.stAnalogInput[i].stRotary.fStep, &stConfigTemp.stAnalogInput[i].stRotary.fStep, ParamType::Float, F(100.0f), F(1e-6f), F(1e9f)}, \
     {0x2200 + (i), 9, &stConfig.stAnalogInput[i].stRotary.fMaxPos, &stConfigTemp.stAnalogInput[i].stRotary.fMaxPos, ParamType::Float, F(10.0f), F(0.0f), F(1e9f)}
+#endif
+
+//=============================================================================
+// Curve Parameters - Base 0x2400
+//=============================================================================
+#if NUM_CURVES > 0
+#define CURVE_POINT_PARAMS(i, k) \
+    {0x2400 + (i), 3 + (k),  &stConfig.stCurve[i].fX[k], &stConfigTemp.stCurve[i].fX[k], ParamType::Float, F(0.0f), F(-1e9f), F(1e9f)}, \
+    {0x2400 + (i), 15 + (k), &stConfig.stCurve[i].fY[k], &stConfigTemp.stCurve[i].fY[k], ParamType::Float, F(0.0f), F(-1e9f), F(1e9f)}
+#define CURVE_PARAMS(i) \
+    {0x2400 + (i), 0, &stConfig.stCurve[i].bEnabled, &stConfigTemp.stCurve[i].bEnabled, ParamType::Bool,   0, 0, 1}, \
+    {0x2400 + (i), 1, &stConfig.stCurve[i].nInput,   &stConfigTemp.stCurve[i].nInput,   ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
+    {0x2400 + (i), 2, &stConfig.stCurve[i].nPoints,  &stConfigTemp.stCurve[i].nPoints,  ParamType::UInt8,  2, 2, CURVE_MAX_POINTS}, \
+    CURVE_POINT_PARAMS(i, 0), CURVE_POINT_PARAMS(i, 1), CURVE_POINT_PARAMS(i, 2),  CURVE_POINT_PARAMS(i, 3), \
+    CURVE_POINT_PARAMS(i, 4), CURVE_POINT_PARAMS(i, 5), CURVE_POINT_PARAMS(i, 6),  CURVE_POINT_PARAMS(i, 7), \
+    CURVE_POINT_PARAMS(i, 8), CURVE_POINT_PARAMS(i, 9), CURVE_POINT_PARAMS(i, 10), CURVE_POINT_PARAMS(i, 11)
 #endif
 
 //=============================================================================
@@ -308,7 +365,8 @@
     {0x3100 + (k) * 32 + (b), 18, &stConfig.stKeypad[k].stButton[b].nBlinkColors[1],       &stConfigTemp.stKeypad[k].stButton[b].nBlinkColors[1], ParamType::UInt8,  0, 0, 7}, \
     {0x3100 + (k) * 32 + (b), 19, &stConfig.stKeypad[k].stButton[b].nBlinkColors[2],       &stConfigTemp.stKeypad[k].stButton[b].nBlinkColors[2], ParamType::UInt8,  0, 0, 7}, \
     {0x3100 + (k) * 32 + (b), 20, &stConfig.stKeypad[k].stButton[b].nBlinkColors[3],       &stConfigTemp.stKeypad[k].stButton[b].nBlinkColors[3], ParamType::UInt8,  0, 0, 7}, \
-    {0x3100 + (k) * 32 + (b), 21, &stConfig.stKeypad[k].stButton[b].nFaultBlinkColor,      &stConfigTemp.stKeypad[k].stButton[b].nFaultBlinkColor,ParamType::UInt8,  0, 0, 7}
+    {0x3100 + (k) * 32 + (b), 21, &stConfig.stKeypad[k].stButton[b].nFaultBlinkColor,      &stConfigTemp.stKeypad[k].stButton[b].nFaultBlinkColor,ParamType::UInt8,  0, 0, 7}, \
+    {0x3100 + (k) * 32 + (b), 22, &stConfig.stKeypad[k].stButton[b].bRetain,               &stConfigTemp.stKeypad[k].stButton[b].bRetain,         ParamType::Bool,   0, 0, 1}
 
 //=============================================================================
 // Keypad Dial Parameters - Base 0x3200 + (keypad * 4) + dial

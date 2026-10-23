@@ -5,6 +5,7 @@
 #include "mcu_utils.h"
 #include "device_config.h"
 #include "config.h"
+#include "config_ext.h"
 #include "param_protocol.h"
 #include "config_handler.h"
 #include "hw_devices.h"
@@ -17,6 +18,8 @@
 #include "condition.h"
 #include "timer.h"
 #include "math_block.h"
+#include "curve.h"
+#include "latch_gate.h"
 #include "mailbox.h"
 #include "msg.h"
 #include "error.h"
@@ -29,6 +32,9 @@
 #endif
 #if HAS_STARTER_DISABLE > 0
 #include "starter.h"
+#endif
+#if HAS_COMFORT_BLINK
+#include "comfort_blink.h"
 #endif
 #if HAS_USB
 #include "usb.h"
@@ -55,11 +61,20 @@ Timer timer[NUM_TIMERS];
 #if NUM_MATH > 0
 MathBlock mathBlock[NUM_MATH];
 #endif
+#if NUM_CURVES > 0
+Curve curve[NUM_CURVES];
+#endif
+#if NUM_LATCH_GATES > 0
+LatchGate latchGate[NUM_LATCH_GATES];
+#endif
 #if HAS_WIPERS > 0
 Wiper wiper;
 #endif
 #if HAS_STARTER_DISABLE > 0
 Starter starter;
+#endif
+#if HAS_COMFORT_BLINK
+ComfortBlink comfortBlink;
 #endif
 #if NUM_KEYPADS > 0
 Keypad keypad[NUM_KEYPADS];
@@ -128,6 +143,10 @@ struct SlowThread : chibios_rt::BaseStaticThread<256>
             WriteFaultLog();
             #endif
 
+            #if HAS_EXT_MEMORY
+            WriteRetained();
+            #endif
+
             // palToggleLine(LINE_E2);
             chThdSleepMilliseconds(250);
         }
@@ -160,6 +179,10 @@ void InitDevice()
     #endif
 
     ApplyAllConfig();
+
+    #if HAS_EXT_MEMORY
+    RestoreRetained();
+    #endif
 
     InitParamThread();
 
@@ -343,6 +366,11 @@ void CyclicUpdate()
     for (uint8_t i = 0; i < NUM_MATH; i++)
         mathBlock[i].Update();
     #endif
+    // Before the conditions, so a condition can compare a curve result
+    #if NUM_CURVES > 0
+    for (uint8_t i = 0; i < NUM_CURVES; i++)
+        curve[i].Update();
+    #endif
 
     #if NUM_CONDITIONS > 0    
     for (uint8_t i = 0; i < NUM_CONDITIONS; i++)
@@ -353,6 +381,15 @@ void CyclicUpdate()
     #if NUM_TIMERS > 0
     for (uint8_t i = 0; i < NUM_TIMERS; i++)
         timer[i].Update();
+    #endif
+
+    #if HAS_COMFORT_BLINK
+    comfortBlink.Update(SYS_TIME);
+    #endif
+    // After the conditions and timers, so either can drive a latch or gate
+    #if NUM_LATCH_GATES > 0
+    for (uint8_t i = 0; i < NUM_LATCH_GATES; i++)
+        latchGate[i].Update();
     #endif
 
     #if NUM_KEYPADS > 0
@@ -580,6 +617,20 @@ void InitVarMap()
     #if NUM_MATH > 0
     for (uint8_t i = 0; i < NUM_MATH; i++)
         pVarMap[index++] = &mathBlock[i].fVal;
+    #endif
+    #if HAS_COMFORT_BLINK
+    pVarMap[index++] = &comfortBlink.fLeft;
+    pVarMap[index++] = &comfortBlink.fRight;
+    #endif
+    #if NUM_CURVES > 0
+    for (uint8_t i = 0; i < NUM_CURVES; i++)
+        pVarMap[index++] = &curve[i].fVal;
+    #endif
+    #if NUM_LATCH_GATES > 0
+    for (uint8_t i = 0; i < NUM_LATCH_GATES; i++)
+    {
+        pVarMap[index++] = &latchGate[i].fVal;
+    }
     #endif
 
     #if NUM_OUTPUTS > 0

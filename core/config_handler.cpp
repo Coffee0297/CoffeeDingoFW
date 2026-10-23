@@ -8,6 +8,8 @@
 #include "condition.h"
 #include "timer.h"
 #include "math_block.h"
+#include "curve.h"
+#include "latch_gate.h"
 #include "flasher.h"
 #include "virtual_input.h"
 #if NUM_OUTPUTS > 0
@@ -18,6 +20,9 @@
 #endif
 #if HAS_STARTER_DISABLE > 0
 #include "starter.h"
+#endif
+#if HAS_COMFORT_BLINK
+#include "comfort_blink.h"
 #endif
 #if NUM_KEYPADS > 0
 #include "keypad/keypad.h"
@@ -45,6 +50,12 @@ extern Timer timer[NUM_TIMERS];
 #if NUM_MATH > 0
 extern MathBlock mathBlock[NUM_MATH];
 #endif
+#if NUM_CURVES > 0
+extern Curve curve[NUM_CURVES];
+#endif
+#if NUM_LATCH_GATES > 0
+extern LatchGate latchGate[NUM_LATCH_GATES];
+#endif
 #if NUM_OUTPUTS > 0
 extern Profet pf[NUM_OUTPUTS];
 #endif
@@ -53,6 +64,9 @@ extern Wiper wiper;
 #endif
 #if HAS_STARTER_DISABLE
 extern Starter starter;
+#endif
+#if HAS_COMFORT_BLINK
+extern ComfortBlink comfortBlink;
 #endif
 #if NUM_KEYPADS > 0
 extern Keypad keypad[NUM_KEYPADS];
@@ -93,6 +107,12 @@ void ApplyAllConfig()
     #if NUM_MATH > 0
     ApplyConfig(MathBlock::nBaseIndex);
     #endif
+    #if NUM_CURVES > 0
+    ApplyConfig(Curve::nBaseIndex);
+    #endif
+    #if NUM_LATCH_GATES > 0
+    ApplyConfig(LatchGate::nBaseIndex);
+    #endif
     #if NUM_OUTPUTS > 0
     ApplyConfig(Profet::nBaseIndex);
     #endif
@@ -101,6 +121,9 @@ void ApplyAllConfig()
     #endif
     #if HAS_STARTER_DISABLE
     ApplyConfig(Starter::nBaseIndex);
+    #endif
+    #if HAS_COMFORT_BLINK
+    ApplyConfig(ComfortBlink::nBaseIndex);
     #endif
     #if NUM_KEYPADS > 0
     ApplyConfig(Keypad::nBaseIndex);
@@ -181,6 +204,20 @@ void ApplyConfig(uint16_t nIndex)
             mathBlock[i].SetConfig(&stConfig.stMath[i]);
     }
     #endif
+    #if NUM_CURVES > 0
+    if (nBaseIndex == Curve::nBaseIndex)
+    {
+        for (uint8_t i = 0; i < NUM_CURVES; i++)
+            curve[i].SetConfig(&stConfig.stCurve[i]);
+    }
+    #endif
+    #if NUM_LATCH_GATES > 0
+    if (nBaseIndex == LatchGate::nBaseIndex)
+    {
+        for (uint8_t i = 0; i < NUM_LATCH_GATES; i++)
+            latchGate[i].SetConfig(&stConfig.stLatchGate[i]);
+    }
+    #endif
 
     #if NUM_OUTPUTS > 0
     if (nBaseIndex == Profet::nBaseIndex)
@@ -223,6 +260,13 @@ void ApplyConfig(uint16_t nIndex)
     if (nBaseIndex == Starter::nBaseIndex)
     {
         starter.SetConfig(&stConfig.stStarter);
+    }
+    #endif
+
+    #if HAS_COMFORT_BLINK
+    if (nBaseIndex == ComfortBlink::nBaseIndex)
+    {
+        comfortBlink.SetConfig(&stConfig.stComfortBlink);
     }
     #endif
 
