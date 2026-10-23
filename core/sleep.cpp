@@ -119,6 +119,10 @@ void EnterSleep()
     // Let the transceiver settle in standby before any wake source is armed
     chThdSleepMilliseconds(20);
 
+    // A PWM input's edge event would wake it, and the wake event below needs the same EXTI line
+    for(uint8_t i = 0; i < NUM_DIG_INPUTS; i++)
+        digIn[i].StopPwm();
+
     // Set wakeup sources
 
     // Digital inputs change detection, with configured pullup or pulldown
