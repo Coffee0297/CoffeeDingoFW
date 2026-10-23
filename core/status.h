@@ -32,7 +32,6 @@ bool GetCanInOutput(uint8_t nInput);
 float GetCanInVal(uint8_t nInput);
 float GetCanInFactor(uint8_t nInput);
 float GetCanInOffset(uint8_t nInput);
-ByteOrder GetCanInByteOrder(uint8_t nInput);
 uint32_t GetCanInOutputs();
 
 bool GetVirtInVal(uint8_t nInput);
