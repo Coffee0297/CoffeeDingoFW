@@ -17,6 +17,8 @@
 //   g++ -std=c++20 -DCAN_MSG_CHECKSUM_ONLY -I tests/host -I functions -I core -I utils tests/host_selftest.cpp functions/can_msg.cpp utils/dbc.cpp -o build/host_can_msg_cs && build/host_can_msg_cs
 //   g++ -std=c++20 -Wall -DCHECKSUM_ONLY -I tests/host -I functions -I core -I utils tests/host_selftest.cpp utils/dbc.cpp -o build/host_checksum && build/host_checksum
 //   g++ -std=c++20 -DCAN_INPUT_TIMEOUT_ONLY -I tests/host -I functions -I core -I utils tests/host_selftest.cpp functions/can_input.cpp functions/input.cpp utils/dbc.cpp -o build/host_can_input_timeout && build/host_can_input_timeout
+//   g++ -std=c++20 -Wall -DANALOG_SCALE_ONLY -I tests/host -I functions -I core -I utils tests/host_selftest.cpp functions/input.cpp -o build/host_analog_scale && build/host_analog_scale
+//   g++ -std=c++20 -DANALOG_ONLY -I tests/host -I functions -I core -I utils tests/host_selftest.cpp functions/input.cpp -o build/host_analog && build/host_analog
 // Each feature adds its own section below, picked with -D<NAME>_ONLY, and its build line here.
 #include <cassert>
 #include <cstdio>
@@ -682,6 +684,53 @@ int main()
     c.bTimeoutEnabled = true; c.bEnabled = false; idle(9000); assert(k.fVal == 0 && k.fOutput == 0);   // disabled input never uses the value
 
     std::puts("host_selftest CAN_INPUT_TIMEOUT OK");
+    return 0;
+}
+#elif defined(ANALOG_SCALE_ONLY)
+#include <cmath>
+enum class AnalogChannel { AnIn1 };
+static float fHostVolts;
+uint16_t GetAdcRaw(AnalogChannel) { return (uint16_t)(fHostVolts * 4095 / 3.3f); }
+float GetAdcVolts(AnalogChannel) { return fHostVolts; }
+#include "analog_input.cpp"
+
+int main()
+{
+    Config_AnalogInput c{};
+    c.bEnabled = true; c.fScaleGain = 0.05f; c.fScaleOffset = -25.0f;   // 0.5 V = 0, 4.5 V = 200
+    Analog_Input a(AnalogChannel::AnIn1); a.SetConfig(&c);
+    auto at = [&](float v) { fHostVolts = v; a.Update(); return a.fScaledVal; };
+
+    assert(at(2.5f) == 0);                                // scaling off: 0
+    c.bScale = true;
+    assert(std::fabs(at(0.5f) - 0) < 1e-3f);
+    assert(std::fabs(at(4.5f) - 200) < 1e-3f);
+    assert(std::fabs(at(2.5f) - 100) < 1e-3f);
+    assert(std::fabs(at(0.0f) + 25) < 1e-3f);             // below the range: extrapolated, no clamp
+    c.bEnabled = false; assert(at(2.5f) == 0);            // input off: 0
+
+    std::puts("host_analog_scale OK");
+    return 0;
+}
+#elif defined(ANALOG_ONLY)
+enum class AnalogChannel { Ai1 };     // board port.h stand-ins, ahead of analog_input.h
+float fHostMv = 0;
+uint16_t GetAdcRaw(AnalogChannel) { return static_cast<uint16_t>(fHostMv); }
+float GetAdcVolts(AnalogChannel) { return fHostMv / 1000.0f; }
+#include "analog_input.cpp"         // same unit: it needs the stand-ins above
+
+int main()
+{
+    Config_AnalogInput k{};
+    k.stSwitch.bEnabled = true; k.stSwitch.nThreshold = 1000;
+    Analog_Input a(AnalogChannel::Ai1); a.SetConfig(&k);
+    fHostMv = 2500; a.Update();
+    assert(a.fVal == 2500 && a.fValMillivolts > 2499 && a.fValMillivolts < 2501);  // disabled: raw still live (was 0)
+    assert(a.fSwitchVal == 0);                                                     // decoders stay off
+    k.bEnabled = true; a.Update(); assert(a.fSwitchVal == 1);
+    k.bEnabled = false; fHostMv = 500; a.Update();
+    assert(a.fValMillivolts < 501 && a.fSwitchVal == 0);                            // was frozen at 2500 / 1
+    std::puts("host_analog OK");
     return 0;
 }
 #else

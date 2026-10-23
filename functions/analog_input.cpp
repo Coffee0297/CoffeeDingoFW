@@ -2,17 +2,22 @@
 
 void Analog_Input::Update()
 {
-    if(!pConfig->bEnabled)
-    {
-        fVal = 0;
-        return;
-    }
-
+    // Raw pin value is always live (CAN status, var map); only the decoders depend on bEnabled
     fVal = (float)GetAdcRaw(m_channel);
     fValMillivolts = GetAdcVolts(m_channel) * 1000.0;
 
+    if(!pConfig->bEnabled)
+    {
+        fRotaryPos = 0;
+        fSwitchVal = 0;
+        fScaledVal = 0;
+        return;
+    }
+
     RotaryUpdate();
     SwitchUpdate();
+
+    fScaledVal = pConfig->bScale ? (pConfig->fScaleGain * fValMillivolts + pConfig->fScaleOffset) : 0;
 }
 
 void Analog_Input::RotaryUpdate()
