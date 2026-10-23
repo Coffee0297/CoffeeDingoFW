@@ -162,6 +162,7 @@ CPPSRC = $(ALLCPPSRC) \
 				 functions/math_block.cpp \
 				 functions/latch_gate.cpp \
 				 functions/timer.cpp \
+				 functions/pid.cpp \
 				 functions/virtual_input.cpp \
 				 utils/crc.cpp \
 				 utils/dbc.cpp \

@@ -59,6 +59,10 @@ const ParamInfo stParams[] = {
     // Math blocks (0x1C00+)
     ALL_MATH_PARAMS,
     #endif
+    #if NUM_PIDS > 0
+    // PIDs (0x2300+)
+    ALL_PID_PARAMS,
+    #endif
 
     #if HAS_COMFORT_BLINK
     // Comfort Blink (0x1F00)

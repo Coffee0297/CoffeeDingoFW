@@ -8,6 +8,7 @@
 #include "counter.h"
 #include "condition.h"
 #include "timer.h"
+#include "pid.h"
 #if NUM_OUTPUTS > 0
 #include "profet.h"
 #endif
@@ -375,6 +376,36 @@ uint16_t GetTimerElapsed(uint8_t nTimer)
         return (uint16_t)(timer[nTimer].GetElapsed() / 10);
     #endif
     (void)nTimer;
+    return 0;
+}
+
+bool GetAnyPidEnable()
+{
+    #if NUM_PIDS > 0
+    for (uint8_t i = 0; i < NUM_PIDS; i++)
+    {
+        if (stConfig.stPid[i].bEnabled)
+            return true;
+    }
+    #endif
+    return false;
+}
+
+// Output x10, saturated to int16
+int16_t GetPidOutput(uint8_t nPid)
+{
+    #if NUM_PIDS > 0
+    if (nPid < NUM_PIDS)
+    {
+        const float fVal = VolatileRead(pid[nPid].fVal) * 10.0f;
+        if (fVal >= 32767.0f)
+            return 32767;
+        if (fVal <= -32768.0f)
+            return -32768;
+        return (int16_t)fVal;
+    }
+    #endif
+    (void)nPid;
     return 0;
 }
 
