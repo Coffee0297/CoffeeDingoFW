@@ -91,7 +91,6 @@
 #define BTS7008_2EPA_KILIS 5950
 #define BTS70012_1ESP_KILIS 35000
 
-#define SLEEP_TIMEOUT 30000
 
 // Milliseconds from the 64-bit timestamp, truncated to 32 bits so it wraps cleanly
 // every ~49.7 days. Always compare as (SYS_TIME - start), never as absolute times.

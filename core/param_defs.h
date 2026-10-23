@@ -22,7 +22,23 @@
     {0x0000, 7, &stConfig.stDevice.nMuteCanTxInput,     &stConfigTemp.stDevice.nMuteCanTxInput,   ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
     {0x0000, 8, &stConfig.stDevice.nForceSleepInput,    &stConfigTemp.stDevice.nForceSleepInput,  ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
     {0x0000, 12, &stConfig.stDevice.nRetryAllInput,     &stConfigTemp.stDevice.nRetryAllInput,    ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
-    {0x0000, 13, &stConfig.stDevice.nShedInput,         &stConfigTemp.stDevice.nShedInput,        ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}
+    {0x0000, 13, &stConfig.stDevice.nShedInput,         &stConfigTemp.stDevice.nShedInput,        ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
+    {0x0000, 9, &stConfig.stDevice.nSleepTimeoutMs,     &stConfigTemp.stDevice.nSleepTimeoutMs,   ParamType::UInt16, 30000, 1000, 60000}, \
+    {0x0000, 10, &stConfig.stDevice.bSleepIgnoreAlwaysOn, &stConfigTemp.stDevice.bSleepIgnoreAlwaysOn, ParamType::Bool, 0, 0, 1}, \
+    {0x0000, 11, &stConfig.stDevice.nWakeDigInputMask,  &stConfigTemp.stDevice.nWakeDigInputMask, ParamType::UInt8,  (1u << NUM_DIG_INPUTS) - 1, 0, (1u << NUM_DIG_INPUTS) - 1}
+
+//=============================================================================
+// Wake Frame Parameters - Base 0x0100
+//=============================================================================
+#define WAKE_FRAME_PARAMS() \
+    {0x0100, 0, &stConfig.stWakeFrame.bEnabled, &stConfigTemp.stWakeFrame.bEnabled, ParamType::Bool,   0, 0, 1}, \
+    {0x0100, 1, &stConfig.stWakeFrame.nId,      &stConfigTemp.stWakeFrame.nId,      ParamType::UInt32, 0, 0, 536870911}, \
+    {0x0100, 2, &stConfig.stWakeFrame.nIde,     &stConfigTemp.stWakeFrame.nIde,     ParamType::UInt8,  0, 0, 1}, \
+    {0x0100, 3, &stConfig.stWakeFrame.nMinLen,  &stConfigTemp.stWakeFrame.nMinLen,  ParamType::UInt8,  0, 0, 8}, \
+    {0x0100, 4, &stConfig.stWakeFrame.nMaskLo,  &stConfigTemp.stWakeFrame.nMaskLo,  ParamType::UInt32, 0, 0, 0xFFFFFFFF}, \
+    {0x0100, 5, &stConfig.stWakeFrame.nMaskHi,  &stConfigTemp.stWakeFrame.nMaskHi,  ParamType::UInt32, 0, 0, 0xFFFFFFFF}, \
+    {0x0100, 6, &stConfig.stWakeFrame.nValueLo, &stConfigTemp.stWakeFrame.nValueLo, ParamType::UInt32, 0, 0, 0xFFFFFFFF}, \
+    {0x0100, 7, &stConfig.stWakeFrame.nValueHi, &stConfigTemp.stWakeFrame.nValueHi, ParamType::UInt32, 0, 0, 0xFFFFFFFF}
 
 //=============================================================================
 // Output Parameters - Base 0x1000
@@ -62,7 +78,8 @@
     {0x1000 + (i), 23, &stConfig.stOutput[i].stPwm.nFreqInputDenom,      &stConfigTemp.stOutput[i].stPwm.nFreqInputDenom,      ParamType::UInt16, 1, 1, 5000}, \
     {0x1000 + (i), 24, &stConfig.stOutput[i].stPwm.bRampDutyChanges,     &stConfigTemp.stOutput[i].stPwm.bRampDutyChanges,     ParamType::Bool,   0, 0, 1}, \
     {0x1000 + (i), 31, &stConfig.stOutput[i].nSoftStopTime,              &stConfigTemp.stOutput[i].nSoftStopTime,              ParamType::UInt16, 0, 0, 10000}, \
-    {0x1000 + (i), 26, &stConfig.stOutput[i].bShed,                      &stConfigTemp.stOutput[i].bShed,                      ParamType::Bool,   0, 0, 1}
+    {0x1000 + (i), 26, &stConfig.stOutput[i].bShed,                      &stConfigTemp.stOutput[i].bShed,                      ParamType::Bool,   0, 0, 1}, \
+    {0x1000 + (i), 34, &stConfig.stOutput[i].bStayAlive,                 &stConfigTemp.stOutput[i].bStayAlive,                 ParamType::Bool,   0, 0, 1}
 #endif
 
 //=============================================================================

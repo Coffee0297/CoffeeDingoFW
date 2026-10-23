@@ -177,6 +177,10 @@ void InitDevice()
     Error::Initialize(&statusLed, &errorLed);
     #endif
 
+    #if CAN_SLEEP
+    InitSleep(); // why it woke, before anything is sent
+    #endif
+
     InitVarMap(); // Set val pointers
 
     #if HAS_I2C
@@ -204,6 +208,11 @@ void InitDevice()
     if (InitCan(&stConfig.stDevice) != HAL_RET_SUCCESS) // Starts CAN threads
         Error::SetFatalError(FatalErrorType::ErrCAN, MsgSrc::Init);
 
+    #if CAN_SLEEP
+    if (!QuietWake()) // a quiet wake says so when it ends
+        SendSleepInfo(); // tell the bus why it is awake
+    #endif
+
     #if HAS_USB
     if (InitUsb() != HAL_RET_SUCCESS) // Starts USB threads
         Error::SetFatalError(FatalErrorType::ErrUSB, MsgSrc::Init);
@@ -220,7 +229,7 @@ void InitDevice()
 
     InitInfoMsgs();
 
-    #if CAN_SLEEP
+    #if CAN_SLEEP && defined(LINE_CAN_STANDBY)
     palClearLine(LINE_CAN_STANDBY);
     #endif
 
@@ -288,8 +297,10 @@ void States()
     #if CAN_SLEEP
     if (CheckEnterSleep())
     {
+        #if HAS_SE_LEDS
         statusLed.Solid(false);
         errorLed.Solid(false);
+        #endif
         eState = DeviceState::Sleep;
     }
 
@@ -338,6 +349,9 @@ void CyclicUpdate()
     #if NUM_DIG_INPUTS > 0
     for (uint8_t i = 0; i < NUM_DIG_INPUTS; i++)
         digIn[i].Update();
+    #endif
+    #if CAN_SLEEP
+    CheckQuietWakeInputs();
     #endif
 
     #if NUM_ANALOG_INPUTS > 0

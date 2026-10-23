@@ -29,6 +29,8 @@ public:
     // Bench test: solid on for nHoldSec (no PWM on these outputs)
     bool SetTest(uint8_t nMode, uint8_t nHoldSec);
 
+    ioline_t GetLine() { return m_line; }
+
     float fVal;
 
 private:
