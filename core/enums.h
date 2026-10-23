@@ -76,6 +76,11 @@ enum class MsgCmd : uint8_t
     ResetCause = 55,
 
     OutputTest = 48, // [cmd, out, mode 0 off/1 on/2 pwm, duty, freqLo, freqHi, holdSec, 0], reply byte 7 = accepted
+    Identify = 49,
+
+    Unlock = 56,       // [56, pw0..pw3] -> [56, ok]
+    FactoryReset = 57, // [57, 'W', 'I', 'P', 'E'] -> [57, burned ok]
+    Locked = 58,       // Reply to a command refused while locked: [58, idxLo, idxHi, sub, refused cmd]
 
     Invalid = 0xFF
 };

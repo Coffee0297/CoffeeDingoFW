@@ -41,6 +41,20 @@
     {0x0100, 7, &stConfig.stWakeFrame.nValueHi, &stConfigTemp.stWakeFrame.nValueHi, ParamType::UInt32, 0, 0, 0xFFFFFFFF}
 
 //=============================================================================
+// Config Lock Parameters - Base 0x0200
+//=============================================================================
+#define LOCK_PARAMS() \
+    {0x0200, 0, &stConfig.stLock.nPassword,   &stConfigTemp.stLock.nPassword,   ParamType::UInt32, 0, 0, 0xFFFFFFFF}, \
+    {0x0200, 1, &stConfig.stLock.nContact[0], &stConfigTemp.stLock.nContact[0], ParamType::UInt32, 0, 0, 0xFFFFFFFF}, \
+    {0x0200, 2, &stConfig.stLock.nContact[1], &stConfigTemp.stLock.nContact[1], ParamType::UInt32, 0, 0, 0xFFFFFFFF}, \
+    {0x0200, 3, &stConfig.stLock.nContact[2], &stConfigTemp.stLock.nContact[2], ParamType::UInt32, 0, 0, 0xFFFFFFFF}, \
+    {0x0200, 4, &stConfig.stLock.nContact[3], &stConfigTemp.stLock.nContact[3], ParamType::UInt32, 0, 0, 0xFFFFFFFF}, \
+    {0x0200, 5, &stConfig.stLock.nContact[4], &stConfigTemp.stLock.nContact[4], ParamType::UInt32, 0, 0, 0xFFFFFFFF}, \
+    {0x0200, 6, &stConfig.stLock.nContact[5], &stConfigTemp.stLock.nContact[5], ParamType::UInt32, 0, 0, 0xFFFFFFFF}, \
+    {0x0200, 7, &stConfig.stLock.nContact[6], &stConfigTemp.stLock.nContact[6], ParamType::UInt32, 0, 0, 0xFFFFFFFF}, \
+    {0x0200, 8, &stConfig.stLock.nContact[7], &stConfigTemp.stLock.nContact[7], ParamType::UInt32, 0, 0, 0xFFFFFFFF}
+
+//=============================================================================
 // Output Parameters - Base 0x1000
 //=============================================================================
 #if NUM_OUTPUTS > 0

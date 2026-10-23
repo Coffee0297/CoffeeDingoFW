@@ -3,7 +3,7 @@
 #include "hal.h"
 #include "enums.h"
 
-#define PROCESS_STACK 0x0400
+#define BOARD_ID 2 //Version reply byte 1: 0 PDM, 1 PDM-MAX, 2 CANBoard, 3 PT-DPDM4
 
 // Cannot be used for DMA, but can be used for CPU access.
 // If future version has FRAM, this must be removed. 

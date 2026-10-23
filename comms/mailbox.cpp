@@ -2,28 +2,43 @@
 #include "can.h"
 #include "ch.hpp"
 #include "port.h"
+#ifndef CAN_RX_MAILBOX_SIZE
+#define CAN_RX_MAILBOX_SIZE MAILBOX_SIZE
+#endif
+#ifndef CAN_TX_MAILBOX_SIZE
+#define CAN_TX_MAILBOX_SIZE MAILBOX_SIZE
+#endif
 
-static chibios_rt::Mailbox<CANRxFrame*, MAILBOX_SIZE> rxMb;
-static chibios_rt::Mailbox<CANTxFrame*, MAILBOX_SIZE> txMb;
+
+static chibios_rt::Mailbox<CANRxFrame*, CAN_RX_MAILBOX_SIZE> rxMb;
+static chibios_rt::Mailbox<CANTxFrame*, CAN_TX_MAILBOX_SIZE> txMb;
+#if HAS_USB
 static chibios_rt::Mailbox<CANTxFrame*, MAILBOX_SIZE> txUsbMb;
+#endif
 
 //Mailbox buffer of CAN frames
 //Not managed by mailbox
-CANRxFrame rxFrames[MAILBOX_SIZE];
-CANTxFrame txFrames[MAILBOX_SIZE];
+CANRxFrame rxFrames[CAN_RX_MAILBOX_SIZE];
+CANTxFrame txFrames[CAN_TX_MAILBOX_SIZE];
+#if HAS_USB
 CANTxFrame txUsbFrames[MAILBOX_SIZE];
+#endif
 
 //Used to manage the memory used by the mailbox
-bool rxMsgUsed[MAILBOX_SIZE];
-bool txMsgUsed[MAILBOX_SIZE];
+bool rxMsgUsed[CAN_RX_MAILBOX_SIZE];
+bool txMsgUsed[CAN_TX_MAILBOX_SIZE];
+#if HAS_USB
 bool txUsbMsgUsed[MAILBOX_SIZE];
+#endif
 
 // Mutexes protecting each *MsgUsed array from concurrent access between
 // Post* (CanRxThread/main thread) and Fetch* (CanTxThread/main thread).
 // Priority inheritance ensures no priority inversion across thread priorities.
 static chibios_rt::Mutex rxMutex;
 static chibios_rt::Mutex txMutex;
+#if HAS_USB
 static chibios_rt::Mutex txUsbMutex;
+#endif
 
 msg_t PostTxFrame(CANTxFrame *frame)
 {
@@ -36,7 +51,7 @@ msg_t PostTxFrame(CANTxFrame *frame)
     }
 
     txMutex.lock();
-    for (int i = 0; i < MAILBOX_SIZE; i++) {
+    for (int i = 0; i < CAN_TX_MAILBOX_SIZE; i++) {
         if (!txMsgUsed[i]) {
             txFrames[i] = *frame;
             txMsgUsed[i] = true;
@@ -70,6 +85,7 @@ msg_t FetchTxFrame(CANTxFrame *frame, sysinterval_t timeout)
     return result;
 }
 
+#if HAS_USB
 msg_t PostTxUsbFrame(CANTxFrame *frame)
 {
     txUsbMutex.lock();
@@ -102,11 +118,14 @@ msg_t FetchTxUsbFrame(CANTxFrame *frame, sysinterval_t timeout)
     }
     return result;
 }
+#else
+msg_t PostTxUsbFrame(CANTxFrame *) { return MSG_OK; } // no USB: nothing would ever fetch it
+#endif
 
 msg_t PostRxFrame(CANRxFrame *frame)
 {
     rxMutex.lock();
-    for (int i = 0; i < MAILBOX_SIZE; i++) {
+    for (int i = 0; i < CAN_RX_MAILBOX_SIZE; i++) {
         if (!rxMsgUsed[i]) {
             rxFrames[i] = *frame;
             rxMsgUsed[i] = true;

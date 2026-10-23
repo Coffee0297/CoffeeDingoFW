@@ -55,6 +55,13 @@
 #include "overload_log.h"
 #endif
 
+// Flash tools read these from the image file to tell which board (board.h) and version it is for.
+// InitDevice reads them once, or --gc-sections drops them.
+#define STR_(x) #x
+#define STR(x) STR_(x)
+static const char kDingoBoard[] = "DINGO_BOARD=" BOARD_NAME;
+static const char kDingoFw[] = "DINGO_FW=" STR(MAJOR_VERSION) "." STR(MINOR_VERSION) "." STR(BUILD);
+
 CanInput canIn[NUM_CAN_INPUTS];
 CanOutputs canOutputs;
 VirtualInput virtIn[NUM_VIRT_INPUTS];
@@ -114,6 +121,8 @@ volatile bool bDeviceOverTemp;
 volatile bool bDeviceCriticalTemp;
 bool bBootloaderRequest;
 uint8_t nResetCause; // RCC->CSR reset flags (bits 24-31)
+volatile uint32_t nIdentifyStart;
+volatile uint32_t nIdentifyMs;
 
 void InitVarMap();
 void CyclicUpdate();
@@ -178,6 +187,9 @@ void InitDevice()
 {
     nResetCause = RCC->CSR >> 24;
     RCC->CSR |= RCC_CSR_RMVF;
+
+    (void)*(volatile const char *)kDingoBoard;
+    (void)*(volatile const char *)kDingoFw;
 
     #if HAS_SE_LEDS
     Error::Initialize(&statusLed, &errorLed);
@@ -297,6 +309,16 @@ void States()
 
         if (!bDeviceOverTemp)
             eState = DeviceState::Run;
+    }
+    #endif
+
+    #if HAS_SE_LEDS
+    // Identify: over whatever the state set, the LEDs alternate at 4 Hz
+    if ((SYS_TIME - nIdentifyStart) < nIdentifyMs)
+    {
+        bool bPhase = (SYS_TIME / 125) & 1;
+        statusLed.Solid(bPhase);
+        errorLed.Solid(!bPhase);
     }
     #endif
 

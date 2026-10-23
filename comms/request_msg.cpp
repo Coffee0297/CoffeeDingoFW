@@ -15,10 +15,13 @@
 #if CAN_SLEEP
 #include "sleep.h"
 #endif
+#include "param_protocol.h"
 
 // External variables from pdm.cpp that we need access to
 extern DeviceConfig stConfig;
 extern bool bSleepRequest;
+extern volatile uint32_t nIdentifyStart;
+extern volatile uint32_t nIdentifyMs;
 
 void CheckRequestMsgs(CANRxFrame *frame)
 {
@@ -58,6 +61,29 @@ void CheckRequestMsgs(CANRxFrame *frame)
     }
     #endif
 
+    // Identify: the LEDs take turns for 1-60 s so the module can be found
+    if ((frame->DLC == 8) &&
+        (frame->data8[0] == static_cast<uint8_t>(MsgCmd::Identify)))
+    {
+        uint8_t nSecs = frame->data8[1] < 1 ? 1 : (frame->data8[1] > 60 ? 60 : frame->data8[1]);
+        nIdentifyStart = SYS_TIME;
+        nIdentifyMs = nSecs * 1000;
+
+        CANTxFrame txMsg;
+        txMsg.SID = stConfig.stDevice.nBaseId + CONFIG_TX_OFFSET;
+        txMsg.IDE = CAN_IDE_STD;
+        txMsg.DLC = 8;
+        txMsg.data8[0] = static_cast<uint8_t>(MsgCmd::Identify);
+        txMsg.data8[1] = nSecs;
+        txMsg.data8[2] = HAS_SE_LEDS;
+        txMsg.data8[3] = 0;
+        txMsg.data8[4] = 0;
+        txMsg.data8[5] = 0;
+        txMsg.data8[6] = 0;
+        txMsg.data8[7] = 0;
+        PostTxFrame(&txMsg);
+    }
+
     // Check for burn request
     if ((frame->DLC == 8) && 
         (frame->data8[0] == static_cast<uint8_t>(MsgCmd::BurnSettings)) &&
@@ -81,8 +107,8 @@ void CheckRequestMsgs(CANRxFrame *frame)
     }
 
     #if HAS_USB
-    // Check for bootloader request
-    if ((frame->DLC == 8) &&
+    // Check for bootloader request, refused while the config is locked
+    if ((frame->DLC == 8) && !IsConfigLocked() &&
         (frame->data8[0] == static_cast<uint8_t>(MsgCmd::Bootloader)) && 
         (frame->data8[1] == 'B') && (frame->data8[2] == 'O') && 
         (frame->data8[3] == 'O') && (frame->data8[4] == 'T') && (frame->data8[5] == 'L'))
@@ -144,7 +170,7 @@ void CheckRequestMsgs(CANRxFrame *frame)
         txMsg.IDE = CAN_IDE_STD;
         txMsg.DLC = 8;
         txMsg.data8[0] = static_cast<uint8_t>(MsgCmd::Version);
-        txMsg.data8[1] = 0;
+        txMsg.data8[1] = BOARD_ID;
         txMsg.data8[2] = 0;
         txMsg.data8[3] = 0;
         txMsg.data8[4] = MAJOR_VERSION;
