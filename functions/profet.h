@@ -33,6 +33,8 @@ struct Config_Output{
   uint16_t nThermalTau; //s, 0 = off, wire load time constant
   bool bClearOnReassert; //latched fault clears when the input goes off
   uint16_t nSoftStartTimeout; //ms, 0 = off, soft start held above the inrush limit, trips if not done in time
+
+  uint16_t nSoftStopTime; //ms, 0 = off, PWM duty ramps down to 0 on turn off
 };
 
 //=============================================================================
@@ -144,7 +146,7 @@ public:
     Profet *pFollower = nullptr;  // non-null if this output is a primary with a follower
 
     bool IsPwmEnabled() { return pwm.IsEnabled(); }
-    uint16_t GetFrequency() { return pConfig->stPwm.nFreq; }
+    uint16_t GetFrequency() { return pwm.GetFrequency(); }
 
     float fOutput;
     float fCurrent;
@@ -189,6 +191,10 @@ private:
 
     float fI2;            // filtered current squared
     uint32_t nLoadTime;
+
+    bool bSoftStopping;
+    uint32_t nSoftStopStart;
+    uint8_t nSoftStopDuty;  // duty when the soft stop began
 
     volatile uint16_t nOcCount;       // Number of overcurrents
     uint32_t nOcTriggerTime; // Time of overcurrent

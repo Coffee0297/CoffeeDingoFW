@@ -32,7 +32,10 @@ void Pwm::Update(bool bHoldSoftStart)
         }
         // After soft start completes, continue updating duty cycle if variable
         else if (pConfig->bVariableDutyCycle) {
-            nDutyCycle = GetTargetDutyCycle();
+            if (pConfig->bRampDutyChanges)
+                UpdateDutyRamp();
+            else
+                nDutyCycle = GetTargetDutyCycle();
         }
     }
 
@@ -77,24 +80,63 @@ void Pwm::UpdateSoftStart() {
     if (fDuty >= targetDuty) {
         nDutyCycle = targetDuty;
         bSoftStartComplete = true;
+        fDutyRamp = targetDuty;
+        nSoftStartTime = SYS_TIME;
     }
     else {
         nDutyCycle = (uint8_t)fDuty;
     }
 }
 
+void Pwm::UpdateDutyRamp() {
+    // Slew at the soft-start rate: a full 0-100% change takes nSoftStartRampTime
+    // nSoftStartTime = last ramp update once the soft start is complete
+    uint8_t targetDuty = GetTargetDutyCycle();
+    float fStep = 100.0f;
+    if (pConfig->nSoftStartRampTime > 0)
+        fStep = 100.0f * (SYS_TIME - nSoftStartTime) / pConfig->nSoftStartRampTime;
+    nSoftStartTime = SYS_TIME;
+
+    if (fDutyRamp + fStep < targetDuty)
+        fDutyRamp += fStep;
+    else if (fDutyRamp - fStep > targetDuty)
+        fDutyRamp -= fStep;
+    else
+        fDutyRamp = targetDuty;
+
+    nDutyCycle = (uint8_t)fDutyRamp;
+}
+
+uint16_t Pwm::GetTargetFreq()
+{
+    if (!pConfig->bVariableFreq || pConfig->nFreqInputDenom == 0)
+        return (pConfig->nFreq > 0 && pConfig->nFreq < PWM_MIN_FREQ) ? PWM_MIN_FREQ : pConfig->nFreq;
+
+    // 16 Hz = slowest period that fits the 16 bit timers at 1 MHz
+    float fFreq = (*pFreqInput) / pConfig->nFreqInputDenom;
+    if (fFreq > 400.0f)
+        fFreq = 400.0f;
+    if (!(fFreq >= PWM_MIN_FREQ))
+        fFreq = PWM_MIN_FREQ;
+    return (uint16_t)fFreq;
+}
+
 void Pwm::UpdateFrequency()
 {
+    uint16_t nFreq = GetTargetFreq();
+
     // Frequency within range and
     // (Frequency setting has changed or
     // PWM driver frequency != Frequency setting)
-    uint16_t nFreq = (pConfig->nFreq > 0 && pConfig->nFreq < PWM_MIN_FREQ) ? PWM_MIN_FREQ : pConfig->nFreq;
-
     if (((nFreq <= 400) && (nFreq > 0)) &&
         ((nFreq != nLastFreq) ||
         (m_pwm->period != (m_pwmCfg->frequency / nFreq))))
     {
         pwmChangePeriod(m_pwm, m_pwmCfg->frequency / nFreq);
+
+        // Width was set for the old period, rescale it so the duty holds
+        if (bChannelEnabled)
+            On();
     }
 
     nLastFreq = nFreq;
