@@ -33,10 +33,10 @@
 #define NUM_WIPER_SPEED_MAP 0
 #define NUM_COUNTERS 4
 #define NUM_CONDITIONS 8
-#define NUM_MATH 0
+#define NUM_MATH 4
 #define NUM_CURVES 0
 #define NUM_CAN_MSGS 2
-#define NUM_TIMERS 0
+#define NUM_TIMERS 4
 #define NUM_LATCH_GATES 0
 #define NUM_PIDS 2
 #define NUM_TABLES 0
@@ -96,7 +96,7 @@
 #define DEVICE_THREAD_STACK 512
 #define CAN_THREAD_STACK 256
 
-#define NUM_TX_MSGS 11
+#define NUM_TX_MSGS 12
 #define DEFAULT_BASE_ID 0x640
 
 #define ADC1_NUM_CHANNELS 6

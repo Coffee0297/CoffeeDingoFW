@@ -2,19 +2,24 @@
 
 void Digital_Output::Update()
 {
-    if(!pConfig->bEnabled)
+    if (bTest && (!pConfig->bEnabled || ((int32_t)(nTestEnd - SYS_TIME) <= 0)))
+        bTest = false;
+
+    bool bOn = pConfig->bEnabled && ((*pInput != 0) || bTest);
+
+    // PWM: the timer's period/compare callbacks drive the line (port_pwm.h), same as the Profet outputs.
+    // A bench test is solid on.
+    if (bOn && !bTest && pwm.IsEnabled())
     {
-        fVal = 0;
-        palWriteLine(m_line, 0);
-        bTest = false;
-        return;
+        pwm.EnsureStarted();
+        pwm.On();
     }
-
-    if (bTest && ((int32_t)(nTestEnd - SYS_TIME) <= 0))
-        bTest = false;
-
-    bool bOn = (*pInput != 0) || bTest;
-    palWriteLine(m_line, bOn ? PAL_HIGH : PAL_LOW);
+    else
+    {
+        pwm.Off();
+        palWriteLine(m_line, bOn ? PAL_HIGH : PAL_LOW);
+    }
+    pwm.Update(false);
     fVal = bOn;
 }
 
