@@ -4,7 +4,7 @@ Read the [shared contributing guide](https://github.com/corygrant/dingoElec/blob
 
 ## Build
 
-You need `arm-none-eabi-gcc` (CI uses 13.3.rel1) and `make`.
+You need `arm-none-eabi-gcc` (CI uses 14.2.Rel1) and `make`.
 
 ```bash
 git clone --recursive https://github.com/corygrant/dingoFW.git   # ChibiOS is a submodule
@@ -14,7 +14,17 @@ git submodule update --init --recursive
 make BOARD=dingopdm_v7      # or dingopdmmax_v1, canboard_v2
 ```
 
-The output goes to `build/<board>.hex|.bin|.elf`. Run `make clean` before you switch boards. Board definitions are in `boards/`, and OpenOCD target files are in `target/`.
+Alternatively, use the Pixi environment on Linux, Windows or Apple Silicon macOS:
+
+```bash
+pixi install
+pixi run build-fw BOARD=dingopdm_v7
+pixi run clean
+```
+
+Initialize the ChibiOS submodule as shown above first. Pixi provides Make and Arm GCC 14.2 (matching the rusEFI Pixi setup); CI still uses 13.3.rel1. The default board is `canboard_v2`. You can also select `dingopdmmax_v1` or `pt-dpdm4_1`.
+
+The output goes to `build/<board>.hex|.bin|.elf`. Run `make clean` (or `pixi run clean`) before you switch boards. Board definitions are in `boards/`, and OpenOCD target files are in `target/`.
 
 Before you open a PR, build **every board** your change could affect. CI builds all.
 
