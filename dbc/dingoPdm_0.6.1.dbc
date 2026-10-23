@@ -328,7 +328,7 @@ BO_ 253 dingoPdmMsg29: 8 Vector__XXX
  SG_ TimerElapsed_6 : 16|16@1+ (0.01,0) [0|655.35] "s" Vector__XXX
  SG_ TimerElapsed_5 : 0|16@1+ (0.01,0) [0|655.35] "s" Vector__XXX
 
-BO_ 254 dingoPdmMsg30: 8 Vector__XXX
+BO_ 258 dingoPdmMsg34: 8 Vector__XXX
  SG_ WakeFromSleep : 63|1@1+ (1,0) [0|1] "" Vector__XXX
  SG_ WakeOther : 59|1@1+ (1,0) [0|1] "" Vector__XXX
  SG_ WakeUsb : 58|1@1+ (1,0) [0|1] "" Vector__XXX
@@ -368,11 +368,11 @@ VAL_ 227 OutputState_4 0 "Off" 1 "On" 2 "Overcurrent" 3 "Fault" ;
 VAL_ 227 OutputState_3 0 "Off" 1 "On" 2 "Overcurrent" 3 "Fault" ;
 VAL_ 227 OutputState_2 0 "Off" 1 "On" 2 "Overcurrent" 3 "Fault" ;
 VAL_ 227 OutputState_1 0 "Off" 1 "On" 2 "Overcurrent" 3 "Fault" ;
-VAL_ 254 IgnLink 0 "NotFollower" 1 "Ok" 2 "Lost" 3 "SyncIdInvalid" ;
-VAL_ 254 IgnSleepStatus 0 "Disabled" 1 "Awake" 2 "Counting" 3 "Following" 4 "WaitingDash" 5 "Held" 6 "Quiet" 7 "Sleep" ;
-VAL_ 254 IgnDashState 0 "Off" 1 "On" 2 "Grace" 3 "Halting" 4 "Restart" ;
-VAL_ 254 IgnRole 0 "Main" 1 "Follower" 2 "Standalone" ;
-VAL_ 254 IgnState 0 "Off" 1 "On" 2 "Cranking" 3 "Running" ;
+VAL_ 258 IgnLink 0 "NotFollower" 1 "Ok" 2 "Lost" 3 "SyncIdInvalid" ;
+VAL_ 258 IgnSleepStatus 0 "Disabled" 1 "Awake" 2 "Counting" 3 "Following" 4 "WaitingDash" 5 "Held" 6 "Quiet" 7 "Sleep" ;
+VAL_ 258 IgnDashState 0 "Off" 1 "On" 2 "Grace" 3 "Halting" 4 "Restart" ;
+VAL_ 258 IgnRole 0 "Main" 1 "Follower" 2 "Standalone" ;
+VAL_ 258 IgnState 0 "Off" 1 "On" 2 "Cranking" 3 "Running" ;
 
 
 

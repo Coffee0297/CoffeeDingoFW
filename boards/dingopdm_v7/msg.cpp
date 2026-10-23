@@ -540,13 +540,21 @@ CANTxMsg TxMsg29()
     return stMsg;
 }
 
-CANTxMsg TxMsg30()
+// Msg 30-33: frames of other branches (see their notes); nothing here
+CANTxMsg TxMsgUnused()
+{
+    CANTxMsg stMsg;
+    stMsg.bSend = false;
+    return stMsg;
+}
+
+CANTxMsg TxMsg34()
 {
     CANTxMsg stMsg;
     //=======================================================
-    // Build Msg 30 (Ignition status, while the block is enabled)
+    // Build Msg 34 (Ignition status, while the block is enabled)
     //=======================================================
-    uint16_t nSid = stConfig.stDevice.nBaseId + CYCLIC_TX_OFFSET + 30;
+    uint16_t nSid = stConfig.stDevice.nBaseId + CYCLIC_TX_OFFSET + 34;
     stMsg.frame.DLC = 8;
 
     stMsg.bSend = GetIgnitionFrame(stMsg.frame.data8, nSid);

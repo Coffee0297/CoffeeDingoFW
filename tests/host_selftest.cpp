@@ -116,8 +116,8 @@ int main()
     // offset mode: base 0x680 + 0x30; inside its own frames (base .. base+2+NUM_TX_MSGS-1) or past 0x7FF: no sync
     c.eSyncMode = IgnSyncMode::BaseOffset; c.nSyncId = 0x30;
     assert(Ignition::SyncId(c, 0x680) == 0x6B0);
-    c.nSyncId = 32; assert(Ignition::SyncId(c, 0x680) == IGN_NO_SYNC);   // base+32 = its own Msg 30
-    c.nSyncId = 33; assert(Ignition::SyncId(c, 0x680) == 0x6A1);
+    c.nSyncId = 36; assert(Ignition::SyncId(c, 0x680) == IGN_NO_SYNC);   // base+36 = its own Msg 34
+    c.nSyncId = 37; assert(Ignition::SyncId(c, 0x680) == 0x6A5);
     c.nSyncId = 0x200; assert(Ignition::SyncId(c, 0x680) == IGN_NO_SYNC);   // 0x880 > 0x7FF
     c.nSyncId = 0x30; g.Update(t, 0x680, false); assert(g.nSyncSid == 0x6B0);
     c.eSyncMode = IgnSyncMode::Absolute; c.nSyncId = 0x681;              // absolute, on its own Msg -1: refused
@@ -239,23 +239,23 @@ int main()
 
 int main()
 {
-    // PDM at 0x680: own frames 0x680..0x6A0, status slot base+32 = 0x6A0, sync 0x6F1
+    // PDM at 0x680: own frames 0x680..0x6A4, status slot base+36 = 0x6A4, sync 0x6F1
     Config_Ignition c{}; c.bEnabled = true; c.eRole = IgnRole::Main; c.nSyncId = 0x6F1;
-    assert(Ignition::StatusId(c, 0x680, 0x6A0) == 0x6A0);                 // 0: its own slot
-    c.nStatusId = 0x7A0; assert(Ignition::StatusId(c, 0x680, 0x6A0) == 0x7A0);
-    c.nStatusId = 0x6A0; assert(Ignition::StatusId(c, 0x680, 0x6A0) == 0x6A0);   // = its slot: fine
-    c.nStatusId = 0x685; assert(Ignition::StatusId(c, 0x680, 0x6A0) == IGN_NO_SYNC);   // its own Msg 3
-    c.nStatusId = 0x680; assert(Ignition::StatusId(c, 0x680, 0x6A0) == IGN_NO_SYNC);   // its base
-    c.nStatusId = 0x6A1; assert(Ignition::StatusId(c, 0x680, 0x6A0) == 0x6A1);   // just past its frames
-    c.nStatusId = 0x67F; assert(Ignition::StatusId(c, 0x680, 0x6A0) == 0x67F);   // just below its base
-    c.nStatusId = 0x800; assert(Ignition::StatusId(c, 0x680, 0x6A0) == IGN_NO_SYNC);
-    c.nStatusId = 0x6F1; assert(Ignition::StatusId(c, 0x680, 0x6A0) == IGN_NO_SYNC);   // its sync frame
-    c.eRole = IgnRole::Follower; assert(Ignition::StatusId(c, 0x680, 0x6A0) == IGN_NO_SYNC);   // the id it follows
-    c.eRole = IgnRole::Standalone; assert(Ignition::StatusId(c, 0x680, 0x6A0) == 0x6F1);   // sends no sync
+    assert(Ignition::StatusId(c, 0x680, 0x6A4) == 0x6A4);                 // 0: its own slot
+    c.nStatusId = 0x7A0; assert(Ignition::StatusId(c, 0x680, 0x6A4) == 0x7A0);
+    c.nStatusId = 0x6A4; assert(Ignition::StatusId(c, 0x680, 0x6A4) == 0x6A4);   // = its slot: fine
+    c.nStatusId = 0x685; assert(Ignition::StatusId(c, 0x680, 0x6A4) == IGN_NO_SYNC);   // its own Msg 3
+    c.nStatusId = 0x680; assert(Ignition::StatusId(c, 0x680, 0x6A4) == IGN_NO_SYNC);   // its base
+    c.nStatusId = 0x6A5; assert(Ignition::StatusId(c, 0x680, 0x6A4) == 0x6A5);   // just past its frames
+    c.nStatusId = 0x67F; assert(Ignition::StatusId(c, 0x680, 0x6A4) == 0x67F);   // just below its base
+    c.nStatusId = 0x800; assert(Ignition::StatusId(c, 0x680, 0x6A4) == IGN_NO_SYNC);
+    c.nStatusId = 0x6F1; assert(Ignition::StatusId(c, 0x680, 0x6A4) == IGN_NO_SYNC);   // its sync frame
+    c.eRole = IgnRole::Follower; assert(Ignition::StatusId(c, 0x680, 0x6A4) == IGN_NO_SYNC);   // the id it follows
+    c.eRole = IgnRole::Standalone; assert(Ignition::StatusId(c, 0x680, 0x6A4) == 0x6F1);   // sends no sync
     // offset sync: 0x680 + 0x40 = 0x6C0
     c.eRole = IgnRole::Main; c.eSyncMode = IgnSyncMode::BaseOffset; c.nSyncId = 0x40;
-    c.nStatusId = 0x6C0; assert(Ignition::StatusId(c, 0x680, 0x6A0) == IGN_NO_SYNC);
-    c.nStatusId = 0x6C1; assert(Ignition::StatusId(c, 0x680, 0x6A0) == 0x6C1);
+    c.nStatusId = 0x6C0; assert(Ignition::StatusId(c, 0x680, 0x6A4) == IGN_NO_SYNC);
+    c.nStatusId = 0x6C1; assert(Ignition::StatusId(c, 0x680, 0x6A4) == 0x6C1);
 
     std::puts("host_ign_status_id OK");
     return 0;
