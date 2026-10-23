@@ -3,7 +3,8 @@ MCU = cortex-m4
 MCUDIR = boards/stm32f303
 
 # -Os: the 62KB flash can't hold -O0 code plus any new feature; no function alignment padding either
-USE_OPT := $(subst -O0,-Os,$(filter-out -falign-functions=16,$(USE_OPT)))
+# -fno-strict-aliasing: ChibiOS casts drivers to their base class (getBaseFlash etc.), only safe without it
+USE_OPT := $(subst -O0,-Os,$(filter-out -falign-functions=16,$(USE_OPT))) -fno-strict-aliasing
 
 # List of all the board related files.
 BOARDSRC = ./boards/canboard_v2/board.c
