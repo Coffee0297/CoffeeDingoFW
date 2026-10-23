@@ -61,10 +61,9 @@ int main()
 
     assert(pos(2500) == 2 && pos(9000) == 4);             // uniform mode (default) as before
 
-    auto pair = [](uint16_t even, uint16_t odd) { return (uint32_t)even | ((uint32_t)odd << 16); };
     c.stRotary.eMode = RotaryMode::Calibrated;
     c.stRotary.nNumPos = 4; c.stRotary.nTolerance = 200;
-    c.stRotary.nPointPair[0] = pair(500, 1500); c.stRotary.nPointPair[1] = pair(2500, 3500);
+    c.stRotary.nCenter[0] = 500; c.stRotary.nCenter[1] = 1500; c.stRotary.nCenter[2] = 2500; c.stRotary.nCenter[3] = 3500;
     assert(pos(500) == 0 && pos(300) == 0 && pos(700) == 0);
     assert(pos(299) == ROTARY_NO_POS && pos(701) == ROTARY_NO_POS && pos(1000) == ROTARY_NO_POS);
     assert(pos(1600) == 1 && pos(2400) == 2 && pos(3700) == 3);
@@ -73,15 +72,15 @@ int main()
     assert(pos(500) == 3 && pos(3500) == 0 && pos(1000) == ROTARY_NO_POS);
     c.stRotary.bInvert = false;
 
-    // tolerance wider than half the gap: the windows meet in the middle, never overlap
+    // tolerance wider than half the gap: the nearest centre wins, so the windows meet in the middle
     c.stRotary.nNumPos = 2; c.stRotary.nTolerance = 300;
-    c.stRotary.nPointPair[0] = pair(1000, 1200);
+    c.stRotary.nCenter[0] = 1000; c.stRotary.nCenter[1] = 1200;
     assert(pos(700) == 0 && pos(1100) == 0 && pos(1101) == 1 && pos(1500) == 1);
     assert(pos(699) == ROTARY_NO_POS && pos(1501) == ROTARY_NO_POS);
 
     // all ROTARY_MAX_POS positions; a count above it is held to it
     c.stRotary.nNumPos = 99; c.stRotary.nTolerance = 100;
-    for (int k = 0; k < ROTARY_MAX_POS / 2; k++) c.stRotary.nPointPair[k] = pair(400 * (2 * k + 1), 400 * (2 * k + 2));
+    for (int k = 0; k < ROTARY_MAX_POS; k++) c.stRotary.nCenter[k] = 400 * (k + 1);
     for (int k = 0; k < ROTARY_MAX_POS; k++) assert(pos(400 * (k + 1)) == k);
     assert(pos(400 * (ROTARY_MAX_POS + 1)) == ROTARY_NO_POS);
 

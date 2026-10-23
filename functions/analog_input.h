@@ -4,7 +4,7 @@
 #include "input.h"
 
 #ifndef ROTARY_MAX_POS
-#define ROTARY_MAX_POS 10 // calibrated positions, even
+#define ROTARY_MAX_POS 10 // calibrated positions
 #endif
 #define ROTARY_NO_POS 15 // calibrated mode: between the windows (the CAN nibble's last value)
 
@@ -23,8 +23,8 @@ struct Config_RotarySwitch{
   float fMaxPos;
   RotaryMode eMode;
   uint8_t nNumPos;
-  uint16_t nTolerance; // mV each side of a centre, at most half the gap to the next one
-  uint32_t nPointPair[ROTARY_MAX_POS / 2]; // centres in mV, two per word: low half = even position
+  uint16_t nTolerance; // mV each side of a centre
+  uint16_t nCenter[ROTARY_MAX_POS]; // measured mV of each position
 };
 
 struct Config_AnalogInput{

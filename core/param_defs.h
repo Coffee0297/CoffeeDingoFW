@@ -249,16 +249,16 @@
     {0x2200 + (i), 13, &stConfig.stAnalogInput[i].stRotary.eMode, &stConfigTemp.stAnalogInput[i].stRotary.eMode, ParamType::Enum, static_cast<uint32_t>(RotaryMode::Uniform), 0, 1}, \
     {0x2200 + (i), 14, &stConfig.stAnalogInput[i].stRotary.nNumPos, &stConfigTemp.stAnalogInput[i].stRotary.nNumPos, ParamType::UInt8, 2, 2, ROTARY_MAX_POS}, \
     {0x2200 + (i), 15, &stConfig.stAnalogInput[i].stRotary.nTolerance, &stConfigTemp.stAnalogInput[i].stRotary.nTolerance, ParamType::UInt16, 200, 0, 5000}, \
-    {0x2200 + (i), 16, &stConfig.stAnalogInput[i].stRotary.nPointPair[0], &stConfigTemp.stAnalogInput[i].stRotary.nPointPair[0], ParamType::UInt32, 0, 0, 0xFFFFFFFF}, \
-    {0x2200 + (i), 17, &stConfig.stAnalogInput[i].stRotary.nPointPair[1], &stConfigTemp.stAnalogInput[i].stRotary.nPointPair[1], ParamType::UInt32, 0, 0, 0xFFFFFFFF}, \
-    {0x2200 + (i), 18, &stConfig.stAnalogInput[i].stRotary.nPointPair[2], &stConfigTemp.stAnalogInput[i].stRotary.nPointPair[2], ParamType::UInt32, 0, 0, 0xFFFFFFFF}, \
-    {0x2200 + (i), 19, &stConfig.stAnalogInput[i].stRotary.nPointPair[3], &stConfigTemp.stAnalogInput[i].stRotary.nPointPair[3], ParamType::UInt32, 0, 0, 0xFFFFFFFF} \
-    ANALOG_INPUT_POINT_PAIR_5(i)
+    ANALOG_INPUT_CENTER(i, 0), ANALOG_INPUT_CENTER(i, 1), ANALOG_INPUT_CENTER(i, 2), ANALOG_INPUT_CENTER(i, 3), \
+    ANALOG_INPUT_CENTER(i, 4), ANALOG_INPUT_CENTER(i, 5), ANALOG_INPUT_CENTER(i, 6), ANALOG_INPUT_CENTER(i, 7) \
+    ANALOG_INPUT_CENTERS_9_10(i)
+// Calibrated rotary: the centre of position k (mV) is sub 16 + k
+#define ANALOG_INPUT_CENTER(i, k) \
+    {0x2200 + (i), 16 + (k), &stConfig.stAnalogInput[i].stRotary.nCenter[k], &stConfigTemp.stAnalogInput[i].stRotary.nCenter[k], ParamType::UInt16, 0, 0, 5000}
 #if ROTARY_MAX_POS > 8
-#define ANALOG_INPUT_POINT_PAIR_5(i) , \
-    {0x2200 + (i), 20, &stConfig.stAnalogInput[i].stRotary.nPointPair[4], &stConfigTemp.stAnalogInput[i].stRotary.nPointPair[4], ParamType::UInt32, 0, 0, 0xFFFFFFFF}
+#define ANALOG_INPUT_CENTERS_9_10(i) , ANALOG_INPUT_CENTER(i, 8), ANALOG_INPUT_CENTER(i, 9)
 #else
-#define ANALOG_INPUT_POINT_PAIR_5(i)
+#define ANALOG_INPUT_CENTERS_9_10(i)
 #endif
 #endif
 

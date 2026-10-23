@@ -25,25 +25,23 @@ void Analog_Input::RotaryUpdate()
 
     if (pConfig->stRotary.eMode == RotaryMode::Calibrated)
     {
-        // A position counts only inside its window: the tolerance, capped at half the gap to each
-        // neighbour so windows never overlap. Anywhere else reads ROTARY_NO_POS.
+        // The nearest centre wins if the voltage is within the tolerance of it, anywhere else reads
+        // ROTARY_NO_POS. Nearest first, so windows wider than half the gap split halfway between centres.
         const Config_RotarySwitch &r = pConfig->stRotary;
-        auto point = [&r](int k) { return (int)((r.nPointPair[k / 2] >> ((k & 1) * 16)) & 0xFFFF); };
         int n = (r.nNumPos > ROTARY_MAX_POS) ? ROTARY_MAX_POS : r.nNumPos;
         int mv = static_cast<int>(fValMillivolts);
         int pos = ROTARY_NO_POS;
+        int bestDist = 0;
         for (int k = 0; k < n; k++)
         {
-            int c = point(k);
-            int lo = (k > 0 && (c - point(k - 1)) / 2 < r.nTolerance) ? (c - point(k - 1)) / 2 : r.nTolerance;
-            int hi = (k < n - 1 && (point(k + 1) - c) / 2 < r.nTolerance) ? (point(k + 1) - c) / 2 : r.nTolerance;
-            if (mv >= c - lo && mv <= c + hi)
+            int dist = (mv > r.nCenter[k]) ? (mv - r.nCenter[k]) : (r.nCenter[k] - mv);
+            if (dist <= r.nTolerance && (pos == ROTARY_NO_POS || dist < bestDist))
             {
-                pos = r.bInvert ? (n - 1 - k) : k;
-                break;
+                pos = k;
+                bestDist = dist;
             }
         }
-        fRotaryPos = pos;
+        fRotaryPos = (pos != ROTARY_NO_POS && r.bInvert) ? (n - 1 - pos) : pos;
         return;
     }
 
