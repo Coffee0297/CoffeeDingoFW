@@ -225,8 +225,10 @@ static void CaptureWake()
     // A short CAN frame can be gone from PR by now; with CAN armed and nothing else pending, it was CAN
     WakeReason eReason = stConfig.stDevice.bDisableCanWake ? WakeReason::PowerOn : WakeReason::Can;
     uint8_t nSource = 0;
+    #if HAS_USB
     if (nPr & ((1U << PAL_PAD(LINE_USB_DP)) | (1U << PAL_PAD(LINE_USB_DM))))
         eReason = WakeReason::Usb;
+    #endif
     if (!stConfig.stDevice.bDisableDigInWake)
     {
         for (uint8_t i = 0; i < NUM_DIG_INPUTS; i++)
@@ -371,7 +373,11 @@ void EnterSleep()
     EXTI->PR = 0x0000FFFF;
     NVIC_ClearPendingIRQ(EXTI0_IRQn);
     NVIC_ClearPendingIRQ(EXTI1_IRQn);
+    #if defined(STM32F3XX)
+    NVIC_ClearPendingIRQ(EXTI2_TSC_IRQn);
+    #else
     NVIC_ClearPendingIRQ(EXTI2_IRQn);
+    #endif
     NVIC_ClearPendingIRQ(EXTI3_IRQn);
     NVIC_ClearPendingIRQ(EXTI4_IRQn);
     NVIC_ClearPendingIRQ(EXTI9_5_IRQn);
