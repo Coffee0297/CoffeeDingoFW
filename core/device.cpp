@@ -39,6 +39,9 @@
 #if HAS_COMFORT_BLINK
 #include "comfort_blink.h"
 #endif
+#if HAS_IGNITION
+#include "ignition.h"
+#endif
 #if HAS_USB
 #include "usb.h"
 #endif
@@ -87,6 +90,9 @@ Starter starter;
 #endif
 #if HAS_COMFORT_BLINK
 ComfortBlink comfortBlink;
+#endif
+#if HAS_IGNITION
+Ignition ignition;
 #endif
 #if NUM_KEYPADS > 0
 Keypad keypad[NUM_KEYPADS];
@@ -341,6 +347,10 @@ void CyclicUpdate()
         for (uint8_t i = 0; i < NUM_KEYPADS; i++)
             keypad[i].CheckMsg(rxMsg);
         #endif
+
+        #if HAS_IGNITION && !defined(STM32G4XX) // FDCAN frames have no SID/IDE; ported with the rest of v8's CAN code
+        ignition.CheckMsg(rxMsg, SYS_TIME);
+        #endif
     }
 
     //=========================================================================
@@ -421,6 +431,33 @@ void CyclicUpdate()
     #if NUM_TABLES > 0
     for (uint8_t i = 0; i < NUM_TABLES; i++)
         table[i].Update();
+    #endif
+
+    #if HAS_IGNITION
+    #if HAS_USB
+    ignition.Update(SYS_TIME, stConfig.stDevice.nBaseId, GetUsbConnected() || IsParamOpInProgress());
+    #else
+    ignition.Update(SYS_TIME, stConfig.stDevice.nBaseId, IsParamOpInProgress());
+    #endif
+    #if !defined(STM32G4XX) // FDCAN frames have no SID/IDE; ported with the rest of v8's CAN code
+    {
+        // Not held back during config reads/writes: a follower would drop its starter
+        CANTxFrame tx;
+        // Held back by the mute input and a quiet wake (it would wake the sleeping fleet); the ignition's own
+        // quiet before sleep stops it in CanTxThread
+        bool bHold = *pVarMap[stConfig.stDevice.nMuteCanTxInput];
+        #if CAN_SLEEP
+        bHold = bHold || QuietWake();
+        #endif
+        if (ignition.SyncFrame(tx.data8, SYS_TIME) && !bHold)
+        {
+            tx.IDE = CAN_IDE_STD;
+            tx.SID = ignition.nSyncSid;
+            tx.DLC = 2;
+            PostTxFrame(&tx);
+        }
+    }
+    #endif
     #endif
 
     #if NUM_KEYPADS > 0
@@ -735,6 +772,21 @@ void InitVarMap()
         pVarMap[index++] = &digIn[i].fDuty;
         pVarMap[index++] = &digIn[i].fFreq;
     }
+    #endif
+
+    #if HAS_IGNITION
+    pVarMap[index++] = &ignition.fIgnition;
+    pVarMap[index++] = &ignition.fAccessory;
+    pVarMap[index++] = &ignition.fCranking;
+    pVarMap[index++] = &ignition.fRunning;
+    pVarMap[index++] = &ignition.fReady;
+    pVarMap[index++] = &ignition.fDash;
+    pVarMap[index++] = &ignition.fLinkOk;
+    #endif
+
+    // Appended last, so every index above keeps its meaning
+    #if HAS_IGNITION
+    pVarMap[index++] = &ignition.fDashShutdown;
     #endif
 
     //VarMap size must match the expected size

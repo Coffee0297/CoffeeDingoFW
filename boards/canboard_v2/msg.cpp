@@ -189,3 +189,25 @@ CANTxMsg TxMsg11()
 
     return stMsg;
 }
+// Msg 9: digital output PWM duty (feat/canboard-do-pwm); nothing here
+CANTxMsg TxMsgUnused()
+{
+    CANTxMsg stMsg;
+    stMsg.bSend = false;
+    return stMsg;
+}
+
+CANTxMsg TxMsg10()
+{
+    CANTxMsg stMsg;
+    //=======================================================
+    // Build Msg 10 (Ignition status, while the block is enabled)
+    //=======================================================
+    uint16_t nSid = stConfig.stDevice.nBaseId + CYCLIC_TX_OFFSET + 10;
+    stMsg.frame.DLC = 8;
+
+    stMsg.bSend = GetIgnitionFrame(stMsg.frame.data8, nSid);
+    stMsg.frame.SID = nSid;
+
+    return stMsg;
+}

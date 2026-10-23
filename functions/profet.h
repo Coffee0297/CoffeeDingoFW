@@ -109,6 +109,9 @@ public:
         pwm.SetConfig(&config->stPwm);
     }
 
+    // The ignition switches an output it has a role for from its own signal
+    void SetInput(float *pIn) { pInput = pIn; }
+
     void Update(bool bOutEnabled);
 
     // Bench test: force on (mode 1) or PWM (mode 2) for nHoldSec, limits and fault handling stay active

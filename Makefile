@@ -159,6 +159,7 @@ CPPSRC = $(ALLCPPSRC) \
 				 functions/counter.cpp \
 				 functions/curve.cpp \
 				 functions/flasher.cpp \
+				 functions/ignition.cpp \
 				 functions/input.cpp \
 				 functions/math_block.cpp \
 				 functions/latch_gate.cpp \

@@ -26,6 +26,9 @@
 #if HAS_COMFORT_BLINK
 #include "comfort_blink.h"
 #endif
+#if HAS_IGNITION
+#include "ignition.h"
+#endif
 #if NUM_KEYPADS > 0
 #include "keypad/keypad.h"
 #endif
@@ -78,6 +81,9 @@ extern Starter starter;
 #endif
 #if HAS_COMFORT_BLINK
 extern ComfortBlink comfortBlink;
+#endif
+#if HAS_IGNITION
+extern Ignition ignition;
 #endif
 #if NUM_KEYPADS > 0
 extern Keypad keypad[NUM_KEYPADS];
@@ -145,6 +151,9 @@ void ApplyAllConfig()
     #if HAS_COMFORT_BLINK
     ApplyConfig(ComfortBlink::nBaseIndex);
     #endif
+    #if HAS_IGNITION
+    ApplyConfig(Ignition::nBaseIndex);
+    #endif
     #if NUM_KEYPADS > 0
     ApplyConfig(Keypad::nBaseIndex);
     #endif
@@ -158,6 +167,18 @@ void ApplyAllConfig()
     ApplyConfig(Analog_Input::nBaseIndex);
     #endif
 }
+
+#if HAS_IGNITION && (NUM_OUTPUTS > 0)
+// An output with an ignition role follows the ignition instead of its input; redone when either config changes
+static void BindIgnitionOutputs()
+{
+    for (uint8_t i = 0; i < NUM_OUTPUTS; i++)
+    {
+        float *pRole = stConfig.stIgnition.bEnabled ? ignition.RoleVar(stConfig.stIgnition.eOutputRole[i]) : nullptr;
+        pf[i].SetInput(pRole ? pRole : pVarMap[stConfig.stOutput[i].nInput]);
+    }
+}
+#endif
 
 void ApplyConfig(uint16_t nIndex)
 {
@@ -288,6 +309,10 @@ void ApplyConfig(uint16_t nIndex)
             pf[i].pPrimary      = &pf[pri];
             pf[pri].pFollower   = &pf[i];
         }
+
+        #if HAS_IGNITION
+        BindIgnitionOutputs();
+        #endif
     }
     #endif
 
@@ -309,6 +334,18 @@ void ApplyConfig(uint16_t nIndex)
     if (nBaseIndex == ComfortBlink::nBaseIndex)
     {
         comfortBlink.SetConfig(&stConfig.stComfortBlink);
+    }
+    #endif
+
+    #if HAS_IGNITION
+    if (nBaseIndex == Ignition::nBaseIndex)
+    {
+        ignition.SetConfig(&stConfig.stIgnition);
+        #if NUM_OUTPUTS > 0
+        BindIgnitionOutputs();
+        #endif
+
+        UpdateCanFilters(); // Follower Rx ID
     }
     #endif
 

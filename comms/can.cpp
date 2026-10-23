@@ -22,6 +22,19 @@ static volatile bool bTxQuiet;
 static volatile uint16_t nNoAckBackoff;
 
 extern DeviceConfig stConfig;
+#if HAS_IGNITION
+extern Ignition ignition;
+#endif
+
+// The ignition's 2 s before its sleep is the same quiet as #65's before any sleep: only replies to dingoConfig
+static bool TxQuiet()
+{
+    #if HAS_IGNITION
+    if (ignition.TxQuiet())
+        return true;
+    #endif
+    return bTxQuiet;
+}
 
 // Bus activity for the sleep timer. A wake frame narrows it to that frame (data bytes past the length read as 0),
 // dingoConfig's frames always count
@@ -56,7 +69,7 @@ void CanCyclicTxThread(void *)
         if (nNoAckBackoff > 0)
             nNoAckBackoff--;
 
-        if (!IsParamOpInProgress() && !bTxQuiet && !CanTxMuted())
+        if (!IsParamOpInProgress() && !TxQuiet() && !CanTxMuted())
         {
             for (uint8_t i = 0; i < NUM_TX_MSGS; i++)
             {
@@ -97,7 +110,7 @@ void CanTxThread(void *)
             const bool bConfigReply = (msg.IDE == CAN_IDE_STD) &&
                                       (msg.SID == stConfig.stDevice.nBaseId + CONFIG_TX_OFFSET);
 
-            if (!bTxQuiet || bConfigReply)
+            if (!TxQuiet() || bConfigReply)
             {
                 if (canTransmitTimeout(&CAND1, CAN_ANY_MAILBOX, &msg, TIME_MS2I(10)) == MSG_OK)
                     nTxFails = 0;
@@ -322,6 +335,15 @@ void UpdateCanFilters()
                 Add(kp.nNodeId + static_cast<uint16_t>(BlinkMarineMessageId::AnalogInput), false);
             }
         }
+        #endif
+
+        #if HAS_IGNITION
+        const Config_Ignition &ign = stConfig.stIgnition;
+        const uint16_t nSync = Ignition::SyncId(ign, stConfig.stDevice.nBaseId);
+        if (ign.bEnabled && ign.eRole == IgnRole::Follower && nSync != IGN_NO_SYNC)
+            Add(nSync, false);
+        if (ign.bEnabled && ign.eRole != IgnRole::Follower && ign.nButtonMask && (ign.nButtonIde || ign.nButtonId <= 0x7FF))
+            Add(ign.nButtonId, ign.nButtonIde == 1);
         #endif
     }
 

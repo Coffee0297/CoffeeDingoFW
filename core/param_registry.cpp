@@ -83,6 +83,14 @@ const ParamInfo stParams[] = {
     ALL_CAN_MSG_PARAMS,
     #endif
 
+    #if HAS_IGNITION
+    // Ignition (0x1E00)
+    IGNITION_PARAMS(),
+    #if NUM_OUTPUTS > 0
+    ALL_IGNITION_OUTPUT_PARAMS,
+    #endif
+    #endif
+
     // CAN Outputs (0x2000+)
     ALL_CAN_OUTPUT_PARAMS,
 

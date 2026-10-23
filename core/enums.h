@@ -85,7 +85,8 @@ enum class WakeReason : uint8_t
     PowerOn = 0, // not a wake: power applied, a reset, or the reason was lost
     Can = 1,
     DigitalInput = 2, // wakeSource = input number (1..)
-    Usb = 3
+    Usb = 3,
+    Other = 4 // another EXTI line
 };
 
 enum class MsgType : uint8_t
@@ -238,6 +239,68 @@ enum class CanMsgMode : uint8_t
 {
     Repeat, // Every interval while the input is on
     Once    // One frame each time the input turns on
+};
+
+//=============================================================================
+// Ignition
+//=============================================================================
+enum class IgnMode : uint8_t
+{
+    SwitchButton, // Ignition switch + start button
+    ButtonOnly,   // One button does ignition and start
+    Key           // Key: ON held, START momentary
+};
+
+enum class IgnRole : uint8_t
+{
+    Main,       // Reads the inputs, runs the state machine, broadcasts the state on the sync id
+    Follower,   // Takes its state from the main module's sync frame
+    Standalone  // Like Main, but broadcasts nothing
+};
+
+enum class IgnSyncMode : uint8_t
+{
+    Absolute,  // nSyncId is the CAN id
+    BaseOffset // nSyncId is an offset from the main module's base id
+};
+
+enum class IgnDash : uint8_t
+{
+    Off,
+    On,
+    Grace,   // Ignition off, nDashHoldMs in case it comes straight back
+    Halting, // Shutting down (DashShutdown on): left to finish even if the ignition comes back
+    Restart  // Kept unpowered 2 s after halting so it boots clean
+};
+
+enum class IgnSleep : uint8_t
+{
+    Disabled,    // No sleep delay: the ignition doesn't put the module to sleep
+    Awake,       // Ignition, door or dash on
+    Counting,    // Sleep delay running
+    Following,   // Follower: sleeps when the main module says so
+    WaitingDash, // Delay over, the dash is still powering down
+    Held,        // Delay over, USB connected or a config session running
+    Quiet,       // All periodic CAN TX stopped, about to sleep
+    Sleep
+};
+
+// An output given a role follows the ignition instead of its own input
+enum class IgnOutputRole : uint8_t
+{
+    None,      // Its own input applies
+    Ignition,  // On whenever the ignition is on, cranking included
+    Accessory, // Like Ignition, but off while cranking
+    Dash,      // The Dash signal (hold / power down)
+    Starter    // On while cranking
+};
+
+enum class IgnState : uint8_t
+{
+    Off,
+    On,
+    Cranking,
+    Running
 };
 
 //=============================================================================
