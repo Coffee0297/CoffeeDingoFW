@@ -23,6 +23,7 @@
 #include "request_msg.h"
 #include "infomsg.h"
 #include "status.h"
+#include "fault_log.h"
 #if HAS_WIPERS > 0
 #include "wiper/wiper.h"
 #endif
@@ -37,6 +38,9 @@
 #endif
 #if CAN_SLEEP
 #include "sleep.h"
+#endif
+#if NUM_OUTPUTS > 0
+#include "overload_log.h"
 #endif
 
 CanInput canIn[NUM_CAN_INPUTS];
@@ -76,6 +80,7 @@ float fTempSensor;
 volatile bool bDeviceOverTemp;
 volatile bool bDeviceCriticalTemp;
 bool bBootloaderRequest;
+uint8_t nResetCause; // RCC->CSR reset flags (bits 24-31)
 
 void InitVarMap();
 void CyclicUpdate();
@@ -119,6 +124,10 @@ struct SlowThread : chibios_rt::BaseStaticThread<256>
             bDeviceOverTemp = tempSensor.OverTempLimit();
             bDeviceCriticalTemp = tempSensor.CritTempLimit();
 
+            #if HAS_EXT_MEMORY && (NUM_OUTPUTS > 0)
+            WriteFaultLog();
+            #endif
+
             // palToggleLine(LINE_E2);
             chThdSleepMilliseconds(250);
         }
@@ -130,6 +139,9 @@ static chibios_rt::ThreadReference slowThreadRef;
 
 void InitDevice()
 {
+    nResetCause = RCC->CSR >> 24;
+    RCC->CSR |= RCC_CSR_RMVF;
+
     #if HAS_SE_LEDS
     Error::Initialize(&statusLed, &errorLed);
     #endif
@@ -142,6 +154,10 @@ void InitDevice()
     #endif
 
     InitConfig();
+
+    #if HAS_EXT_MEMORY && (NUM_OUTPUTS > 0)
+    InitFaultLog();
+    #endif
 
     ApplyAllConfig();
 
@@ -382,6 +398,17 @@ void CyclicUpdate()
                 pf[i].Update(starter.fVal[i]);
         }
     }
+
+    static uint32_t nOvlSampleTime = 0;
+    bool bOvlSample = (SYS_TIME - nOvlSampleTime) >= OVL_SAMPLE_MS;
+    if (bOvlSample)
+        nOvlSampleTime = SYS_TIME;
+    for (uint8_t i = 0; i < NUM_OUTPUTS; i++)
+        OvlLogUpdate(i, pf[i].GetCurrent(), pf[i].GetState(), stConfig.stOutput[i].fCurrentLimit, bOvlSample);
+    #endif
+
+    #if HAS_EXT_MEMORY && (NUM_OUTPUTS > 0)
+    UpdateFaultLog();
     #endif
 
     #if NUM_DIG_OUTPUTS > 0
