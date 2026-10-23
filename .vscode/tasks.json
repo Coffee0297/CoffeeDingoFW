@@ -4,8 +4,8 @@
         {
             "label": "clean",
             "type": "shell",
-            "command": "make",
-            "args": ["clean"],
+            "command": "pixi",
+            "args": ["run", "clean"],
             "options": {
                 "cwd": "${workspaceFolder}"
             },
@@ -15,11 +15,8 @@
         {
             "label": "build",
             "type": "shell",
-            "command": "make",
-            "args": [
-                "-j",
-                "16",
-                "BOARD=${input:boardType}"],
+            "command": "pixi",
+            "args": ["run", "build-fw", "BOARD=${input:boardType}"],
             "options": {
                 "cwd": "${workspaceFolder}"
             },
