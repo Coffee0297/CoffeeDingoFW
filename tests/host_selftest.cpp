@@ -19,6 +19,7 @@
 //   g++ -std=c++20 -DCAN_INPUT_TIMEOUT_ONLY -I tests/host -I functions -I core -I utils tests/host_selftest.cpp functions/can_input.cpp functions/input.cpp utils/dbc.cpp -o build/host_can_input_timeout && build/host_can_input_timeout
 //   g++ -std=c++20 -Wall -DANALOG_SCALE_ONLY -I tests/host -I functions -I core -I utils tests/host_selftest.cpp functions/input.cpp -o build/host_analog_scale && build/host_analog_scale
 //   g++ -std=c++20 -DANALOG_ONLY -I tests/host -I functions -I core -I utils tests/host_selftest.cpp functions/input.cpp -o build/host_analog && build/host_analog
+//   g++ -std=c++20 -Wall -DROTARY_CAL_ONLY -I tests/host -I functions -I core -I utils tests/host_selftest.cpp functions/input.cpp -o build/host_rotary_cal && build/host_rotary_cal
 // Each feature adds its own section below, picked with -D<NAME>_ONLY, and its build line here.
 #include <cassert>
 #include <cstdio>
@@ -731,6 +732,49 @@ int main()
     k.bEnabled = false; fHostMv = 500; a.Update();
     assert(a.fValMillivolts < 501 && a.fSwitchVal == 0);                            // was frozen at 2500 / 1
     std::puts("host_analog OK");
+    return 0;
+}
+#elif defined(ROTARY_CAL_ONLY)
+enum class AnalogChannel { AnIn1 };
+static float fHostVolts;
+uint16_t GetAdcRaw(AnalogChannel) { return 0; }
+float GetAdcVolts(AnalogChannel) { return fHostVolts; }
+#include "analog_input.cpp"
+
+int main()
+{
+    Config_AnalogInput c{};
+    c.bEnabled = true; c.stRotary.bEnabled = true;
+    c.stRotary.fOffset = 0; c.stRotary.fStep = 1000; c.stRotary.fMaxPos = 4;
+    Analog_Input a(AnalogChannel::AnIn1); a.SetConfig(&c);
+    auto pos = [&](int mv) { fHostVolts = mv / 1000.0f; a.Update(); return (int)a.fRotaryPos; };
+
+    assert(pos(2500) == 2 && pos(9000) == 4);             // uniform mode (default) as before
+
+    c.stRotary.eMode = RotaryMode::Calibrated;
+    c.stRotary.nNumPos = 4; c.stRotary.nTolerance = 200;
+    c.stRotary.nCenter[0] = 500; c.stRotary.nCenter[1] = 1500; c.stRotary.nCenter[2] = 2500; c.stRotary.nCenter[3] = 3500;
+    assert(pos(500) == 0 && pos(300) == 0 && pos(700) == 0);
+    assert(pos(299) == ROTARY_NO_POS && pos(701) == ROTARY_NO_POS && pos(1000) == ROTARY_NO_POS);
+    assert(pos(1600) == 1 && pos(2400) == 2 && pos(3700) == 3);
+    assert(pos(3701) == ROTARY_NO_POS && pos(0) == ROTARY_NO_POS);
+    c.stRotary.bInvert = true;
+    assert(pos(500) == 3 && pos(3500) == 0 && pos(1000) == ROTARY_NO_POS);
+    c.stRotary.bInvert = false;
+
+    // tolerance wider than half the gap: the nearest centre wins, so the windows meet in the middle
+    c.stRotary.nNumPos = 2; c.stRotary.nTolerance = 300;
+    c.stRotary.nCenter[0] = 1000; c.stRotary.nCenter[1] = 1200;
+    assert(pos(700) == 0 && pos(1100) == 0 && pos(1101) == 1 && pos(1500) == 1);
+    assert(pos(699) == ROTARY_NO_POS && pos(1501) == ROTARY_NO_POS);
+
+    // all ROTARY_MAX_POS positions; a count above it is held to it
+    c.stRotary.nNumPos = 99; c.stRotary.nTolerance = 100;
+    for (int k = 0; k < ROTARY_MAX_POS; k++) c.stRotary.nCenter[k] = 400 * (k + 1);
+    for (int k = 0; k < ROTARY_MAX_POS; k++) assert(pos(400 * (k + 1)) == k);
+    assert(pos(400 * (ROTARY_MAX_POS + 1)) == ROTARY_NO_POS);
+
+    std::puts("host_rotary_cal OK");
     return 0;
 }
 #else

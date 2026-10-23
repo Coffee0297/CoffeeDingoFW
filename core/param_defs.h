@@ -386,7 +386,21 @@
     {0x2200 + (i), 9, &stConfig.stAnalogInput[i].stRotary.fMaxPos, &stConfigTemp.stAnalogInput[i].stRotary.fMaxPos, ParamType::Float, F(10.0f), F(0.0f), F(1e9f)}, \
     {0x2200 + (i), 10, &stConfig.stAnalogInput[i].bScale, &stConfigTemp.stAnalogInput[i].bScale, ParamType::Bool, 0, 0, 1}, \
     {0x2200 + (i), 11, &stConfig.stAnalogInput[i].fScaleGain, &stConfigTemp.stAnalogInput[i].fScaleGain, ParamType::Float, F(1.0f), F(-1e9f), F(1e9f)}, \
-    {0x2200 + (i), 12, &stConfig.stAnalogInput[i].fScaleOffset, &stConfigTemp.stAnalogInput[i].fScaleOffset, ParamType::Float, F(0.0f), F(-1e9f), F(1e9f)}
+    {0x2200 + (i), 12, &stConfig.stAnalogInput[i].fScaleOffset, &stConfigTemp.stAnalogInput[i].fScaleOffset, ParamType::Float, F(0.0f), F(-1e9f), F(1e9f)}, \
+    {0x2200 + (i), 13, &stConfig.stAnalogInput[i].stRotary.eMode, &stConfigTemp.stAnalogInput[i].stRotary.eMode, ParamType::Enum, static_cast<uint32_t>(RotaryMode::Uniform), 0, 1}, \
+    {0x2200 + (i), 14, &stConfig.stAnalogInput[i].stRotary.nNumPos, &stConfigTemp.stAnalogInput[i].stRotary.nNumPos, ParamType::UInt8, 2, 2, ROTARY_MAX_POS}, \
+    {0x2200 + (i), 15, &stConfig.stAnalogInput[i].stRotary.nTolerance, &stConfigTemp.stAnalogInput[i].stRotary.nTolerance, ParamType::UInt16, 200, 0, 5000}, \
+    ANALOG_INPUT_CENTER(i, 0), ANALOG_INPUT_CENTER(i, 1), ANALOG_INPUT_CENTER(i, 2), ANALOG_INPUT_CENTER(i, 3), \
+    ANALOG_INPUT_CENTER(i, 4), ANALOG_INPUT_CENTER(i, 5), ANALOG_INPUT_CENTER(i, 6), ANALOG_INPUT_CENTER(i, 7) \
+    ANALOG_INPUT_CENTERS_9_10(i)
+// Calibrated rotary: the centre of position k (mV) is sub 16 + k
+#define ANALOG_INPUT_CENTER(i, k) \
+    {0x2200 + (i), 16 + (k), &stConfig.stAnalogInput[i].stRotary.nCenter[k], &stConfigTemp.stAnalogInput[i].stRotary.nCenter[k], ParamType::UInt16, 0, 0, 5000}
+#if ROTARY_MAX_POS > 8
+#define ANALOG_INPUT_CENTERS_9_10(i) , ANALOG_INPUT_CENTER(i, 8), ANALOG_INPUT_CENTER(i, 9)
+#else
+#define ANALOG_INPUT_CENTERS_9_10(i)
+#endif
 #endif
 
 //=============================================================================
