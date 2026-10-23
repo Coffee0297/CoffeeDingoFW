@@ -30,6 +30,6 @@ void EnterStopMode()
 
     __WFI();
 
-    // Resume here after wakeup
-    NVIC_SystemReset();
+    // Resume here after wakeup, interrupts still disabled; EnterSleep resets, so code can run in between
+    // (e.g. noting what woke it) before the reset clears the pending flags
 }

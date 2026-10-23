@@ -147,6 +147,7 @@ void EnterSleep()
     #endif
 
     EnterStopMode();
+    NVIC_SystemReset(); // the F303 returns here after the wake; the F446/G474 have reset already
 }
 
 #endif
