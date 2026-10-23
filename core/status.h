@@ -58,7 +58,7 @@ uint16_t GetTimerElapsed(uint8_t nTimer);
 bool GetAnyPidEnable();
 int16_t GetPidOutput(uint8_t nPid);
 
-bool GetAnyTableEnable();
+bool GetTableEnable(uint8_t nTable);
 float GetTableVal(uint8_t nTable);
 
 bool GetKeypadEnable(uint8_t nKeypad);
