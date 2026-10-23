@@ -50,6 +50,7 @@ struct Config_Device{
   uint16_t nMuteCanTxInput;
   uint16_t nForceSleepInput;
   uint16_t nRetryAllInput;
+  uint16_t nShedInput;
 };
 
 struct DeviceConfig{

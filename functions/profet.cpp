@@ -18,6 +18,7 @@ void Profet::Update(bool bOutEnabled)
         fOpenLoad = 0;
         fUndercurrent = 0;
         fI2 = fLoad = 0;
+        nTestMode = 0;
         return;
     }
 
@@ -30,7 +31,19 @@ void Profet::Update(bool bOutEnabled)
         return;
     }
 
-    if ((*pInput) && bOutEnabled)
+    // Test ends on timeout or trip; drop to Off for a cycle so PWM and inrush re-arm from the input
+    if (nTestMode && (((int32_t)(nTestEnd - SYS_TIME) <= 0) || (eState != ProfetState::On && eState != ProfetState::Off)))
+    {
+        nTestMode = 0;
+        if (eState == ProfetState::On)
+        {
+            pwm.Off();
+            palClearLine(m_in);
+            eState = ProfetState::Off;
+        }
+    }
+
+    if (((*pInput) || nTestMode) && bOutEnabled)
         eReqState = ProfetState::On;
     else
         eReqState = ProfetState::Off;
@@ -77,10 +90,20 @@ void Profet::Update(bool bOutEnabled)
         break;
 
     case ProfetState::On:
-        if (pwm.IsEnabled())
+        if (nTestMode == 2)
+        {
+            pwm.EnsureStarted();
+            pwm.OverrideFrequency(nTestFreq);
+            pwm.SetDutyCycle(nTestDuty);
+            pwm.On();
+        }
+        else if (PwmRunning())
             pwm.On();
         else
+        {
+            pwm.Off();
             palSetLine(m_in);
+        }
 
         // Check for turn off
         if (eReqState == ProfetState::Off)
@@ -184,7 +207,9 @@ void Profet::Update(bool bOutEnabled)
         break;
     }
 
-    pwm.Update(bHoldSoftStart);
+    // The test owns duty and frequency while it runs
+    if (!nTestMode)
+        pwm.Update(bHoldSoftStart);
 
     // Past inrush: Warning above fWarnLimit, OpenLoad below fOpenLoadLimit for nOpenLoadTime,
     // Undercurrent below fUnderLimit for nUnderTime (report only, or a trip to Fault with bUnderTrip)
@@ -301,6 +326,29 @@ void Profet::FollowerUpdate()
     fFault = 0;
 }
 
+bool Profet::SetTest(uint8_t nMode, uint8_t nDuty, uint16_t nFreq, uint8_t nHoldSec)
+{
+    if (nMode == 0)
+    {
+        if (nTestMode)
+            nTestEnd = SYS_TIME; // ends next cycle through the normal path
+        return true;
+    }
+
+    // Paired outputs share the load, testing one half would overload the other
+    if (!pConfig->bEnabled || pPrimary != nullptr || pFollower != nullptr ||
+        nMode > 2 || nHoldSec < 1 || nHoldSec > 30 ||
+        (nMode == 2 && (nDuty > 100 || nFreq < 16 || nFreq > 400)) ||
+        eState == ProfetState::Overcurrent || eState == ProfetState::Fault)
+        return false;
+
+    nTestDuty = nDuty;
+    nTestFreq = nFreq;
+    nTestEnd = SYS_TIME + (uint32_t)nHoldSec * 1000;
+    nTestMode = nMode;
+    return true;
+}
+
 void Profet::SelectDsel()
 {
     // Select the IS channel on dual-channel devices
@@ -313,7 +361,7 @@ void Profet::SelectDsel()
 
 void Profet::MeasureCurrent()
 {
-    if (pwm.IsEnabled() && eState == ProfetState::On)
+    if (PwmRunning() && eState == ProfetState::On)
     {
         // Assign to local vars to prevent CNT rolling over and slipping past check
         // Example:

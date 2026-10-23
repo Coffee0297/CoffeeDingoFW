@@ -376,6 +376,8 @@ void CyclicUpdate()
     }
     bLastRetryAll = bRetryAll;
 
+    bool bShed = *pVarMap[stConfig.stDevice.nShedInput];
+
     // Two passes so dual-channel DSEL settles once per pass instead of once per output
     for (uint8_t nPass = 0; nPass < 2; nPass++)
     {
@@ -395,7 +397,7 @@ void CyclicUpdate()
         for (uint8_t i = 0; i < NUM_OUTPUTS; i++)
         {
             if (pf[i].GetDselPass() == nPass)
-                pf[i].Update(starter.fVal[i]);
+                pf[i].Update(starter.fVal[i] && !(bShed && stConfig.stOutput[i].bShed));
         }
     }
 
@@ -423,6 +425,29 @@ void CyclicUpdate()
     #if HAS_NEOPIXELS
     UpdateNeopixels();
     #endif
+}
+
+bool SetOutputTest(uint8_t nOutput, uint8_t nMode, uint8_t nDuty, uint16_t nFreq, uint8_t nHoldSec)
+{
+    (void)nDuty;
+    (void)nFreq;
+    bool bOk = false;
+
+    // Outside Run (overtemp) a test can only be released
+    if (nMode != 0 && eState != DeviceState::Run)
+        return false;
+
+    LockConfig();
+    #if NUM_OUTPUTS > 0
+    if (nOutput < NUM_OUTPUTS)
+        bOk = pf[nOutput].SetTest(nMode, nDuty, nFreq, nHoldSec);
+    #elif NUM_DIG_OUTPUTS > 0
+    if (nOutput < NUM_DIG_OUTPUTS)
+        bOk = digOut[nOutput].SetTest(nMode, nHoldSec);
+    #endif
+    UnlockConfig();
+
+    return bOk;
 }
 
 void InitVarMap()

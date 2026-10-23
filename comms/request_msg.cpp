@@ -110,6 +110,22 @@ void CheckRequestMsgs(CANRxFrame *frame)
         NVIC_SystemReset();
     }
 
+    // Output bench test, reply echoes bytes 0-6 with byte 7 = accepted
+    if ((frame->DLC == 8) &&
+        (frame->data8[0] == static_cast<uint8_t>(MsgCmd::OutputTest)))
+    {
+        CANTxFrame txMsg;
+        txMsg.SID = stConfig.stDevice.nBaseId + CONFIG_TX_OFFSET;
+        txMsg.IDE = CAN_IDE_STD;
+        txMsg.DLC = 8;
+        for (uint8_t i = 0; i < 7; i++)
+            txMsg.data8[i] = frame->data8[i];
+        txMsg.data8[7] = SetOutputTest(frame->data8[1], frame->data8[2], frame->data8[3],
+                                       frame->data8[4] | (frame->data8[5] << 8), frame->data8[6]);
+
+        PostTxFrame(&txMsg);
+    }
+
     // Check for version request
     if ((frame->DLC == 8) &&
         (frame->data8[0] == static_cast<uint8_t>(MsgCmd::Version)))
