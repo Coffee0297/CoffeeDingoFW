@@ -5,6 +5,8 @@
 
 #define PROCESS_STACK 0x0400
 
+// Cannot be used for DMA, but can be used for CPU access.
+// If future version has FRAM, this must be removed. 
 // 4KB CCM (ram4), CPU only (no DMA), zeroed at startup like .bss
 #define CCM_BSS __attribute__((section(".ram4_clear")))
 
