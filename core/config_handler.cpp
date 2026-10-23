@@ -45,6 +45,9 @@ extern Timer timer[NUM_TIMERS];
 #if NUM_MATH > 0
 extern MathBlock mathBlock[NUM_MATH];
 #endif
+#if NUM_TABLES > 0
+extern Table table[NUM_TABLES];
+#endif
 #if NUM_OUTPUTS > 0
 extern Profet pf[NUM_OUTPUTS];
 #endif
@@ -92,6 +95,9 @@ void ApplyAllConfig()
     #endif
     #if NUM_MATH > 0
     ApplyConfig(MathBlock::nBaseIndex);
+    #endif
+    #if NUM_TABLES > 0
+    ApplyConfig(Table::nBaseIndex);
     #endif
     #if NUM_OUTPUTS > 0
     ApplyConfig(Profet::nBaseIndex);
@@ -179,6 +185,13 @@ void ApplyConfig(uint16_t nIndex)
     {
         for (uint8_t i = 0; i < NUM_MATH; i++)
             mathBlock[i].SetConfig(&stConfig.stMath[i]);
+    }
+    #endif
+    #if NUM_TABLES > 0
+    if (nBaseIndex == Table::nBaseIndex)
+    {
+        for (uint8_t i = 0; i < NUM_TABLES; i++)
+            table[i].SetConfig(&stConfig.stTable[i]);
     }
     #endif
 

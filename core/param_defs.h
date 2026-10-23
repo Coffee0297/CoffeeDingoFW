@@ -207,6 +207,32 @@
 #endif
 
 //=============================================================================
+// Table Parameters - Base 0x1B00
+//=============================================================================
+#if NUM_TABLES > 0
+#define TABLE_AXIS_PARAM(i, sub, arr, k) \
+    {0x1B00 + (i), (sub) + (k), &stConfig.stTable[i].arr[k], &stConfigTemp.stTable[i].arr[k], ParamType::Float, F(0.0f), F(-1e9f), F(1e9f)}
+#define TABLE_AXIS_PARAMS(i, sub, arr) \
+    TABLE_AXIS_PARAM(i, sub, arr, 0), TABLE_AXIS_PARAM(i, sub, arr, 1), TABLE_AXIS_PARAM(i, sub, arr, 2), TABLE_AXIS_PARAM(i, sub, arr, 3), \
+    TABLE_AXIS_PARAM(i, sub, arr, 4), TABLE_AXIS_PARAM(i, sub, arr, 5), TABLE_AXIS_PARAM(i, sub, arr, 6), TABLE_AXIS_PARAM(i, sub, arr, 7)
+#define TABLE_CELL_PARAM(i, r, c) \
+    {0x1B00 + (i), 21 + (r) * TABLE_AXIS_MAX + (c), &stConfig.stTable[i].fCell[r][c], &stConfigTemp.stTable[i].fCell[r][c], ParamType::Float, F(0.0f), F(-1e9f), F(1e9f)}
+#define TABLE_ROW_PARAMS(i, r) \
+    TABLE_CELL_PARAM(i, r, 0), TABLE_CELL_PARAM(i, r, 1), TABLE_CELL_PARAM(i, r, 2), TABLE_CELL_PARAM(i, r, 3), \
+    TABLE_CELL_PARAM(i, r, 4), TABLE_CELL_PARAM(i, r, 5), TABLE_CELL_PARAM(i, r, 6), TABLE_CELL_PARAM(i, r, 7)
+#define TABLE_PARAMS(i) \
+    {0x1B00 + (i), 0, &stConfig.stTable[i].bEnabled, &stConfigTemp.stTable[i].bEnabled, ParamType::Bool,   0, 0, 1}, \
+    {0x1B00 + (i), 1, &stConfig.stTable[i].nXInput,  &stConfigTemp.stTable[i].nXInput,  ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
+    {0x1B00 + (i), 2, &stConfig.stTable[i].nYInput,  &stConfigTemp.stTable[i].nYInput,  ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
+    {0x1B00 + (i), 3, &stConfig.stTable[i].nXSize,   &stConfigTemp.stTable[i].nXSize,   ParamType::UInt8,  2, 1, TABLE_AXIS_MAX}, \
+    {0x1B00 + (i), 4, &stConfig.stTable[i].nYSize,   &stConfigTemp.stTable[i].nYSize,   ParamType::UInt8,  1, 1, TABLE_AXIS_MAX}, \
+    TABLE_AXIS_PARAMS(i, 5, fXAxis), \
+    TABLE_AXIS_PARAMS(i, 13, fYAxis), \
+    TABLE_ROW_PARAMS(i, 0), TABLE_ROW_PARAMS(i, 1), TABLE_ROW_PARAMS(i, 2), TABLE_ROW_PARAMS(i, 3), \
+    TABLE_ROW_PARAMS(i, 4), TABLE_ROW_PARAMS(i, 5), TABLE_ROW_PARAMS(i, 6), TABLE_ROW_PARAMS(i, 7)
+#endif
+
+//=============================================================================
 // CAN Output Parameters - Base 0x2000
 //=============================================================================
 #define CAN_OUTPUT_PARAMS(i) \
