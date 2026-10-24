@@ -8,6 +8,9 @@
 #if CAN_SLEEP
 #include "sleep.h"
 #endif
+#if HAS_USB
+#include "usb.h"
+#endif
 
 #include <iterator>
 
@@ -347,6 +350,12 @@ bool CanBusHeard()
 
 bool CanTxMuted()
 {
+    #if HAS_USB
+    // Kept alive while a USB host is connected, as it never sleeps then: muted, the tool sees no telemetry
+    // and can't update or configure it
+    if (GetUsbConnected())
+        return false;
+    #endif
     #if CAN_SLEEP
     if (QuietWake())
         return true;
