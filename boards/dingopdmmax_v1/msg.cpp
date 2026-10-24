@@ -534,3 +534,67 @@ CANTxMsg TxMsg29()
 
     return stMsg;
 }
+
+CANTxMsg TxMsg30()
+{
+    CANTxMsg stMsg;
+    //=======================================================
+    // Build Msg 30 (Math Block 1-2 Values)
+    //=======================================================
+    stMsg.frame.SID = stConfig.stDevice.nBaseId + CYCLIC_TX_OFFSET + 30;
+    stMsg.frame.DLC = 8;
+    Dbc::EncodeFloat(stMsg.frame.data8, GetMathVal(0), 0);
+    Dbc::EncodeFloat(stMsg.frame.data8, GetMathVal(1), 32);
+
+    stMsg.bSend = GetMathEnable(0) || GetMathEnable(1);
+
+    return stMsg;
+}
+
+CANTxMsg TxMsg31()
+{
+    CANTxMsg stMsg;
+    //=======================================================
+    // Build Msg 31 (Math Block 3-4 Values)
+    //=======================================================
+    stMsg.frame.SID = stConfig.stDevice.nBaseId + CYCLIC_TX_OFFSET + 31;
+    stMsg.frame.DLC = 8;
+    Dbc::EncodeFloat(stMsg.frame.data8, GetMathVal(2), 0);
+    Dbc::EncodeFloat(stMsg.frame.data8, GetMathVal(3), 32);
+
+    stMsg.bSend = GetMathEnable(2) || GetMathEnable(3);
+
+    return stMsg;
+}
+
+CANTxMsg TxMsg32()
+{
+    CANTxMsg stMsg;
+    //=======================================================
+    // Build Msg 32 (Math Block 5-6 Values)
+    //=======================================================
+    stMsg.frame.SID = stConfig.stDevice.nBaseId + CYCLIC_TX_OFFSET + 32;
+    stMsg.frame.DLC = 8;
+    Dbc::EncodeFloat(stMsg.frame.data8, GetMathVal(4), 0);
+    Dbc::EncodeFloat(stMsg.frame.data8, GetMathVal(5), 32);
+
+    stMsg.bSend = GetMathEnable(4) || GetMathEnable(5);
+
+    return stMsg;
+}
+
+CANTxMsg TxMsg33()
+{
+    CANTxMsg stMsg;
+    //=======================================================
+    // Build Msg 33 (Math Block 7-8 Values)
+    //=======================================================
+    stMsg.frame.SID = stConfig.stDevice.nBaseId + CYCLIC_TX_OFFSET + 33;
+    stMsg.frame.DLC = 8;
+    Dbc::EncodeFloat(stMsg.frame.data8, GetMathVal(6), 0);
+    Dbc::EncodeFloat(stMsg.frame.data8, GetMathVal(7), 32);
+
+    stMsg.bSend = GetMathEnable(6) || GetMathEnable(7);
+
+    return stMsg;
+}

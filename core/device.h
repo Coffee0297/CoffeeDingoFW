@@ -14,6 +14,9 @@ class Condition;
 #if NUM_TIMERS > 0
 class Timer;
 #endif
+#if NUM_MATH > 0
+class MathBlock;
+#endif
 #if NUM_DIG_INPUTS > 0
 class Digital_Input;
 #endif
@@ -45,6 +48,9 @@ extern Counter counter[NUM_COUNTERS];
 extern Condition condition[NUM_CONDITIONS];
 #if NUM_TIMERS > 0
 extern Timer timer[NUM_TIMERS];
+#endif
+#if NUM_MATH > 0
+extern MathBlock mathBlock[NUM_MATH];
 #endif
 
 #if NUM_DIG_INPUTS > 0

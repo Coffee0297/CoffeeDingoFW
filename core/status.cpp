@@ -8,6 +8,7 @@
 #include "counter.h"
 #include "condition.h"
 #include "timer.h"
+#include "math_block.h"
 #if NUM_OUTPUTS > 0
 #include "profet.h"
 #endif
@@ -363,6 +364,26 @@ uint16_t GetTimerElapsed(uint8_t nTimer)
         return (uint16_t)(timer[nTimer].GetElapsed() / 10);
     #endif
     (void)nTimer;
+    return 0;
+}
+
+bool GetMathEnable(uint8_t nMath)
+{
+    #if NUM_MATH > 0
+    if (nMath < NUM_MATH)
+        return stConfig.stMath[nMath].bEnabled;
+    #endif
+    (void)nMath;
+    return false;
+}
+
+float GetMathVal(uint8_t nMath)
+{
+    #if NUM_MATH > 0
+    if (nMath < NUM_MATH)
+        return VolatileRead(mathBlock[nMath].fVal);
+    #endif
+    (void)nMath;
     return 0;
 }
 
