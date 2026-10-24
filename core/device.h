@@ -109,4 +109,6 @@ void CheckBootloaderRequest();
 #endif
 
 void InitDevice();
+// Base ID for a board with no stored settings: DEFAULT_BASE_ID, unless a flash tool patched the image's DINGO_BASEID= marker
+uint16_t ImageDefaultBaseId();
 bool SetOutputTest(uint8_t nOutput, uint8_t nMode, uint8_t nDuty, uint16_t nFreq, uint8_t nHoldSec);
