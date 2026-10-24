@@ -542,12 +542,12 @@ CANTxMsg TxMsg30()
 {
     CANTxMsg stMsg;
     //=======================================================
-    // Build Msg 30 (Math Block 1-2 Values)
+    // Build Msg 30 (Math Block 1-2 Values, x1000)
     //=======================================================
     stMsg.frame.SID = stConfig.stDevice.nBaseId + CYCLIC_TX_OFFSET + 30;
     stMsg.frame.DLC = 8;
-    Dbc::EncodeFloat(stMsg.frame.data8, GetMathVal(0), 0);
-    Dbc::EncodeFloat(stMsg.frame.data8, GetMathVal(1), 32);
+    stMsg.frame.data32[0] = (int32_t)(GetMathVal(0) * 1000.0f);
+    stMsg.frame.data32[1] = (int32_t)(GetMathVal(1) * 1000.0f);
 
     stMsg.bSend = GetMathEnable(0) || GetMathEnable(1);
 
@@ -558,12 +558,12 @@ CANTxMsg TxMsg31()
 {
     CANTxMsg stMsg;
     //=======================================================
-    // Build Msg 31 (Math Block 3-4 Values)
+    // Build Msg 31 (Math Block 3-4 Values, x1000)
     //=======================================================
     stMsg.frame.SID = stConfig.stDevice.nBaseId + CYCLIC_TX_OFFSET + 31;
     stMsg.frame.DLC = 8;
-    Dbc::EncodeFloat(stMsg.frame.data8, GetMathVal(2), 0);
-    Dbc::EncodeFloat(stMsg.frame.data8, GetMathVal(3), 32);
+    stMsg.frame.data32[0] = (int32_t)(GetMathVal(2) * 1000.0f);
+    stMsg.frame.data32[1] = (int32_t)(GetMathVal(3) * 1000.0f);
 
     stMsg.bSend = GetMathEnable(2) || GetMathEnable(3);
 
@@ -574,12 +574,12 @@ CANTxMsg TxMsg32()
 {
     CANTxMsg stMsg;
     //=======================================================
-    // Build Msg 32 (Math Block 5-6 Values)
+    // Build Msg 32 (Math Block 5-6 Values, x1000)
     //=======================================================
     stMsg.frame.SID = stConfig.stDevice.nBaseId + CYCLIC_TX_OFFSET + 32;
     stMsg.frame.DLC = 8;
-    Dbc::EncodeFloat(stMsg.frame.data8, GetMathVal(4), 0);
-    Dbc::EncodeFloat(stMsg.frame.data8, GetMathVal(5), 32);
+    stMsg.frame.data32[0] = (int32_t)(GetMathVal(4) * 1000.0f);
+    stMsg.frame.data32[1] = (int32_t)(GetMathVal(5) * 1000.0f);
 
     stMsg.bSend = GetMathEnable(4) || GetMathEnable(5);
 
@@ -590,12 +590,12 @@ CANTxMsg TxMsg33()
 {
     CANTxMsg stMsg;
     //=======================================================
-    // Build Msg 33 (Math Block 7-8 Values)
+    // Build Msg 33 (Math Block 7-8 Values, x1000)
     //=======================================================
     stMsg.frame.SID = stConfig.stDevice.nBaseId + CYCLIC_TX_OFFSET + 33;
     stMsg.frame.DLC = 8;
-    Dbc::EncodeFloat(stMsg.frame.data8, GetMathVal(6), 0);
-    Dbc::EncodeFloat(stMsg.frame.data8, GetMathVal(7), 32);
+    stMsg.frame.data32[0] = (int32_t)(GetMathVal(6) * 1000.0f);
+    stMsg.frame.data32[1] = (int32_t)(GetMathVal(7) * 1000.0f);
 
     stMsg.bSend = GetMathEnable(6) || GetMathEnable(7);
 
