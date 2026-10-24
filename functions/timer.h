@@ -43,6 +43,7 @@ public:
     }
 
     float fVal;
+    float fRunning; // bRunning as a float for the VarMap
 
 private:
     Config_Timer* pConfig;

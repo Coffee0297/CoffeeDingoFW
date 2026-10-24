@@ -502,17 +502,14 @@ void InitVarMap()
     }
     #endif
 
-    // Timers are added last on purpose: appending keeps every existing
-    // variable index the same, so configs written before they existed still
-    // point at the same variables.
     #if NUM_TIMERS > 0
     for (uint8_t i = 0; i < NUM_TIMERS; i++)
     {
         pVarMap[index++] = &timer[i].fVal;
+        pVarMap[index++] = &timer[i].fRunning;
     }
     #endif
 
-    // Appended after the timers for the same reason
     #if NUM_MATH > 0
     for (uint8_t i = 0; i < NUM_MATH; i++)
         pVarMap[index++] = &mathBlock[i].fVal;

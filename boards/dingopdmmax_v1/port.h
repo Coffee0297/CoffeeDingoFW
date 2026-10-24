@@ -58,7 +58,7 @@
     (NUM_FLASHERS * 1) + \
     (NUM_CONDITIONS * 1) + \
     (NUM_COUNTERS * 1) + \
-    (NUM_TIMERS * 1) + \
+    (NUM_TIMERS * 2) + \
     (NUM_MATH * 1) + \
     VAR_MAP_WIPER_VARS + \
     (NUM_KEYPADS * (KEYPAD_MAX_BUTTONS + KEYPAD_MAX_DIALS + KEYPAD_MAX_ANALOG_INPUTS)) \

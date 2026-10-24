@@ -8,6 +8,7 @@ void Timer::Update()
         bRunning = false;
         bOut = false;
         fVal = 0.0f;
+        fRunning = bRunning ? 1.0f : 0.0f;
         return;
     }
 
@@ -25,6 +26,7 @@ void Timer::Update()
         bRunning = false;
         bOut = false;
         fVal = 0.0f;
+        fRunning = bRunning ? 1.0f : 0.0f;
         return;
     }
 
@@ -36,6 +38,7 @@ void Timer::Update()
         bOut = false;
         bLastIn = bIn;
         fVal = 0.0f;
+        fRunning = bRunning ? 1.0f : 0.0f;
         return;
     }
 
@@ -118,4 +121,5 @@ void Timer::Update()
 
     bLastIn = bIn;
     fVal = bOut ? 1.0f : 0.0f;
+    fRunning = bRunning ? 1.0f : 0.0f;
 }
