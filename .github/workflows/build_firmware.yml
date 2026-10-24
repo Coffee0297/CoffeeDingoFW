@@ -106,6 +106,14 @@ jobs:
 
           # dingopdm_v8 left out: upstream's v8 bring-up doesn't compile yet
 
+          # Full images for a blank board: the OpenBLT bootloader and the app in one file, flashed at 0x08000000 over
+          # SWD or USB-DFU. The app-only images above are for updates (CAN, or DFU on a board that has the bootloader).
+          (cd bootloader/dingopdm && make)
+          (cd bootloader/canboard && make)
+          for b in dingopdm_v7 dingopdmmax_v1 pt-dpdm4_1; do
+            python3 bootloader/merge_full.py bootloader/dingopdm/bin/dingopdm_blt.hex firmware_artifacts/${b}_FW_v${VERSION_DASHED}.hex firmware_artifacts/${b}_FULL_v${VERSION_DASHED}
+          done
+          python3 bootloader/merge_full.py bootloader/canboard/bin/canboard_blt.hex firmware_artifacts/canboard_v2_FW_v${VERSION_DASHED}.hex firmware_artifacts/canboard_v2_FULL_v${VERSION_DASHED}
           # Copy back to build for the release action
           cp firmware_artifacts/* build/
           
@@ -123,6 +131,9 @@ jobs:
           generate_release_notes: true
           body: |
             ## Firmware Release v${{ steps.extract_version.outputs.version }}
+
+            **Blank board:** flash the `_FULL_` image (bootloader and app in one) at 0x08000000 over SWD or USB DFU.
+            The other images are the app only, for updates over CAN or onto a board that has the bootloader.
 
             **Installing 5.7 for the first time:** every image is linked behind the OpenBLT CAN bootloader.
             - dingoPDM / dingoPDM-Max / PT-DPDM4: the app starts at 0x08004000. Flash the bootloader (`bootloader/dingopdm`)
@@ -163,6 +174,7 @@ jobs:
             build/pt-dpdm4_1_FW_v${{ steps.extract_version.outputs.version_dashed }}.hex
             build/pt-dpdm4_1_FW_v${{ steps.extract_version.outputs.version_dashed }}.bin
             build/pt-dpdm4_1_FW_v${{ steps.extract_version.outputs.version_dashed }}.elf
+            build/*_FULL_v${{ steps.extract_version.outputs.version_dashed }}.*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       

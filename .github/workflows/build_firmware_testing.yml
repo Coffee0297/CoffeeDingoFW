@@ -99,6 +99,14 @@ jobs:
           cp build/pt-dpdm4_1.bin firmware_artifacts/pt-dpdm4_1_FW_v${VERSION_DASHED}.bin
           cp build/pt-dpdm4_1.elf firmware_artifacts/pt-dpdm4_1_FW_v${VERSION_DASHED}.elf
 
+          # Full images for a blank board: the OpenBLT bootloader and the app in one file, flashed at 0x08000000 over
+          # SWD or USB-DFU. The app-only images above are for updates (CAN, or DFU on a board that has the bootloader).
+          (cd bootloader/dingopdm && make)
+          (cd bootloader/canboard && make)
+          for b in dingopdm_v7 dingopdmmax_v1 pt-dpdm4_1; do
+            python3 bootloader/merge_full.py bootloader/dingopdm/bin/dingopdm_blt.hex firmware_artifacts/${b}_FW_v${VERSION_DASHED}.hex firmware_artifacts/${b}_FULL_v${VERSION_DASHED}
+          done
+          python3 bootloader/merge_full.py bootloader/canboard/bin/canboard_blt.hex firmware_artifacts/canboard_v2_FW_v${VERSION_DASHED}.hex firmware_artifacts/canboard_v2_FULL_v${VERSION_DASHED}
           # Copy back to build for the release action
           cp firmware_artifacts/* build/
 
@@ -118,6 +126,9 @@ jobs:
 
             > [!WARNING]
             > This is a testing build and may be unstable.
+
+            **Blank board:** flash the `_FULL_` image (bootloader and app in one) at 0x08000000 over SWD or USB DFU.
+            The other images are the app only, for updates over CAN or onto a board that has the bootloader.
 
             **dingoPDM:**
             - [HEX](https://github.com/${{ github.repository }}/releases/download/testing-latest/dingopdm_v7_FW_v${{ steps.extract_version.outputs.version_dashed }}.hex)
@@ -152,5 +163,6 @@ jobs:
             build/pt-dpdm4_1_FW_v${{ steps.extract_version.outputs.version_dashed }}.hex
             build/pt-dpdm4_1_FW_v${{ steps.extract_version.outputs.version_dashed }}.bin
             build/pt-dpdm4_1_FW_v${{ steps.extract_version.outputs.version_dashed }}.elf
+            build/*_FULL_v${{ steps.extract_version.outputs.version_dashed }}.*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
