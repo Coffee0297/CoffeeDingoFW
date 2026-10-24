@@ -31,19 +31,19 @@ public:
 
     void Update();
 
-    bool IsRunning() { return bRunning; }
+    bool IsRunning() { return fRunning != 0.0f; }
 
     // ms since the timer started, held at the preset, 0 when not running
     uint32_t GetElapsed()
     {
-        if (!bRunning)
+        if (fRunning == 0.0f)
             return 0;
         uint32_t nElapsed = SYS_TIME - nStartTime;
         return (nElapsed < pConfig->nTime) ? nElapsed : pConfig->nTime;
     }
 
     float fVal;
-    float fRunning; // bRunning as a float for the VarMap
+    float fRunning;
 
 private:
     Config_Timer* pConfig;
@@ -53,7 +53,6 @@ private:
 
     bool bInit;
     bool bLastIn;
-    bool bRunning;
     bool bOut;
     uint32_t nStartTime;
 };

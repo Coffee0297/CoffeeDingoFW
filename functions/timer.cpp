@@ -5,10 +5,9 @@ void Timer::Update()
     if (!pConfig->bEnabled)
     {
         bInit = false;
-        bRunning = false;
+        fRunning = 0.0f;
         bOut = false;
         fVal = 0.0f;
-        fRunning = bRunning ? 1.0f : 0.0f;
         return;
     }
 
@@ -23,10 +22,9 @@ void Timer::Update()
     {
         bInit = true;
         bLastIn = bIn;
-        bRunning = false;
+        fRunning = 0.0f;
         bOut = false;
         fVal = 0.0f;
-        fRunning = bRunning ? 1.0f : 0.0f;
         return;
     }
 
@@ -34,17 +32,16 @@ void Timer::Update()
     // cleared, so it can be used to cancel a running delay and keep it cancelled
     if (bReset)
     {
-        bRunning = false;
+        fRunning = 0.0f;
         bOut = false;
         bLastIn = bIn;
         fVal = 0.0f;
-        fRunning = bRunning ? 1.0f : 0.0f;
         return;
     }
 
     const bool bRising = bIn && !bLastIn;
     const bool bFalling = !bIn && bLastIn;
-    const bool bElapsed = bRunning && ((nNow - nStartTime) >= pConfig->nTime);
+    const bool bElapsed = (fRunning != 0.0f) && ((nNow - nStartTime) >= pConfig->nTime);
 
     switch (pConfig->eMode)
     {
@@ -53,17 +50,17 @@ void Timer::Update()
         // after a reset is released still starts the delay
         if (!bIn)
         {
-            bRunning = false;
+            fRunning = 0.0f;
             bOut = false;
         }
-        else if (!bRunning && !bOut)
+        else if ((fRunning == 0.0f) && !bOut)
         {
-            bRunning = true;
+            fRunning = 1.0f;
             nStartTime = nNow;
         }
         else if (bElapsed)
         {
-            bRunning = false;
+            fRunning = 0.0f;
             bOut = true;
         }
         break;
@@ -71,20 +68,20 @@ void Timer::Update()
     case TimerMode::OffDelay:
         if (bIn)
         {
-            bRunning = false;
+            fRunning = 0.0f;
             bOut = true;
         }
         else
         {
             if (bFalling)
             {
-                bRunning = true;
+                fRunning = 1.0f;
                 nStartTime = nNow;
             }
 
             if (bElapsed)
             {
-                bRunning = false;
+                fRunning = 0.0f;
                 bOut = false;
             }
         }
@@ -93,27 +90,27 @@ void Timer::Update()
     case TimerMode::PulseRetrig:
         if (bRising)
         {
-            bRunning = true;
+            fRunning = 1.0f;
             bOut = true;
             nStartTime = nNow;
         }
         else if (bElapsed)
         {
-            bRunning = false;
+            fRunning = 0.0f;
             bOut = false;
         }
         break;
 
     case TimerMode::PulseOneShot:
-        if (bRising && !bRunning)
+        if (bRising && (fRunning == 0.0f))
         {
-            bRunning = true;
+            fRunning = 1.0f;
             bOut = true;
             nStartTime = nNow;
         }
         else if (bElapsed)
         {
-            bRunning = false;
+            fRunning = 0.0f;
             bOut = false;
         }
         break;
@@ -121,5 +118,4 @@ void Timer::Update()
 
     bLastIn = bIn;
     fVal = bOut ? 1.0f : 0.0f;
-    fRunning = bRunning ? 1.0f : 0.0f;
 }
