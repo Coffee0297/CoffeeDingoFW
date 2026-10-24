@@ -340,6 +340,11 @@ uint32_t GetLastCanRxTime()
     return nLastCanRxTime;
 }
 
+bool CanBusHeard()
+{
+    return nLastCanRxTime != 0;
+}
+
 bool CanTxMuted()
 {
     #if CAN_SLEEP
@@ -350,7 +355,9 @@ bool CanTxMuted()
     if (ignition.TxQuiet())
         return true;
     #endif
-    return *pVarMap[stConfig.stDevice.nMuteCanTxInput];
+    // A "master quiet" mute input is a CAN input timing out to its timeout value, which it also does when no master
+    // was ever there (a module alone on the bench, no bus): only follow it once another node has been heard
+    return CanBusHeard() && *pVarMap[stConfig.stDevice.nMuteCanTxInput];
 }
 
 bool CanNoPeer()

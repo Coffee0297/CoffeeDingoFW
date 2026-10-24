@@ -144,7 +144,8 @@ bool CheckEnterSleep()
         nNoSleepRequestTime = SYS_TIME;
     bool bRequestSleep = (SYS_TIME - nNoSleepRequestTime) > SLEEP_REQUEST_DELAY;
 
-    bool bForceSleep = bSleepAllowed && *pVarMap[stConfig.stDevice.nForceSleepInput];
+    // like the mute input (CanTxMuted): a force-sleep input fed by a master that was never on the bus is not a request
+    bool bForceSleep = bSleepAllowed && CanBusHeard() && *pVarMap[stConfig.stDevice.nForceSleepInput];
 
     // Blockers: 1 sleep disabled, 2 outputs on, 4 USB, 8 CAN traffic within the timeout
     nBlockers = (stConfig.stDevice.bSleepEnabled ? 0 : 1) | ((nNumOutputsOn > 0) ? 2 : 0) |
