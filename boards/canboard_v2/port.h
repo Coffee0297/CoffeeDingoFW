@@ -52,7 +52,7 @@
 
 #define VAR_MAP_SIZE ( \
     VAR_MAP_SYS_VARS + \
-    (NUM_DIG_INPUTS * 1) + \
+    (NUM_DIG_INPUTS * 3) + \
     (NUM_ANALOG_INPUTS * 4) + \
     (NUM_DIG_OUTPUTS * 1) + \
     (NUM_CAN_INPUTS * 2) + \

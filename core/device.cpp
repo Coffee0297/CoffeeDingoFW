@@ -515,6 +515,12 @@ void InitVarMap()
         pVarMap[index++] = &mathBlock[i].fVal;
     #endif
 
+    for (uint8_t i = 0; i < NUM_DIG_INPUTS; i++)
+    {
+        pVarMap[index++] = &digIn[i].fDuty;
+        pVarMap[index++] = &digIn[i].fFreq;
+    }
+
     //VarMap size must match the expected size
     if (index != VAR_MAP_SIZE)
         Error::SetFatalError(FatalErrorType::ErrVarMap, MsgSrc::Init);
