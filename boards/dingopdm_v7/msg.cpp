@@ -601,3 +601,57 @@ CANTxMsg TxMsg33()
 
     return stMsg;
 }
+
+CANTxMsg TxMsg34()
+{
+    CANTxMsg stMsg;
+    //=======================================================
+    // Build Msg 34 (Digital Input 1-2 PWM Duty 0.01%, Freq 0.1Hz)
+    //=======================================================
+    stMsg.frame.SID = stConfig.stDevice.nBaseId + CYCLIC_TX_OFFSET + 34;
+    stMsg.frame.DLC = 8;
+    stMsg.frame.data16[0] = GetDigInPwmDuty(0);
+    stMsg.frame.data16[1] = GetDigInPwmFreq(0);
+    stMsg.frame.data16[2] = GetDigInPwmDuty(1);
+    stMsg.frame.data16[3] = GetDigInPwmFreq(1);
+
+    stMsg.bSend = GetDigInPwmEnable(0) || GetDigInPwmEnable(1);
+
+    return stMsg;
+}
+
+CANTxMsg TxMsg35()
+{
+    CANTxMsg stMsg;
+    //=======================================================
+    // Build Msg 35 (Digital Input 3-4 PWM Duty 0.01%, Freq 0.1Hz)
+    //=======================================================
+    stMsg.frame.SID = stConfig.stDevice.nBaseId + CYCLIC_TX_OFFSET + 35;
+    stMsg.frame.DLC = 8;
+    stMsg.frame.data16[0] = GetDigInPwmDuty(2);
+    stMsg.frame.data16[1] = GetDigInPwmFreq(2);
+    stMsg.frame.data16[2] = GetDigInPwmDuty(3);
+    stMsg.frame.data16[3] = GetDigInPwmFreq(3);
+
+    stMsg.bSend = GetDigInPwmEnable(2) || GetDigInPwmEnable(3);
+
+    return stMsg;
+}
+
+CANTxMsg TxMsg36()
+{
+    CANTxMsg stMsg;
+    //=======================================================
+    // Build Msg 36 (Digital Input 5-6 PWM Duty 0.01%, Freq 0.1Hz)
+    //=======================================================
+    stMsg.frame.SID = stConfig.stDevice.nBaseId + CYCLIC_TX_OFFSET + 36;
+    stMsg.frame.DLC = 8;
+    stMsg.frame.data16[0] = GetDigInPwmDuty(4);
+    stMsg.frame.data16[1] = GetDigInPwmFreq(4);
+    stMsg.frame.data16[2] = GetDigInPwmDuty(5);
+    stMsg.frame.data16[3] = GetDigInPwmFreq(5);
+
+    stMsg.bSend = GetDigInPwmEnable(4) || GetDigInPwmEnable(5);
+
+    return stMsg;
+}

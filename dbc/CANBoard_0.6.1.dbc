@@ -179,6 +179,30 @@ BO_ 1610 CANBoardMsg8: 8 Vector__XXX
  SG_ CANInputValue_8 : 32|32@1- (1,0) [0|0] "" Vector__XXX
  SG_ CANInputValue_7 : 0|32@1- (1,0) [0|0] "" Vector__XXX
 
+BO_ 1611 CANBoardMsg9: 8 Vector__XXX
+ SG_ DigInPwmFreq_2 : 48|16@1+ (0.1,0) [0|6553.5] "Hz" Vector__XXX
+ SG_ DigInPwmDuty_2 : 32|16@1+ (0.01,0) [0|100] "%" Vector__XXX
+ SG_ DigInPwmFreq_1 : 16|16@1+ (0.1,0) [0|6553.5] "Hz" Vector__XXX
+ SG_ DigInPwmDuty_1 : 0|16@1+ (0.01,0) [0|100] "%" Vector__XXX
+
+BO_ 1612 CANBoardMsg10: 8 Vector__XXX
+ SG_ DigInPwmFreq_4 : 48|16@1+ (0.1,0) [0|6553.5] "Hz" Vector__XXX
+ SG_ DigInPwmDuty_4 : 32|16@1+ (0.01,0) [0|100] "%" Vector__XXX
+ SG_ DigInPwmFreq_3 : 16|16@1+ (0.1,0) [0|6553.5] "Hz" Vector__XXX
+ SG_ DigInPwmDuty_3 : 0|16@1+ (0.01,0) [0|100] "%" Vector__XXX
+
+BO_ 1613 CANBoardMsg11: 8 Vector__XXX
+ SG_ DigInPwmFreq_6 : 48|16@1+ (0.1,0) [0|6553.5] "Hz" Vector__XXX
+ SG_ DigInPwmDuty_6 : 32|16@1+ (0.01,0) [0|100] "%" Vector__XXX
+ SG_ DigInPwmFreq_5 : 16|16@1+ (0.1,0) [0|6553.5] "Hz" Vector__XXX
+ SG_ DigInPwmDuty_5 : 0|16@1+ (0.01,0) [0|100] "%" Vector__XXX
+
+BO_ 1614 CANBoardMsg12: 8 Vector__XXX
+ SG_ DigInPwmFreq_8 : 48|16@1+ (0.1,0) [0|6553.5] "Hz" Vector__XXX
+ SG_ DigInPwmDuty_8 : 32|16@1+ (0.01,0) [0|100] "%" Vector__XXX
+ SG_ DigInPwmFreq_7 : 16|16@1+ (0.1,0) [0|6553.5] "Hz" Vector__XXX
+ SG_ DigInPwmDuty_7 : 0|16@1+ (0.01,0) [0|100] "%" Vector__XXX
+
 
 
 

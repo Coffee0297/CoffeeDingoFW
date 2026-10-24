@@ -142,6 +142,41 @@ bool GetDigInputVal(uint8_t nInput)
 }
 #endif
 
+bool GetDigInPwmEnable(uint8_t nInput)
+{
+    #if NUM_DIG_INPUTS > 0
+    if (nInput < NUM_DIG_INPUTS)
+        return stConfig.stDigInput[nInput].bEnabled && stConfig.stDigInput[nInput].bPwm;
+    #endif
+    (void)nInput;
+    return false;
+}
+
+// 0.01 % units
+uint16_t GetDigInPwmDuty(uint8_t nInput)
+{
+    #if NUM_DIG_INPUTS > 0
+    if (nInput < NUM_DIG_INPUTS)
+        return (uint16_t)(VolatileRead(digIn[nInput].fDuty) * 100.0f);
+    #endif
+    (void)nInput;
+    return 0;
+}
+
+// 0.1 Hz units, saturates at 6553.5 Hz
+uint16_t GetDigInPwmFreq(uint8_t nInput)
+{
+    #if NUM_DIG_INPUTS > 0
+    if (nInput < NUM_DIG_INPUTS)
+    {
+        float fFreq = VolatileRead(digIn[nInput].fFreq) * 10.0f;
+        return (fFreq >= 65535.0f) ? 65535 : (uint16_t)fFreq;
+    }
+    #endif
+    (void)nInput;
+    return 0;
+}
+
 bool GetAnyCanInEnable()
 {
     for (uint8_t i = 0; i < NUM_CAN_INPUTS; i++)
