@@ -20,7 +20,6 @@
 
 #define NUM_OUTPUTS 0
 #define NUM_DIG_OUTPUTS 4
-#define DI_PWM_MAX_FREQ 5000 // Hz, as on fork master: 10k series, no capacitor, the edge IRQ is the limit
 #define NUM_DIG_INPUTS 8
 #define NUM_ANALOG_INPUTS 5
 #define NUM_VIRT_INPUTS 8

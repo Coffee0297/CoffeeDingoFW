@@ -17,7 +17,6 @@
 
 #define NUM_OUTPUTS 16
 #define NUM_DIG_OUTPUTS 0
-#define DI_PWM_MAX_FREQ 1000 // Hz, the input circuit's limit
 #define NUM_DIG_INPUTS 6
 #define NUM_ANALOG_INPUTS 4
 #define NUM_VIRT_INPUTS 16
