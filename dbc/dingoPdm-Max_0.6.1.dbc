@@ -160,68 +160,68 @@ BO_ 230 dingoPdmMaxMsg6: 8 Vector__XXX
  SG_ CounterValue_1 : 0|8@1+ (1,0) [0|0] "" Vector__XXX
 
 BO_ 231 dingoPdmMaxMsg7: 8 Vector__XXX
- SG_ CANInputValue_2 : 32|32@1+ (1,0) [0|0] "" Vector__XXX
- SG_ CANInputValue_1 : 0|32@1+ (1,0) [0|0] "" Vector__XXX
+ SG_ CANInputValue_2 : 32|32@1- (1,0) [0|0] "" Vector__XXX
+ SG_ CANInputValue_1 : 0|32@1- (1,0) [0|0] "" Vector__XXX
 
 BO_ 232 dingoPdmMaxMsg8: 8 Vector__XXX
- SG_ CANInputValue_4 : 32|32@1+ (1,0) [0|0] "" Vector__XXX
- SG_ CANInputValue_3 : 0|32@1+ (1,0) [0|0] "" Vector__XXX
+ SG_ CANInputValue_4 : 32|32@1- (1,0) [0|0] "" Vector__XXX
+ SG_ CANInputValue_3 : 0|32@1- (1,0) [0|0] "" Vector__XXX
 
 BO_ 233 dingoPdmMaxMsg9: 8 Vector__XXX
- SG_ CANInputValue_6 : 32|32@1+ (1,0) [0|0] "" Vector__XXX
- SG_ CANInputValue_5 : 0|32@1+ (1,0) [0|0] "" Vector__XXX
+ SG_ CANInputValue_6 : 32|32@1- (1,0) [0|0] "" Vector__XXX
+ SG_ CANInputValue_5 : 0|32@1- (1,0) [0|0] "" Vector__XXX
 
 BO_ 234 dingoPdmMaxMsg10: 8 Vector__XXX
- SG_ CANInputValue_8 : 32|32@1+ (1,0) [0|0] "" Vector__XXX
- SG_ CANInputValue_7 : 0|32@1+ (1,0) [0|0] "" Vector__XXX
+ SG_ CANInputValue_8 : 32|32@1- (1,0) [0|0] "" Vector__XXX
+ SG_ CANInputValue_7 : 0|32@1- (1,0) [0|0] "" Vector__XXX
 
 BO_ 235 dingoPdmMaxMsg11: 8 Vector__XXX
- SG_ CANInputValue_10 : 32|32@1+ (1,0) [0|0] "" Vector__XXX
- SG_ CANInputValue_9 : 0|32@1+ (1,0) [0|0] "" Vector__XXX
+ SG_ CANInputValue_10 : 32|32@1- (1,0) [0|0] "" Vector__XXX
+ SG_ CANInputValue_9 : 0|32@1- (1,0) [0|0] "" Vector__XXX
 
 BO_ 236 dingoPdmMaxMsg12: 8 Vector__XXX
- SG_ CANInputValue_12 : 32|32@1+ (1,0) [0|0] "" Vector__XXX
- SG_ CANInputValue_11 : 0|32@1+ (1,0) [0|0] "" Vector__XXX
+ SG_ CANInputValue_12 : 32|32@1- (1,0) [0|0] "" Vector__XXX
+ SG_ CANInputValue_11 : 0|32@1- (1,0) [0|0] "" Vector__XXX
 
 BO_ 237 dingoPdmMaxMsg13: 8 Vector__XXX
- SG_ CANInputValue_14 : 32|32@1+ (1,0) [0|0] "" Vector__XXX
- SG_ CANInputValue_13 : 0|32@1+ (1,0) [0|0] "" Vector__XXX
+ SG_ CANInputValue_14 : 32|32@1- (1,0) [0|0] "" Vector__XXX
+ SG_ CANInputValue_13 : 0|32@1- (1,0) [0|0] "" Vector__XXX
 
 BO_ 238 dingoPdmMaxMsg14: 8 Vector__XXX
- SG_ CANInputValue_16 : 32|32@1+ (1,0) [0|0] "" Vector__XXX
- SG_ CANInputValue_15 : 0|32@1+ (1,0) [0|0] "" Vector__XXX
+ SG_ CANInputValue_16 : 32|32@1- (1,0) [0|0] "" Vector__XXX
+ SG_ CANInputValue_15 : 0|32@1- (1,0) [0|0] "" Vector__XXX
 
 BO_ 239 dingoPdmMaxMsg15: 8 Vector__XXX
- SG_ CANInputValue_18 : 32|32@1+ (1,0) [0|0] "" Vector__XXX
- SG_ CANInputValue_17 : 0|32@1+ (1,0) [0|0] "" Vector__XXX
+ SG_ CANInputValue_18 : 32|32@1- (1,0) [0|0] "" Vector__XXX
+ SG_ CANInputValue_17 : 0|32@1- (1,0) [0|0] "" Vector__XXX
 
 BO_ 240 dingoPdmMaxMsg16: 8 Vector__XXX
- SG_ CANInputValue_20 : 32|32@1+ (1,0) [0|0] "" Vector__XXX
- SG_ CANInputValue_19 : 0|32@1+ (1,0) [0|0] "" Vector__XXX
+ SG_ CANInputValue_20 : 32|32@1- (1,0) [0|0] "" Vector__XXX
+ SG_ CANInputValue_19 : 0|32@1- (1,0) [0|0] "" Vector__XXX
 
 BO_ 241 dingoPdmMaxMsg17: 8 Vector__XXX
- SG_ CANInputValue_22 : 32|32@1+ (1,0) [0|0] "" Vector__XXX
- SG_ CANInputValue_21 : 0|32@1+ (1,0) [0|0] "" Vector__XXX
+ SG_ CANInputValue_22 : 32|32@1- (1,0) [0|0] "" Vector__XXX
+ SG_ CANInputValue_21 : 0|32@1- (1,0) [0|0] "" Vector__XXX
 
 BO_ 242 dingoPdmMaxMsg18: 8 Vector__XXX
- SG_ CANInputValue_24 : 32|32@1+ (1,0) [0|0] "" Vector__XXX
- SG_ CANInputValue_23 : 0|32@1+ (1,0) [0|0] "" Vector__XXX
+ SG_ CANInputValue_24 : 32|32@1- (1,0) [0|0] "" Vector__XXX
+ SG_ CANInputValue_23 : 0|32@1- (1,0) [0|0] "" Vector__XXX
 
 BO_ 243 dingoPdmMaxMsg19: 8 Vector__XXX
- SG_ CANInputValue_26 : 32|32@1+ (1,0) [0|0] "" Vector__XXX
- SG_ CANInputValue_25 : 0|32@1+ (1,0) [0|0] "" Vector__XXX
+ SG_ CANInputValue_26 : 32|32@1- (1,0) [0|0] "" Vector__XXX
+ SG_ CANInputValue_25 : 0|32@1- (1,0) [0|0] "" Vector__XXX
 
 BO_ 244 dingoPdmMaxMsg20: 8 Vector__XXX
- SG_ CANInputValue_28 : 32|32@1+ (1,0) [0|0] "" Vector__XXX
- SG_ CANInputValue_27 : 0|32@1+ (1,0) [0|0] "" Vector__XXX
+ SG_ CANInputValue_28 : 32|32@1- (1,0) [0|0] "" Vector__XXX
+ SG_ CANInputValue_27 : 0|32@1- (1,0) [0|0] "" Vector__XXX
 
 BO_ 245 dingoPdmMaxMsg21: 8 Vector__XXX
- SG_ CANInputValue_30 : 32|32@1+ (1,0) [0|0] "" Vector__XXX
- SG_ CANInputValue_29 : 0|32@1+ (1,0) [0|0] "" Vector__XXX
+ SG_ CANInputValue_30 : 32|32@1- (1,0) [0|0] "" Vector__XXX
+ SG_ CANInputValue_29 : 0|32@1- (1,0) [0|0] "" Vector__XXX
 
 BO_ 246 dingoPdmMaxMsg22: 8 Vector__XXX
- SG_ CANInputValue_32 : 32|32@1+ (1,0) [0|0] "" Vector__XXX
- SG_ CANInputValue_31 : 0|32@1+ (1,0) [0|0] "" Vector__XXX
+ SG_ CANInputValue_32 : 32|32@1- (1,0) [0|0] "" Vector__XXX
+ SG_ CANInputValue_31 : 0|32@1- (1,0) [0|0] "" Vector__XXX
 
 BO_ 247 dingoPdMaxMsg23: 8 Vector__XXX
  SG_ OutputDC_8 : 56|8@1+ (1,0) [0|0] "%" Vector__XXX
