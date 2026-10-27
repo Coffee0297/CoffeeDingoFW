@@ -1,4 +1,5 @@
 #include "usb.h"
+#include "can_frame.h"
 #include "hal.h"
 #include "port.h"
 #include "device_config.h"
@@ -345,9 +346,9 @@ void UsbTxThread(void *)
             {
                 uint8_t nData[22];
                 nData[0] = 't';
-                nData[1] = (msg.SID >> 8) & 0xF;
-                nData[2] = (msg.SID >> 4) & 0xF;
-                nData[3] = msg.SID & 0xF;
+                nData[1] = (CanId(msg) >> 8) & 0xF;
+                nData[2] = (CanId(msg) >> 4) & 0xF;
+                nData[3] = CanId(msg) & 0xF;
                 nData[4] = (msg.DLC & 0xFF);
                 nData[5] = (msg.data8[0] >> 4);
                 nData[6] = (msg.data8[0] & 0x0F);
@@ -422,7 +423,7 @@ bool Parse(uint8_t *data, uint8_t dataLen, CANRxFrame *frame)
     if (dataLen < (uint16_t)firstPos + 2 * (uint16_t)nDlc)
         return false; // Line too short to contain nDlc data bytes
 
-    frame->SID = ((data[1] & 0xF) << 8) + ((data[2] & 0xF) << 4) + (data[3] & 0xF);
+    CanSetId(*frame, ((data[1] & 0xF) << 8) + ((data[2] & 0xF) << 4) + (data[3] & 0xF));
     frame->DLC = nDlc;
 
     for (int i = 0; i < frame->DLC; i++)
@@ -430,9 +431,6 @@ bool Parse(uint8_t *data, uint8_t dataLen, CANRxFrame *frame)
         frame->data8[i] = ((data[i + firstPos] & 0xF) << 4) + (data[i + firstPos + 1] & 0xF);
         firstPos++;
     }
-
-    frame->IDE = CAN_IDE_STD;
-    frame->RTR = CAN_RTR_DATA;
 
     return true;
 }
@@ -479,11 +477,10 @@ void UsbRxThread(void *)
                         {
                             //Copy data to CAN for data pass through
                             //Don't send if it's a settings msg for this device
-                            if( (msg.SID != stConfig.stDevice.nBaseId + CONFIG_RX_OFFSET) &&
-                                (msg.SID != stConfig.stDevice.nBaseId + CONFIG_TX_OFFSET))
+                            if( (CanId(msg) != (uint32_t)(stConfig.stDevice.nBaseId + CONFIG_RX_OFFSET)) &&
+                                (CanId(msg) != (uint32_t)(stConfig.stDevice.nBaseId + CONFIG_TX_OFFSET)))
                             {
-                                canTx.SID = msg.SID;
-                                canTx.IDE = msg.IDE;
+                                CanSetId(canTx, CanId(msg), CanIsExt(msg));
                                 canTx.DLC = msg.DLC;
                                 for(size_t i = 0; i < msg.DLC; i++)
                                     canTx.data8[i] = msg.data8[i];

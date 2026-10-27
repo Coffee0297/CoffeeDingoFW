@@ -269,14 +269,16 @@ void States()
 void CyclicUpdate()
 {
     CANRxFrame rxMsg;
+    uint8_t nBus;
 
-    while (FetchRxFrame(&rxMsg) == MSG_OK)
+    while (FetchRxFrame(&rxMsg, &nBus) == MSG_OK)
     {
         for (uint8_t i = 0; i < NUM_CAN_INPUTS; i++)
-            canIn[i].CheckMsg(rxMsg);
+            canIn[i].CheckMsg(rxMsg, nBus);
 
         #if NUM_KEYPADS > 0
-        for (uint8_t i = 0; i < NUM_KEYPADS; i++)
+        // Keypads are on bus 0
+        for (uint8_t i = 0; i < NUM_KEYPADS && nBus == 0; i++)
             keypad[i].CheckMsg(rxMsg);
         #endif
     }

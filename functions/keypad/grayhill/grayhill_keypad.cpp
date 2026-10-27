@@ -1,4 +1,5 @@
 #include "grayhill_keypad.h"
+#include "can_frame.h"
 #include "grayhill_button.h"
 #include "keypad.h"
 
@@ -9,10 +10,9 @@ namespace {
 CANTxFrame IndicatorMsg(Keypad* kp)
 {
     CANTxFrame msg;
-    msg.SID = kp->pConfig->nNodeId + 0x200;
-    msg.IDE = CAN_IDE_STD;
+    CanSetId(msg, kp->pConfig->nNodeId + 0x200);
     msg.DLC = 8;
-    msg.data64[0] = 0;
+    uint64_t nLeds = 0;
 
     // Grayhill stacks LED indicators (3 per button) in order
     // Each LED state is 1 bit: 0 = off, 1 = on
@@ -30,9 +30,10 @@ CANTxFrame IndicatorMsg(Keypad* kp)
         if (kp->button[i].bLed[1]) nLedValue |= 2; // Bit 1
         if (kp->button[i].bLed[2]) nLedValue |= 4; // Bit 2
 
-        msg.data64[0] |= ((uint64_t)nLedValue << nBitPosition);
+        nLeds |= ((uint64_t)nLedValue << nBitPosition);
         nBitPosition += 3;
     }
+    CanSetData64(msg, nLeds);
 
     return msg;
 }
@@ -44,8 +45,7 @@ CANTxFrame IndicatorMsg(Keypad* kp)
 CANTxFrame BrightnessMsg(Keypad* kp)
 {
     CANTxFrame msg;
-    msg.SID = kp->pConfig->nNodeId + 0x300;
-    msg.IDE = CAN_IDE_STD;
+    CanSetId(msg, kp->pConfig->nNodeId + 0x300);
     msg.DLC = 8;
     msg.data8[0] = *const_cast<volatile float*>(kp->pDimmingInput) ? kp->pConfig->nDimButtonBrightness : kp->pConfig->nButtonBrightness;
     msg.data8[1] = *const_cast<volatile float*>(kp->pDimmingInput) ? kp->pConfig->nDimBacklightBrightness : kp->pConfig->nBacklightBrightness;
@@ -101,7 +101,7 @@ bool CheckMsgGrayhill(Keypad* kp, CANRxFrame frame)
     // Grayhill uses CANopen TPDO format
     // nNodeId + 0x180
     // Byte 0-2: Button states (up to 20 buttons)
-    if (frame.SID != kp->pConfig->nNodeId + 0x180)
+    if (CanId(frame) != (uint32_t)(kp->pConfig->nNodeId + 0x180))
         return false;
 
     for(uint8_t i = 0; i < kp->nNumButtons; i++)
@@ -128,8 +128,7 @@ CANTxFrame GetTxMsgGrayhill(Keypad* kp, uint8_t nIndex)
 CANTxFrame GetStartMsgGrayhill(Keypad* kp)
 {
     CANTxFrame msg;
-    msg.SID = 0x00;
-    msg.IDE = CAN_IDE_STD;
+    CanSetId(msg, 0x00);
     msg.DLC = 8;
     msg.data8[0] = 0x01;
     msg.data8[1] = kp->pConfig->nNodeId;

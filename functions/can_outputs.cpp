@@ -1,6 +1,7 @@
 #include "can_outputs.h"
 #include "mailbox.h"
 #include "dbc.h"
+#include "can_frame.h"
 
 Config_CanOutput* CanOutputs::pConfigs[NUM_CAN_OUTPUTS];
 float* CanOutputs::pInput[NUM_CAN_OUTPUTS];
@@ -11,10 +12,10 @@ void CanOutputs::ClearFrames()
 {
     for (int i = 0; i < CAN_OUT_FRAMES; ++i)
     {
-        canOut[i].stFrame.data64[0] = 0;
+        CanSetData64(canOut[i].stFrame, 0);
         canOut[i].stFrame.DLC = 0;
-        canOut[i].stFrame.IDE = 0;
-        canOut[i].stFrame.EID = 0; //Clears SID as well, union
+        CanSetId(canOut[i].stFrame, 0);
+        canOut[i].nBus = 0;
     }
 
     for (int i = 0; i < NUM_CAN_OUTPUTS; ++i)
@@ -36,6 +37,7 @@ void CanOutputs::InitAllFrames()
         uint8_t  nNewStartBit = pConfigs[i]->nStartBit;
         uint8_t  nNewBitLen   = pConfigs[i]->nBitLength;
         uint16_t nNewInterval = pConfigs[i]->nInterval;
+        uint8_t  nNewBus      = CanOutputBus(*pConfigs[i]);
 
         if(nNewBitLen == 0 || nNewBitLen > 64) continue; // Invalid config, skip
         if(nNewInterval == 0) nNewInterval = 100; // Default to 100ms
@@ -45,8 +47,9 @@ void CanOutputs::InitAllFrames()
         {
             if (canOut[j].stFrame.DLC == 0) continue; // Unused frame slot
 
-            bool bMatch = (nNewIDE == 0) ? (canOut[j].stFrame.IDE == 0 && canOut[j].stFrame.SID == nNewID)
-                                      : (canOut[j].stFrame.IDE == 1 && canOut[j].stFrame.EID == nNewID);
+            bool bMatch = (CanIsExt(canOut[j].stFrame) == (nNewIDE != 0)) &&
+                          (CanId(canOut[j].stFrame) == nNewID) &&
+                          (canOut[j].nBus == nNewBus);
             if (bMatch)
             {
                 nAssignedOut[i] = j;
@@ -72,14 +75,8 @@ void CanOutputs::InitAllFrames()
             if (canOut[j].stFrame.DLC == 0)
             {
                 nAssignedOut[i] = j;
-                canOut[j].stFrame.IDE = nNewIDE;
-
-                //Only set one
-                //SID and EID are a union
-                if(nNewIDE == 0)
-                    canOut[j].stFrame.SID = nNewID;
-                else
-                    canOut[j].stFrame.EID = nNewID;
+                CanSetId(canOut[j].stFrame, nNewID, nNewIDE != 0);
+                canOut[j].nBus = nNewBus;
 
                 canOut[j].stFrame.DLC = CalcDlc(nNewStartBit, nNewBitLen);
                 canOut[j].nInterval = nNewInterval;
@@ -107,7 +104,7 @@ void CanOutputs::Update()
                 }
             }
 
-            PostTxFrame(&canOut[i].stFrame);
+            PostTxFrame(&canOut[i].stFrame, canOut[i].nBus);
         }
     }
 }

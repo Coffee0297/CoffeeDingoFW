@@ -1,4 +1,5 @@
 #include "param_protocol.h"
+#include "can_frame.h"
 #include "device_config.h"
 #include "config.h"
 #include "mailbox.h"
@@ -29,11 +30,9 @@ void DecodeParamCmd(CANRxFrame *rx, ParamMsg *out)
 
 void EncodeParamRsp(CANTxFrame *tx, uint8_t cmd, uint16_t index, uint8_t subindex, uint32_t value)
 {
-    tx->IDE = 0;
-    tx->RTR = 0;
     tx->DLC = 8;
 
-    tx->SID =  stConfig.stDevice.nBaseId + CONFIG_TX_OFFSET;
+    CanSetId(*tx, stConfig.stDevice.nBaseId + CONFIG_TX_OFFSET);
 
     tx->data8[0] = cmd;
     tx->data8[1] = index & 0xFF;
@@ -184,7 +183,7 @@ static void ProcessParamMsg(CANRxFrame *rx) {
     CANTxFrame tx;
     ParamMsg msg;
 
-    if (rx->SID != stConfig.stDevice.nBaseId + CONFIG_RX_OFFSET)
+    if (CanId(*rx) != (uint32_t)(stConfig.stDevice.nBaseId + CONFIG_RX_OFFSET))
         return;
 
     if (rx->DLC != 8)
@@ -329,8 +328,8 @@ static objects_fifo_t paramFifo;
 
 bool RouteParamFrame(CANRxFrame *frame)
 {
-    if ((frame->IDE != CAN_IDE_STD) ||
-        (frame->SID != stConfig.stDevice.nBaseId + CONFIG_RX_OFFSET))
+    if (CanIsExt(*frame) ||
+        (CanId(*frame) != (uint32_t)(stConfig.stDevice.nBaseId + CONFIG_RX_OFFSET)))
         return false;
 
     CANRxFrame *pFrame = static_cast<CANRxFrame*>(chFifoTakeObjectTimeout(&paramFifo, TIME_IMMEDIATE));

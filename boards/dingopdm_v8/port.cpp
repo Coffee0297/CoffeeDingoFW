@@ -1,50 +1,27 @@
 #include "port.h"
 #include "mcu_utils.h"
 
-static const CANConfig canConfig1000 =
-{
-    CAN_MCR_ABOM | CAN_MCR_AWUM | CAN_MCR_TXFP,
-    /*
-     For 36MHz http://www.bittiming.can-wiki.info/ gives us Pre-scaler=2, Seq 1=15 and Seq 2=2. Subtract '1' for register values
-    */
-    CAN_BTR_SJW(0) | CAN_BTR_BRP(1)  | CAN_BTR_TS1(14) | CAN_BTR_TS2(1),
-};
+/*
+ FDCAN kernel clock = PCLK1 = 170MHz, 17 tq per bit (Seg1 = 13, Seg2 = 3), 82.4% sample point
+ Prescaler = 170MHz / (17 * bitrate). Subtract '1' for register values
+ Classic CAN only, non-matching frames rejected so the filters in can.cpp decide what's received
+*/
+#define FDCAN_CLASSIC_CONFIG(nPrescaler)                                                       \
+{                                                                                              \
+    OPMODE_CAN,                                                                                \
+    FDCAN_CONFIG_NBTP_NSJW(2) | FDCAN_CONFIG_NBTP_NBRP((nPrescaler) - 1) |                     \
+    FDCAN_CONFIG_NBTP_NTSEG1(12) | FDCAN_CONFIG_NBTP_NTSEG2(2),                                \
+    0,                                                                                         \
+    0,                                                                                         \
+    0,                                                                                         \
+    FDCAN_CONFIG_RXGFC_ANFS_REJECT | FDCAN_CONFIG_RXGFC_ANFE_REJECT                           \
+}
 
-static const CANConfig canConfig500 =
-{
-    CAN_MCR_ABOM | CAN_MCR_AWUM | CAN_MCR_TXFP,
-    /*
-     For 36MHz http://www.bittiming.can-wiki.info/ gives us Pre-scaler=4, Seq 1=15 and Seq 2=2. Subtract '1' for register values
-    */
-    CAN_BTR_SJW(0) | CAN_BTR_BRP(3)  | CAN_BTR_TS1(14) | CAN_BTR_TS2(1),
-};
-
-static const CANConfig canConfig250 =
-{
-    CAN_MCR_ABOM | CAN_MCR_AWUM | CAN_MCR_TXFP,
-    /*
-     For 36MHz http://www.bittiming.can-wiki.info/ gives us Pre-scaler=8, Seq 1=15 and Seq 2=2. Subtract '1' for register values
-    */
-    CAN_BTR_SJW(0) | CAN_BTR_BRP(7)  | CAN_BTR_TS1(14) | CAN_BTR_TS2(1),
-};
-
-static const CANConfig canConfig125 =
-{
-    CAN_MCR_ABOM | CAN_MCR_AWUM | CAN_MCR_TXFP,
-    /*
-     For 36MHz http://www.bittiming.can-wiki.info/ gives us Pre-scaler=16, Seq 1=15 and Seq 2=2. Subtract '1' for register values
-    */
-    CAN_BTR_SJW(0) | CAN_BTR_BRP(15)  | CAN_BTR_TS1(14) | CAN_BTR_TS2(1),
-};
-
-static const CANConfig canConfig100 =
-{
-    CAN_MCR_ABOM | CAN_MCR_AWUM | CAN_MCR_TXFP,
-    /*
-     For 36MHz http://www.bittiming.can-wiki.info/ gives us Pre-scaler=16, Seq 1=15 and Seq 2=2. Subtract '1' for register values
-    */
-    CAN_BTR_SJW(0) | CAN_BTR_BRP(19)  | CAN_BTR_TS1(14) | CAN_BTR_TS2(1),
-};
+static const CANConfig canConfig1000 = FDCAN_CLASSIC_CONFIG(10);
+static const CANConfig canConfig500 = FDCAN_CLASSIC_CONFIG(20);
+static const CANConfig canConfig250 = FDCAN_CLASSIC_CONFIG(40);
+static const CANConfig canConfig125 = FDCAN_CLASSIC_CONFIG(80);
+static const CANConfig canConfig100 = FDCAN_CLASSIC_CONFIG(100);
 
 const CANConfig& GetCanConfig(CanBitrate bitrate) {
     switch(bitrate) {

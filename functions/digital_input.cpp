@@ -50,8 +50,7 @@ void Digital_Input::UpdatePwm()
 
     if (s.periods > 0)
     {
-        float fMeasured = PwmMeter::Duty(s);
-        fDuty = pConfig->bInvert ? 100.0f - fMeasured : fMeasured;
+        fDuty = PwmMeter::Duty(s);
         fFreq = PwmMeter::Freq(s, STM32_HCLK);
     }
     fVal = 1;

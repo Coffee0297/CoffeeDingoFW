@@ -84,7 +84,7 @@ enum class MsgSrc : uint8_t
     Overcurrent,
     Voltage,
     CANBus,
-    USB,
+    UsbDevice,
     Overtemp,
     Config,
     FRAM,

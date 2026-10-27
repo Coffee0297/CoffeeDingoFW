@@ -1,4 +1,5 @@
 #include "infomsg.h"
+#include "can_frame.h"
 #include "device.h"
 #include "config.h"
 #include "device_config.h"
@@ -73,8 +74,7 @@ void SendInfoMsg(MsgType type, MsgSrc src, uint16_t nId, uint16_t nData0, uint16
     tx.data16[2] = nData1;
     tx.data16[3] = nData2;
 
-    tx.SID = nId + CONFIG_TX_OFFSET;
-    tx.IDE = CAN_IDE_STD;
+    CanSetId(tx, nId + CONFIG_TX_OFFSET);
     PostTxFrame(&tx);
 }
 

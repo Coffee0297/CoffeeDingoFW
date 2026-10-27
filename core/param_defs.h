@@ -78,7 +78,16 @@
     {0x1300 + (i), 10, &stConfig.stCanInput[i].bSigned,         &stConfigTemp.stCanInput[i].bSigned,         ParamType::Bool,   0, 0, 1}, \
     {0x1300 + (i), 11, &stConfig.stCanInput[i].eOperator,       &stConfigTemp.stCanInput[i].eOperator,       ParamType::Enum,   static_cast<uint32_t>(Operator::Equal), 0, 7}, \
     {0x1300 + (i), 12, &stConfig.stCanInput[i].fOperand,        &stConfigTemp.stCanInput[i].fOperand,        ParamType::Float,  F(0.0f), F(-1e9f), F(1e9f)}, \
-    {0x1300 + (i), 13, &stConfig.stCanInput[i].eMode,           &stConfigTemp.stCanInput[i].eMode,           ParamType::Enum,   static_cast<uint32_t>(InputMode::Momentary), 0, 1}
+    {0x1300 + (i), 13, &stConfig.stCanInput[i].eMode,           &stConfigTemp.stCanInput[i].eMode,           ParamType::Enum,   static_cast<uint32_t>(InputMode::Momentary), 0, 1} \
+    CAN_INPUT_BUS_PARAM(i)
+
+// Only boards with more than one bus have the field
+#if NUM_CAN_BUSES > 1
+#define CAN_INPUT_BUS_PARAM(i) \
+    , {0x1300 + (i), 14, &stConfig.stCanInput[i].nBus,          &stConfigTemp.stCanInput[i].nBus,            ParamType::UInt8,  0, 0, NUM_CAN_BUSES - 1}
+#else
+#define CAN_INPUT_BUS_PARAM(i)
+#endif
     
 //=============================================================================
 // Virtual Input Parameters - Base 0x1400
@@ -222,7 +231,15 @@
     {0x2000 + (i), 7,  &stConfig.stCanOutput[i].fOffset,    &stConfigTemp.stCanOutput[i].fOffset,    ParamType::Float,  F(0.0f), F(-1e9f), F(1e9f)}, \
     {0x2000 + (i), 8,  &stConfig.stCanOutput[i].eByteOrder, &stConfigTemp.stCanOutput[i].eByteOrder, ParamType::Enum,   static_cast<uint32_t>(ByteOrder::LittleEndian), 0, 1}, \
     {0x2000 + (i), 9,  &stConfig.stCanOutput[i].bSigned,    &stConfigTemp.stCanOutput[i].bSigned,    ParamType::Bool,   0, 0, 1}, \
-    {0x2000 + (i), 10, &stConfig.stCanOutput[i].nInterval,  &stConfigTemp.stCanOutput[i].nInterval,  ParamType::UInt16, 1000, 0, 60000}
+    {0x2000 + (i), 10, &stConfig.stCanOutput[i].nInterval,  &stConfigTemp.stCanOutput[i].nInterval,  ParamType::UInt16, 1000, 0, 60000} \
+    CAN_OUTPUT_BUS_PARAM(i)
+
+#if NUM_CAN_BUSES > 1
+#define CAN_OUTPUT_BUS_PARAM(i) \
+    , {0x2000 + (i), 11, &stConfig.stCanOutput[i].nBus,       &stConfigTemp.stCanOutput[i].nBus,       ParamType::UInt8,  0, 0, NUM_CAN_BUSES - 1}
+#else
+#define CAN_OUTPUT_BUS_PARAM(i)
+#endif
 
 //=============================================================================
 // Digital Output Parameters - Base 0x2100

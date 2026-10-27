@@ -20,7 +20,21 @@ struct Config_CanInput{
   Operator eOperator;
   float fOperand;       
   InputMode eMode;
+  #if NUM_CAN_BUSES > 1
+  uint8_t nBus;
+  #endif
 };
+
+// Single bus boards don't store a bus, keeps their config layout unchanged
+inline uint8_t CanInputBus(const Config_CanInput &conf)
+{
+  #if NUM_CAN_BUSES > 1
+  return conf.nBus;
+  #else
+  (void)conf;
+  return 0;
+  #endif
+}
 
 class CanInput
 {
@@ -30,7 +44,7 @@ public:
 
     static const uint16_t nBaseIndex = 0x1300;
 
-    bool CheckMsg(CANRxFrame frame);
+    bool CheckMsg(const CANRxFrame &frame, uint8_t nBus);
 
     void SetConfig(Config_CanInput* config) { pConfig = config; }
     void CheckTimeout();

@@ -1,4 +1,5 @@
 #include "keypad.h"
+#include "can_frame.h"
 #include "blink_keypad.h"
 #include "grayhill_keypad.h"
 
@@ -29,7 +30,7 @@ static void KeypadThread(void *arg)
 
             if (!keypads[k].bStartMsgSent) {
                 CANTxFrame startMsg = keypads[k].GetStartMsg();
-                if (startMsg.SID != 0) 
+                if (CanId(startMsg) != 0) 
                     PostTxFrame(&startMsg);   
                 keypads[k].bStartMsgSent = true;
                 chThdSleepMilliseconds(KEYPAD_TX_MSG_SPLIT);
@@ -38,7 +39,7 @@ static void KeypadThread(void *arg)
             for (uint8_t i = 0; i < keypads[k].GetNumTxMsgs(); i++)
             {
                 CANTxFrame msg = keypads[k].GetTxMsg(i);
-                if (msg.SID != 0)
+                if (CanId(msg) != 0)
                     PostTxFrame(&msg);
                 chThdSleepMilliseconds(KEYPAD_TX_MSG_SPLIT);
             }
