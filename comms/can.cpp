@@ -149,10 +149,9 @@ msg_t InitCan(Config_Device *conf)
         StopCan();
     }
 
-    // ponytail: every bus runs at eCanSpeed, add a per-bus bitrate param if a bus needs its own
     for (uint8_t nBus = 0; nBus < NUM_CAN_BUSES; nBus++)
     {
-        msg_t ret = canStart(canDrivers[nBus], &GetCanConfig(conf->eCanSpeed));
+        msg_t ret = canStart(canDrivers[nBus], &GetCanConfig(conf->eCanSpeed[nBus]));
         if (ret != HAL_RET_SUCCESS)
             return ret;
     }

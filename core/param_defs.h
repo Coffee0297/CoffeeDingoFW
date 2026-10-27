@@ -13,14 +13,15 @@
 //=============================================================================
 #define DEVICE_CONFIG_PARAMS() \
     {0x0000, 0, &stConfig.stDevice.nBaseId,             &stConfigTemp.stDevice.nBaseId,           ParamType::UInt16, DEFAULT_BASE_ID, 0, 0x7FF}, \
-    {0x0000, 1, &stConfig.stDevice.eCanSpeed,           &stConfigTemp.stDevice.eCanSpeed,         ParamType::Enum,   static_cast<uint32_t>(CanBitrate::Bitrate_500K), 0, 4}, \
+    {0x0000, 1, &stConfig.stDevice.eCanSpeed[0],        &stConfigTemp.stDevice.eCanSpeed[0],      ParamType::Enum,   static_cast<uint32_t>(CanBitrate::Bitrate_500K), 0, 4}, \
     {0x0000, 2, &stConfig.stDevice.bSleepEnabled,       &stConfigTemp.stDevice.bSleepEnabled,     ParamType::Bool,   0, 0, 1}, \
     {0x0000, 3, &stConfig.stDevice.bCanFilterEnabled,   &stConfigTemp.stDevice.bCanFilterEnabled, ParamType::Bool,   0, 0, 1}, \
     {0x0000, 4, &stConfig.stDevice.bDisableDigInWake,   &stConfigTemp.stDevice.bDisableDigInWake, ParamType::Bool,   0, 0, 1}, \
     {0x0000, 5, &stConfig.stDevice.bDisableCanWake,     &stConfigTemp.stDevice.bDisableCanWake,   ParamType::Bool,   0, 0, 1}, \
     {0x0000, 6, &stConfig.stDevice.bConnectUsbToCan,    &stConfigTemp.stDevice.bConnectUsbToCan,  ParamType::Bool,   1, 0, 1}, \
     {0x0000, 7, &stConfig.stDevice.nMuteCanTxInput,     &stConfigTemp.stDevice.nMuteCanTxInput,   ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
-    {0x0000, 8, &stConfig.stDevice.nForceSleepInput,    &stConfigTemp.stDevice.nForceSleepInput,  ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}
+    {0x0000, 8, &stConfig.stDevice.nForceSleepInput,    &stConfigTemp.stDevice.nForceSleepInput,  ParamType::UInt16, 0, 0, VAR_MAP_SIZE - 1}, \
+    {0x0000, 9, &stConfig.stDevice.eCanSpeed[1],        &stConfigTemp.stDevice.eCanSpeed[1],      ParamType::Enum,   static_cast<uint32_t>(CanBitrate::Bitrate_500K), 0, 4}
 
 //=============================================================================
 // Output Parameters - Base 0x1000

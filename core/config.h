@@ -39,7 +39,7 @@
 struct Config_Device{
   uint16_t nConfigVersion;
   uint16_t nBaseId;
-  CanBitrate eCanSpeed;
+  CanBitrate eCanSpeed[2]; // per bus, [1] unused on single bus boards
   bool bCanFilterEnabled;
 
   //Not used by all devices
