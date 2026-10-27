@@ -23,6 +23,28 @@ void Analog_Input::RotaryUpdate()
         return;
     }
 
+    if (pConfig->stRotary.eMode == RotaryMode::Calibrated)
+    {
+        // The nearest centre wins if the voltage is within the tolerance of it, anywhere else reads
+        // ROTARY_NO_POS. Nearest first, so windows wider than half the gap split halfway between centres.
+        const Config_RotarySwitch &r = pConfig->stRotary;
+        int n = (r.nNumPos > ROTARY_MAX_POS) ? ROTARY_MAX_POS : r.nNumPos;
+        int mv = static_cast<int>(fValMillivolts);
+        int pos = ROTARY_NO_POS;
+        int bestDist = 0;
+        for (int k = 0; k < n; k++)
+        {
+            int dist = (mv > r.nCenter[k]) ? (mv - r.nCenter[k]) : (r.nCenter[k] - mv);
+            if (dist <= r.nTolerance && (pos == ROTARY_NO_POS || dist < bestDist))
+            {
+                pos = k;
+                bestDist = dist;
+            }
+        }
+        fRotaryPos = (pos != ROTARY_NO_POS && r.bInvert) ? (n - 1 - pos) : pos;
+        return;
+    }
+
     if (fValMillivolts < pConfig->stRotary.fOffset)
     {
         fRotaryPos = pConfig->stRotary.bInvert ? pConfig->stRotary.fMaxPos : 0;
