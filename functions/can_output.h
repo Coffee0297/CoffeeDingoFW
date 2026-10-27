@@ -16,12 +16,10 @@ struct Config_CanOutput{
   ByteOrder eByteOrder;
   bool bSigned;
   uint16_t nInterval; //ms
-  #if NUM_CAN_BUSES > 1
-  uint8_t nBus;
-  #endif
+  uint8_t nBus; //Only needed with >1 bus
 };
 
-// Single bus boards don't store a bus, keeps their config layout unchanged
+// Single bus boards ignore the stored bus
 inline uint8_t CanOutputBus(const Config_CanOutput &conf)
 {
   #if NUM_CAN_BUSES > 1

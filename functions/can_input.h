@@ -20,12 +20,10 @@ struct Config_CanInput{
   Operator eOperator;
   float fOperand;       
   InputMode eMode;
-  #if NUM_CAN_BUSES > 1
-  uint8_t nBus;
-  #endif
+  uint8_t nBus; //Only needed with >1 bus
 };
 
-// Single bus boards don't store a bus, keeps their config layout unchanged
+// Single bus boards ignore the stored bus
 inline uint8_t CanInputBus(const Config_CanInput &conf)
 {
   #if NUM_CAN_BUSES > 1
