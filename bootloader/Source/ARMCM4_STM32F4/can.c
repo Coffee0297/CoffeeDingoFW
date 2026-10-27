@@ -106,7 +106,7 @@ static const tCanBusTiming canTiming[] =
  * cannot read. Instead the application, when it enters the CAN bootloader, leaves its base
  * id and CAN speed (alongside the activation magic) in a fixed SRAM block at the top of
  * RAM - see RequestBootloaderCan() in boards/stm32f446/mcu_utils.cpp. That block is outside
- * this bootloader's linked RAM (its RAM length is 16 bytes short of 128 kB), so neither the
+ * this bootloader's linked RAM (its RAM length is 48 bytes short of 128 kB), so neither the
  * bootloader's .bss nor its stack clobbers it. On a cold boot / invalid app the magic is
  * absent and the blt_conf.h fallbacks (PDM default base 0x0DE) are used. */
 #define DINGO_BL_PARAM_ADDR     (0x2001FFF0UL)   /* top 16 bytes of the 128 kB SRAM        */

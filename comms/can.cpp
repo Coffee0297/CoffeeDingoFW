@@ -8,6 +8,9 @@
 #if CAN_SLEEP
 #include "sleep.h"
 #endif
+#if HAS_USB
+#include "usb.h"
+#endif
 
 #include <iterator>
 
@@ -340,8 +343,19 @@ uint32_t GetLastCanRxTime()
     return nLastCanRxTime;
 }
 
+bool CanBusHeard()
+{
+    return nLastCanRxTime != 0;
+}
+
 bool CanTxMuted()
 {
+    #if HAS_USB
+    // Kept alive while a USB host is connected, as it never sleeps then: muted, the tool sees no telemetry
+    // and can't update or configure it
+    if (GetUsbConnected())
+        return false;
+    #endif
     #if CAN_SLEEP
     if (QuietWake())
         return true;
@@ -350,7 +364,9 @@ bool CanTxMuted()
     if (ignition.TxQuiet())
         return true;
     #endif
-    return *pVarMap[stConfig.stDevice.nMuteCanTxInput];
+    // A "master quiet" mute input is a CAN input timing out to its timeout value, which it also does when no master
+    // was ever there (a module alone on the bench, no bus): only follow it once another node has been heard
+    return CanBusHeard() && *pVarMap[stConfig.stDevice.nMuteCanTxInput];
 }
 
 bool CanNoPeer()

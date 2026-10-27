@@ -5,6 +5,7 @@
 #include "config_handler.h"
 #include "request_msg.h"
 #include "crc.h"
+#include "device.h"
 #include <cstring>
 
 extern DeviceConfig stConfig;
@@ -131,6 +132,10 @@ void SetAllDefaultParams(bool temp) {
     for (int i = 0; i < NUM_PARAMS; i++) {
         WriteParam(&stParams[i], stParams[i].nDefaultVal, temp);
     }
+    // A board starting from defaults takes the ID patched into its image at flash time (ImageDefaultBaseId). Not the
+    // write-all staging copy: a "modified only" write leaves out an ID equal to the table default and keeps that one.
+    if (!temp)
+        stConfig.stDevice.nBaseId = ImageDefaultBaseId();
     #if HAS_LUA
     if (!temp)
         stConfig.stLua = {}; // not a param; a failed config read can leave anything in it

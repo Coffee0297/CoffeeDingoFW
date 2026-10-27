@@ -11,8 +11,8 @@ void EnterStopMode()
     
     __WFI();
 
-    // Resume here after wakeup
-    NVIC_SystemReset();
+    // Resume here after wakeup, interrupts still disabled; the caller resets (after CaptureWake: a reset here
+    // lost the wake reason, so every CAN wake looked like a power-on and skipped the quiet wake)
 }
 
  void RequestBootloader()

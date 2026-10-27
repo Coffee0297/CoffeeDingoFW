@@ -62,6 +62,16 @@
 #define STR(x) STR_(x)
 static const char kDingoBoard[] = "DINGO_BOARD=" BOARD_NAME;
 static const char kDingoFw[] = "DINGO_FW=" STR(MAJOR_VERSION) "." STR(MINOR_VERSION) "." STR(BUILD);
+// The base ID a board with no stored settings starts on. A flash tool may overwrite the 2 bytes after the marker (little
+// endian) so a blank board comes up on its own ID instead of the shared default (dingoConfig's SWD flash does).
+static const volatile struct { char tag[14]; uint16_t nBaseId; } kDingoBaseId = { "DINGO_BASEID=", DEFAULT_BASE_ID };
+static_assert(sizeof(kDingoBaseId) == 16, "DINGO_BASEID= marker: 14 tag bytes, then the 2-byte ID");
+
+uint16_t ImageDefaultBaseId()
+{
+    uint16_t n = kDingoBaseId.nBaseId;
+    return (n >= 1 && n <= 0x7FF) ? n : DEFAULT_BASE_ID;
+}
 
 CanInput canIn[NUM_CAN_INPUTS];
 CanOutputs canOutputs;
@@ -389,6 +399,9 @@ void CyclicUpdate()
     #if NUM_DIG_INPUTS > 0
     for (uint8_t i = 0; i < NUM_DIG_INPUTS; i++)
         digIn[i].Update();
+    #endif
+    #if CAN_SLEEP
+    CheckQuietWakeInputs();
     #endif
 
     #if NUM_ANALOG_INPUTS > 0

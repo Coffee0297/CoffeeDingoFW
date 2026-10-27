@@ -34,7 +34,9 @@ static uint8_t nWhy;
 // Why it woke and how often since power-on, kept across the wake reset in ChibiOS's no-init RAM (.ram0 is
 // reserved by the linker and not cleared at startup). Valid only with the magic.
 // nWakeKeep[1] = WAKE_NEW | wakes << 16 | source << 8 | reason
-static volatile uint32_t nWakeKeep[2] __attribute__((section(".ram0")));
+// nWakeKeep[2] = the digital inputs when it went to sleep (bit i = DI i+1 on), what a quiet wake compares against
+static volatile uint32_t nWakeKeep[3] __attribute__((section(".ram0")));
+static uint32_t nDiAtSleep;
 #define WAKE_MAGIC 0x57414B45 // "WAKE"
 #define WAKE_NEW 0x80000000   // a wake not yet reported; a reset that isn't a wake keeps only the count
 static WakeReason eWakeReason = WakeReason::PowerOn;
@@ -142,7 +144,8 @@ bool CheckEnterSleep()
         nNoSleepRequestTime = SYS_TIME;
     bool bRequestSleep = (SYS_TIME - nNoSleepRequestTime) > SLEEP_REQUEST_DELAY;
 
-    bool bForceSleep = bSleepAllowed && *pVarMap[stConfig.stDevice.nForceSleepInput];
+    // like the mute input (CanTxMuted): a force-sleep input fed by a master that was never on the bus is not a request
+    bool bForceSleep = bSleepAllowed && CanBusHeard() && *pVarMap[stConfig.stDevice.nForceSleepInput];
 
     // Blockers: 1 sleep disabled, 2 outputs on, 4 USB, 8 CAN traffic within the timeout
     nBlockers = (stConfig.stDevice.bSleepEnabled ? 0 : 1) | ((nNumOutputsOn > 0) ? 2 : 0) |
@@ -212,6 +215,7 @@ void InitSleep()
             nWakeSource = (nKeep >> 8) & 0xFF;
             nWakeKeep[1] = nKeep & ~WAKE_NEW;
             bQuietWake = (eWakeReason == WakeReason::Can);
+            nDiAtSleep = nWakeKeep[2];
         }
     }
 }
@@ -240,6 +244,32 @@ void CheckQuietWake(const CANRxFrame *frame)
         bQuietWake = false;
         SendSleepInfo();
     }
+}
+
+// Device loop, after the inputs update. A wake input of its own that is not as it was when the module went to
+// sleep also ends a quiet wake: a switch turned on while it slept or listens quietly (the hazards with the key
+// off) is a reason to be awake. EXTI->PR can miss that edge (CaptureWake then says CAN), and once it went by
+// no later wake from STOP would bring it.
+void CheckQuietWakeInputs()
+{
+    #if NUM_DIG_INPUTS > 0
+    if (!bQuietWake || stConfig.stDevice.bDisableDigInWake)
+        return;
+    for (uint8_t i = 0; i < NUM_DIG_INPUTS; i++)
+    {
+        // a latched input's state is lost in the reset, only a momentary one reads back as it was
+        if (!(stConfig.stDevice.nWakeDigInputMask & (1U << i)) || stConfig.stDigInput[i].eMode != InputMode::Momentary)
+            continue;
+        if ((digIn[i].fVal != 0) != (((nDiAtSleep >> i) & 1U) != 0))
+        {
+            eWakeReason = WakeReason::DigitalInput;
+            nWakeSource = i + 1;
+            bQuietWake = false;
+            SendSleepInfo();
+            return;
+        }
+    }
+    #endif
 }
 
 // Right after STOP ends, before the reset clears EXTI->PR: which armed line woke it
@@ -330,13 +360,14 @@ void EnterSleep()
 
     // Stop the CAN controller before its pins change: left running it answers the lost RX pin with an error
     // frame, and the error flags the other nodes send back wake this module straight up again. Park TX recessive.
+    // Standby first and the output latch high before the pin turns output: the other order drives TX dominant
+    // for a few cycles, and that edge wakes every sleeping module on the bus.
     StopCan();
-    palSetLineMode(LINE_CAN_TX, PAL_MODE_OUTPUT_PUSHPULL);
-    palSetLine(LINE_CAN_TX);
-
     #ifdef LINE_CAN_STANDBY
     palSetLine(LINE_CAN_STANDBY); // CAN disabled
     #endif
+    palSetLine(LINE_CAN_TX);
+    palSetLineMode(LINE_CAN_TX, PAL_MODE_OUTPUT_PUSHPULL);
 
     // Let the transceiver settle in standby before a wake source is armed
     chThdSleepMilliseconds(20);
@@ -345,6 +376,15 @@ void EnterSleep()
     #if DI_PWM_MAX_FREQ > 0
     for(uint8_t i = 0; i < NUM_DIG_INPUTS; i++)
         digIn[i].StopPwm();
+    #endif
+
+    // What the inputs were at sleep, for the quiet wake after (CheckQuietWakeInputs)
+    #if NUM_DIG_INPUTS > 0
+    uint32_t nDi = 0;
+    for (uint8_t i = 0; i < NUM_DIG_INPUTS; i++)
+        if (digIn[i].fVal != 0)
+            nDi |= 1U << i;
+    nWakeKeep[2] = nDi;
     #endif
 
     // Set wakeup sources
