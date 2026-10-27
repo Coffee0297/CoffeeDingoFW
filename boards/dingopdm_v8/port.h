@@ -3,7 +3,7 @@
 #include "hal.h"
 #include "enums.h"
 
-#define PDM_TYPE 3 //3 = dingoPDM-v8
+#define DEVICE_TYPE 4
 
 #define PROCESS_STACK 0x1000
 

@@ -3,7 +3,7 @@
 #include "hal.h"
 #include "enums.h"
 
-#define PDM_TYPE 1 //1 = PDM-MAX 
+#define DEVICE_TYPE 1
 
 #define PROCESS_STACK 0x1000
 

@@ -3,6 +3,8 @@
 #include "hal.h"
 #include "enums.h"
 
+#define DEVICE_TYPE 3
+
 #define PROCESS_STACK 0x0400
 
 // Cannot be used for DMA, but can be used for CPU access.

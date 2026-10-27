@@ -3,7 +3,7 @@
 #include "hal.h"
 #include "enums.h"
 
-#define PDM_TYPE 2 //2 = PT-DPDM
+#define DEVICE_TYPE 2
 
 #define PROCESS_STACK 0x1000
 
