@@ -277,9 +277,8 @@ void CyclicUpdate()
             canIn[i].CheckMsg(rxMsg, nBus);
 
         #if NUM_KEYPADS > 0
-        // Keypads are on bus 0
-        for (uint8_t i = 0; i < NUM_KEYPADS && nBus == 0; i++)
-            keypad[i].CheckMsg(rxMsg);
+        for (uint8_t i = 0; i < NUM_KEYPADS; i++)
+            keypad[i].CheckMsg(rxMsg, nBus);
         #endif
     }
 

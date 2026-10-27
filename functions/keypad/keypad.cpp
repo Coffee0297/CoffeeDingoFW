@@ -17,7 +17,7 @@ static void KeypadThread(void *arg)
         if (!keypads[k].IsEnabled())
             continue;
         CANTxFrame msg = keypads[k].GetStartMsg();
-        PostTxFrame(&msg);
+        PostTxFrame(&msg, KeypadBus(*keypads[k].pConfig));
         chThdSleepMilliseconds(KEYPAD_TX_MSG_SPLIT);
     }
 
@@ -31,7 +31,7 @@ static void KeypadThread(void *arg)
             if (!keypads[k].bStartMsgSent) {
                 CANTxFrame startMsg = keypads[k].GetStartMsg();
                 if (CanId(startMsg) != 0) 
-                    PostTxFrame(&startMsg);   
+                    PostTxFrame(&startMsg, KeypadBus(*keypads[k].pConfig));
                 keypads[k].bStartMsgSent = true;
                 chThdSleepMilliseconds(KEYPAD_TX_MSG_SPLIT);
             }
@@ -40,7 +40,7 @@ static void KeypadThread(void *arg)
             {
                 CANTxFrame msg = keypads[k].GetTxMsg(i);
                 if (CanId(msg) != 0)
-                    PostTxFrame(&msg);
+                    PostTxFrame(&msg, KeypadBus(*keypads[k].pConfig));
                 chThdSleepMilliseconds(KEYPAD_TX_MSG_SPLIT);
             }
         }
@@ -105,9 +105,9 @@ void Keypad::CheckTimeout()
     }
 }
 
-bool Keypad::CheckMsg(CANRxFrame frame)
+bool Keypad::CheckMsg(CANRxFrame frame, uint8_t nBus)
 {
-    if (!pConfig->bEnabled || !fnCheckMsg)
+    if (!pConfig->bEnabled || !fnCheckMsg || KeypadBus(*pConfig) != nBus)
         return false;
     return fnCheckMsg(this, frame);
 }

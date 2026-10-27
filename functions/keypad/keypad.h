@@ -20,9 +20,21 @@ struct Config_Keypad{
   uint16_t nDimmingVar;
   uint8_t nButtonBrightness;
   uint8_t nDimButtonBrightness;
+  uint8_t nBus; //Only needed with >1 bus
   Config_KeypadButton stButton[KEYPAD_MAX_BUTTONS];
   Config_KeypadDial stDial[KEYPAD_MAX_DIALS];
 };
+
+// Single bus boards ignore the stored bus
+inline uint8_t KeypadBus(const Config_Keypad &conf)
+{
+  #if NUM_CAN_BUSES > 1
+  return conf.nBus;
+  #else
+  (void)conf;
+  return 0;
+  #endif
+}
 
 class Keypad;  // Forward declaration
 
@@ -45,7 +57,7 @@ public:
     static msg_t InitThread(Keypad *keypads);
 
     void Update();
-    bool CheckMsg(CANRxFrame frame);
+    bool CheckMsg(CANRxFrame frame, uint8_t nBus);
 
     CANTxFrame GetTxMsg(uint8_t nIndex);
     CANTxFrame GetStartMsg();

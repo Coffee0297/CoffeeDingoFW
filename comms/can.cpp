@@ -344,10 +344,10 @@ void UpdateCanFilters()
             }
 
             #if NUM_KEYPADS > 0
-            for (uint8_t i = 0; i < NUM_KEYPADS && nBus == 0; i++)
+            for (uint8_t i = 0; i < NUM_KEYPADS; i++)
             {
                 const Config_Keypad &kp = stConfig.stKeypad[i];
-                if (!kp.bEnabled)
+                if (!kp.bEnabled || KeypadBus(kp) != nBus)
                     continue;
 
                 // Both brands send button state on the CANopen TPDO1 ID
