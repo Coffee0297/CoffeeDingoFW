@@ -240,25 +240,29 @@
 //=============================================================================
 #if NUM_ANALOG_INPUTS > 0
 #define ANALOG_INPUT_PARAMS(i) \
-    {0x2200 + (i), 0, &stConfig.stAnalogInput[i].bEnabled, &stConfigTemp.stAnalogInput[i].bEnabled, ParamType::Bool, 0, 0, 1}, \
-    {0x2200 + (i), 1, &stConfig.stAnalogInput[i].stSwitch.bEnabled, &stConfigTemp.stAnalogInput[i].stSwitch.bEnabled, ParamType::Bool, 0, 0, 1}, \
-    {0x2200 + (i), 2, &stConfig.stAnalogInput[i].stSwitch.eMode, &stConfigTemp.stAnalogInput[i].stSwitch.eMode, ParamType::Enum, static_cast<uint32_t>(InputMode::Momentary), 0, 1}, \
-    {0x2200 + (i), 3, &stConfig.stAnalogInput[i].stSwitch.bInvert, &stConfigTemp.stAnalogInput[i].stSwitch.bInvert, ParamType::Bool, 0, 0, 1}, \
-    {0x2200 + (i), 4, &stConfig.stAnalogInput[i].stSwitch.nThreshold, &stConfigTemp.stAnalogInput[i].stSwitch.nThreshold, ParamType::UInt16, 2000, 0, 5000}, \
-    {0x2200 + (i), 5, &stConfig.stAnalogInput[i].stRotary.bEnabled, &stConfigTemp.stAnalogInput[i].stRotary.bEnabled, ParamType::Bool, 0, 0, 1}, \
-    {0x2200 + (i), 6, &stConfig.stAnalogInput[i].stRotary.bInvert, &stConfigTemp.stAnalogInput[i].stRotary.bInvert, ParamType::Bool, 0, 0, 1}, \
-    {0x2200 + (i), 7, &stConfig.stAnalogInput[i].stRotary.fOffset, &stConfigTemp.stAnalogInput[i].stRotary.fOffset, ParamType::Float, F(0.0f), F(-1e9f), F(1e9f)}, \
-    {0x2200 + (i), 8, &stConfig.stAnalogInput[i].stRotary.fStep, &stConfigTemp.stAnalogInput[i].stRotary.fStep, ParamType::Float, F(100.0f), F(1e-6f), F(1e9f)}, \
-    {0x2200 + (i), 9, &stConfig.stAnalogInput[i].stRotary.fMaxPos, &stConfigTemp.stAnalogInput[i].stRotary.fMaxPos, ParamType::Float, F(10.0f), F(0.0f), F(1e9f)}, \
-    {0x2200 + (i), 10, &stConfig.stAnalogInput[i].stRotary.eMode, &stConfigTemp.stAnalogInput[i].stRotary.eMode, ParamType::Enum, static_cast<uint32_t>(RotaryMode::Uniform), 0, 1}, \
-    {0x2200 + (i), 11, &stConfig.stAnalogInput[i].stRotary.nNumPos, &stConfigTemp.stAnalogInput[i].stRotary.nNumPos, ParamType::UInt8, 2, 2, ROTARY_MAX_POS}, \
-    {0x2200 + (i), 12, &stConfig.stAnalogInput[i].stRotary.nTolerance, &stConfigTemp.stAnalogInput[i].stRotary.nTolerance, ParamType::UInt16, 200, 0, 5000}, \
-    ANALOG_INPUT_CENTER(i, 0), ANALOG_INPUT_CENTER(i, 1), ANALOG_INPUT_CENTER(i, 2), ANALOG_INPUT_CENTER(i, 3), \
-    ANALOG_INPUT_CENTER(i, 4), ANALOG_INPUT_CENTER(i, 5), ANALOG_INPUT_CENTER(i, 6), ANALOG_INPUT_CENTER(i, 7), \
-    ANALOG_INPUT_CENTER(i, 8), ANALOG_INPUT_CENTER(i, 9)
-// Calibrated rotary: the centre of position k (mV) is sub 13 + k
-#define ANALOG_INPUT_CENTER(i, k) \
-    {0x2200 + (i), 13 + (k), &stConfig.stAnalogInput[i].stRotary.nCenter[k], &stConfigTemp.stAnalogInput[i].stRotary.nCenter[k], ParamType::UInt16, 0, 0, 5000}
+    {0x2200 + (i), 0, &stConfig.stAnalogInput[i].bEnabled,              &stConfigTemp.stAnalogInput[i].bEnabled,            ParamType::Bool, 0, 0, 1}, \
+    {0x2200 + (i), 1, &stConfig.stAnalogInput[i].stSwitch.bEnabled,     &stConfigTemp.stAnalogInput[i].stSwitch.bEnabled,   ParamType::Bool, 0, 0, 1}, \
+    {0x2200 + (i), 2, &stConfig.stAnalogInput[i].stSwitch.eMode,        &stConfigTemp.stAnalogInput[i].stSwitch.eMode,      ParamType::Enum, static_cast<uint32_t>(InputMode::Momentary), 0, 1}, \
+    {0x2200 + (i), 3, &stConfig.stAnalogInput[i].stSwitch.bInvert,      &stConfigTemp.stAnalogInput[i].stSwitch.bInvert,    ParamType::Bool, 0, 0, 1}, \
+    {0x2200 + (i), 4, &stConfig.stAnalogInput[i].stSwitch.nThreshold,   &stConfigTemp.stAnalogInput[i].stSwitch.nThreshold, ParamType::UInt16, 2000, 0, 5000}, \
+    {0x2200 + (i), 5, &stConfig.stAnalogInput[i].stRotary.bEnabled,     &stConfigTemp.stAnalogInput[i].stRotary.bEnabled,   ParamType::Bool, 0, 0, 1}, \
+    {0x2200 + (i), 6, &stConfig.stAnalogInput[i].stRotary.bInvert,      &stConfigTemp.stAnalogInput[i].stRotary.bInvert,    ParamType::Bool, 0, 0, 1}, \
+    {0x2200 + (i), 7, &stConfig.stAnalogInput[i].stRotary.fOffset,      &stConfigTemp.stAnalogInput[i].stRotary.fOffset,    ParamType::Float, F(0.0f), F(-1e9f), F(1e9f)}, \
+    {0x2200 + (i), 8, &stConfig.stAnalogInput[i].stRotary.fStep,        &stConfigTemp.stAnalogInput[i].stRotary.fStep,      ParamType::Float, F(100.0f), F(1e-6f), F(1e9f)}, \
+    {0x2200 + (i), 9, &stConfig.stAnalogInput[i].stRotary.fMaxPos,      &stConfigTemp.stAnalogInput[i].stRotary.fMaxPos,    ParamType::Float, F(10.0f), F(0.0f), F(1e9f)}, \
+    {0x2200 + (i), 10, &stConfig.stAnalogInput[i].stRotary.eMode,       &stConfigTemp.stAnalogInput[i].stRotary.eMode,      ParamType::Enum, static_cast<uint32_t>(RotaryMode::Uniform), 0, 1}, \
+    {0x2200 + (i), 11, &stConfig.stAnalogInput[i].stRotary.nNumPos,     &stConfigTemp.stAnalogInput[i].stRotary.nNumPos,    ParamType::UInt8, 2, 2, ROTARY_MAX_POS}, \
+    {0x2200 + (i), 12, &stConfig.stAnalogInput[i].stRotary.nTolerance,  &stConfigTemp.stAnalogInput[i].stRotary.nTolerance, ParamType::UInt16, 200, 0, 5000}, \
+    {0x2200 + (i), 13, &stConfig.stAnalogInput[i].stRotary.nCenter[0],  &stConfigTemp.stAnalogInput[i].stRotary.nCenter[0], ParamType::UInt16, 0, 0, 5000}, \
+    {0x2200 + (i), 14, &stConfig.stAnalogInput[i].stRotary.nCenter[1],  &stConfigTemp.stAnalogInput[i].stRotary.nCenter[1], ParamType::UInt16, 0, 0, 5000}, \
+    {0x2200 + (i), 15, &stConfig.stAnalogInput[i].stRotary.nCenter[2],  &stConfigTemp.stAnalogInput[i].stRotary.nCenter[2], ParamType::UInt16, 0, 0, 5000}, \
+    {0x2200 + (i), 16, &stConfig.stAnalogInput[i].stRotary.nCenter[3],  &stConfigTemp.stAnalogInput[i].stRotary.nCenter[3], ParamType::UInt16, 0, 0, 5000}, \
+    {0x2200 + (i), 17, &stConfig.stAnalogInput[i].stRotary.nCenter[4],  &stConfigTemp.stAnalogInput[i].stRotary.nCenter[4], ParamType::UInt16, 0, 0, 5000}, \
+    {0x2200 + (i), 18, &stConfig.stAnalogInput[i].stRotary.nCenter[5],  &stConfigTemp.stAnalogInput[i].stRotary.nCenter[5], ParamType::UInt16, 0, 0, 5000}, \
+    {0x2200 + (i), 19, &stConfig.stAnalogInput[i].stRotary.nCenter[6],  &stConfigTemp.stAnalogInput[i].stRotary.nCenter[6], ParamType::UInt16, 0, 0, 5000}, \
+    {0x2200 + (i), 20, &stConfig.stAnalogInput[i].stRotary.nCenter[7],  &stConfigTemp.stAnalogInput[i].stRotary.nCenter[7], ParamType::UInt16, 0, 0, 5000}, \
+    {0x2200 + (i), 21, &stConfig.stAnalogInput[i].stRotary.nCenter[8],  &stConfigTemp.stAnalogInput[i].stRotary.nCenter[8], ParamType::UInt16, 0, 0, 5000}, \
+    {0x2200 + (i), 22, &stConfig.stAnalogInput[i].stRotary.nCenter[9],  &stConfigTemp.stAnalogInput[i].stRotary.nCenter[9], ParamType::UInt16, 0, 0, 5000}
 #endif
 
 //=============================================================================
