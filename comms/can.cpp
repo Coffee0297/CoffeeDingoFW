@@ -189,7 +189,9 @@ msg_t InitCan(Config_Device *conf)
 
     canCyclicTxThreadRef = chThdCreateStatic(waCanCyclicTxThread, sizeof(waCanCyclicTxThread), NORMALPRIO + 1, CanCyclicTxThread, nullptr);
     canTxThreadRef = chThdCreateStatic(waCanTxThread, sizeof(waCanTxThread), NORMALPRIO + 1, CanTxThread, nullptr);
-    canRxThreadRef = chThdCreateStatic(waCanRxThread, sizeof(waCanRxThread), NORMALPRIO + 1, CanRxThread, nullptr);
+    // Above the TX and USB threads: bxCAN holds only 3 received frames, a back-to-back burst (a ReadAll reply) refills it
+    // every ~0.23 ms at 500 kbit/s, and taking turns with equal-priority threads overran it (a host lost replies).
+    canRxThreadRef = chThdCreateStatic(waCanRxThread, sizeof(waCanRxThread), NORMALPRIO + 2, CanRxThread, nullptr);
 
     return HAL_RET_SUCCESS;
 }
