@@ -380,7 +380,9 @@ void UsbTxThread(void *)
                 }
 
                 
-                chnWriteTimeout(&SDU1, (const uint8_t *)nData, sizeof(nData), TIME_MS2I(10));
+                // 10 ms dropped (or half-wrote) a frame whenever a burst filled the USB buffer: a host's ReadAll
+                // through the bridge then lost 1-3 replies. The CAN-to-USB mailbox absorbs the wait.
+                chnWriteTimeout(&SDU1, (const uint8_t *)nData, sizeof(nData), TIME_MS2I(100));
             }
         }
         else
