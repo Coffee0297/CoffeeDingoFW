@@ -241,7 +241,9 @@ void CanInit(void)
   /* set the CAN controller configuration. */
   canHandle.Instance = CAN_CHANNEL;
   canHandle.Init.TimeTriggeredMode = DISABLE;
-  canHandle.Init.AutoBusOff = DISABLE;
+  /* dingoFW: recover from bus-off by itself. Disabled, a bootloader on a bus with error frames went bus-off after
+   * ~100 replies and stayed off until reset: every CAN update failed at the same spot (~10 %). */
+  canHandle.Init.AutoBusOff = ENABLE;
   canHandle.Init.AutoWakeUp = DISABLE;
   canHandle.Init.AutoRetransmission = ENABLE;
   canHandle.Init.ReceiveFifoLocked = DISABLE;
