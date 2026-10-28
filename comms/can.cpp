@@ -134,6 +134,12 @@ void CanRxThread(void *)
         msg_t res = canReceiveTimeout(&CAND1, CAN_ANY_MAILBOX, &msg, TIME_MS2I(100));
         if (res == MSG_OK)
         {
+            // Bytes past the DLC are left over from an earlier frame in the bxCAN mailbox. A CAN input reading them
+            // (PDM-04's "clock master sending" = byte 1 of PDM-01's 1-byte 0x730) saw random values, so the backup
+            // clock kept sending 0x730 on top of the master: same id, different data, ~300 error frames/s.
+            for (uint8_t i = (msg.DLC < 8) ? msg.DLC : 8; i < 8; i++)
+                msg.data8[i] = 0;
+
             #if CAN_SLEEP
             if (IsWakeActivity(msg))
             #endif
