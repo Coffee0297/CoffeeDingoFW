@@ -329,6 +329,27 @@ const SerialUSBConfig serusbcfg = {
     USB1_DATA_AVAILABLE_EP,
     USB1_INTERRUPT_REQUEST_EP};
 
+// One SLCAN 't' line: t + 3 id digits + dlc + 16 data digits + CR (always 8 data bytes, as before).
+static constexpr size_t SLCAN_FRAME_LEN = 22;
+static uint8_t usbTxBatch[SLCAN_FRAME_LEN * 24];   // static: the USB Tx thread's stack is 1 KB
+static size_t EncodeSlcanFrame(const CANTxFrame *msg, uint8_t *out)
+{
+    static const char HEX[] = "0123456789ABCDEF";
+    const uint32_t nId = CanId(*msg);
+    out[0] = 't';
+    out[1] = HEX[(nId >> 8) & 0xF];
+    out[2] = HEX[(nId >> 4) & 0xF];
+    out[3] = HEX[nId & 0xF];
+    out[4] = HEX[msg->DLC & 0xF];
+    for (int i = 0; i < 8; i++)
+    {
+        out[5 + 2 * i] = HEX[msg->data8[i] >> 4];
+        out[6 + 2 * i] = HEX[msg->data8[i] & 0xF];
+    }
+    out[21] = '\r';
+    return SLCAN_FRAME_LEN;
+}
+
 static THD_WORKING_AREA(waUsbTxThread, 1024);
 void UsbTxThread(void *)
 {
@@ -340,50 +361,18 @@ void UsbTxThread(void *)
     {
         if (usbGetDriverStateI(&USBD1) == USB_ACTIVE)
         {
-            // Blocks until a frame is queued, no polling while idle
-            // Timeout so USB disconnect is still noticed
-            if (FetchTxUsbFrame(&msg, TIME_MS2I(100)) == MSG_OK)
+            // Batched: one frame per USB write capped the bridge at roughly a frame per USB poll, so a ReadAll burst
+            // (50 frames back to back) overflowed the CAN-to-USB mailbox and the host lost replies. Wait for the
+            // first frame, take every frame already queued, then send them in one write.
+            size_t nLen = 0;
+            sysinterval_t wait = TIME_MS2I(100);   // timeout so a USB disconnect is still noticed
+            while ((nLen + SLCAN_FRAME_LEN <= sizeof(usbTxBatch)) && (FetchTxUsbFrame(&msg, wait) == MSG_OK))
             {
-                uint8_t nData[22];
-                nData[0] = 't';
-                nData[1] = (CanId(msg) >> 8) & 0xF;
-                nData[2] = (CanId(msg) >> 4) & 0xF;
-                nData[3] = CanId(msg) & 0xF;
-                nData[4] = (msg.DLC & 0xFF);
-                nData[5] = (msg.data8[0] >> 4);
-                nData[6] = (msg.data8[0] & 0x0F);
-                nData[7] = (msg.data8[1] >> 4);
-                nData[8] = (msg.data8[1] & 0x0F);
-                nData[9] = (msg.data8[2] >> 4);
-                nData[10] = (msg.data8[2] & 0x0F);
-                nData[11] = (msg.data8[3] >> 4);
-                nData[12] = (msg.data8[3] & 0x0F);
-                nData[13] = (msg.data8[4] >> 4);
-                nData[14] = (msg.data8[4] & 0x0F);
-                nData[15] = (msg.data8[5] >> 4);
-                nData[16] = (msg.data8[5] & 0x0F);
-                nData[17] = (msg.data8[6] >> 4);
-                nData[18] = (msg.data8[6] & 0x0F);
-                nData[19] = (msg.data8[7] >> 4);
-                nData[20] = (msg.data8[7] & 0x0F);
-                nData[21] = '\r';
-
-                // Shift the data to ASCII, except the first 't' and last '\r' 
-                for (uint8_t i = 1; i <= 20; i++)
-                {
-                    // Less than 0xA is a number
-                    // Shift up to ASCII numbers
-                    if (nData[i] < 0xA)
-                        nData[i] += 0x30;
-                    else
-                        nData[i] += 0x37;
-                }
-
-                
-                // 10 ms dropped (or half-wrote) a frame whenever a burst filled the USB buffer: a host's ReadAll
-                // through the bridge then lost 1-3 replies. The CAN-to-USB mailbox absorbs the wait.
-                chnWriteTimeout(&SDU1, (const uint8_t *)nData, sizeof(nData), TIME_MS2I(100));
+                wait = TIME_IMMEDIATE;
+                nLen += EncodeSlcanFrame(&msg, &usbTxBatch[nLen]);
             }
+            if (nLen > 0)
+                chnWriteTimeout(&SDU1, usbTxBatch, nLen, TIME_MS2I(100));
         }
         else
         {

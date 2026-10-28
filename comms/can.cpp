@@ -162,7 +162,8 @@ msg_t InitCan(Config_Device *conf)
     for (uint8_t nBus = 0; nBus < NUM_CAN_BUSES; nBus++)
     {
         canTxThreadRef[nBus] = chThdCreateStatic(waCanTxThread[nBus], sizeof(waCanTxThread[nBus]), NORMALPRIO + 1, CanTxThread, (void *)(uintptr_t)nBus);
-        canRxThreadRef[nBus] = chThdCreateStatic(waCanRxThread[nBus], sizeof(waCanRxThread[nBus]), NORMALPRIO + 1, CanRxThread, (void *)(uintptr_t)nBus);
+        // bxCAN keeps only 3 received frames: the RX thread runs above the TX and USB threads so a burst is not lost
+        canRxThreadRef[nBus] = chThdCreateStatic(waCanRxThread[nBus], sizeof(waCanRxThread[nBus]), NORMALPRIO + 2, CanRxThread, (void *)(uintptr_t)nBus);
     }
 
     return HAL_RET_SUCCESS;
