@@ -420,6 +420,7 @@ void EnterSleep()
 
     EnterStopMode();
     CaptureWake();
+    MarkWakeReset();
     NVIC_SystemReset();
 }
 

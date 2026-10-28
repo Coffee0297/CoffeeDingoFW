@@ -9,9 +9,9 @@ int main(void) {
   
   halInit();
   chSysInit();
-  
-  chThdSleepMilliseconds(500);
-  
+
+  // No start-up pause: a wake from sleep is a reset, and 500 ms here made every wake that much slower. At power-on
+  // the bootloader's own update window already lets the supply settle.
   InitDevice();
   
   while (true) {

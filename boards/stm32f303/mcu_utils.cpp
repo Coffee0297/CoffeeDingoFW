@@ -43,3 +43,10 @@ void RequestBootloader()
 
     NVIC_SystemReset();
 }
+
+// See boards/stm32f446/mcu_utils.cpp: the same 'WAKE' word, in the last CCM word the bootloader already reads
+void MarkWakeReset()
+{
+    *((volatile uint32_t *)0x10000FFC) = 0x57414B45;
+    __DSB();
+}

@@ -11,4 +11,6 @@
 
 void EnterStopMode();
 void RequestBootloader();
+// Before the reset that ends a sleep: tells the OpenBLT bootloader to start the app at once (no update window)
+void MarkWakeReset();
 void CheckBootloaderRequest(void);

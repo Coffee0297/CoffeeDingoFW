@@ -27,3 +27,6 @@ void EnterStopMode()
     
     // No further code will execute after this point
 }
+
+// No OpenBLT on this board (enter_bootloader.S goes to the ROM bootloader only on request): nothing to skip
+void MarkWakeReset() {}

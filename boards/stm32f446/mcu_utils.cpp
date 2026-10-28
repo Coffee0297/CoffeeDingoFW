@@ -58,3 +58,12 @@ void RequestBootloaderCan(uint16_t nBaseId, uint8_t nCanSpeed)
 
     NVIC_SystemReset();
 }
+
+// The bootloader's 500 ms update window cost every wake half a second, twice from the ignition key to the ECU
+// (CB-1 wakes, then wakes the rest). A wake is not an update: leave this in the handoff word and the bootloader
+// (bootloader/Source/backdoor.c) starts the app at once. Power-on keeps the window.
+void MarkWakeReset()
+{
+    *((volatile uint32_t *)0x2001FFF0) = 0x57414B45;   // 'WAKE'; the CAN update request is 0xB00710AD, USB-DFU 0xDEADBEEF
+    __DSB();
+}

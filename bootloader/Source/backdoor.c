@@ -104,6 +104,16 @@ void BackDoorInit(void)
   }
 #endif
 #else
+#if defined(DINGO_HANDOFF_ADDR) && defined(DINGO_WAKE_MAGIC)
+  /* dingoFW: a reset that only ends a sleep starts the application at once. The 500 ms window cost every wake half
+   * a second, twice from the ignition key to the ECU. CpuStartUserProgram() returns only without a valid program,
+   * and then the window opens as after power-on, which also keeps the window for catching a hanging application. */
+  if (*(volatile blt_int32u *)DINGO_HANDOFF_ADDR == DINGO_WAKE_MAGIC)
+  {
+    *(volatile blt_int32u *)DINGO_HANDOFF_ADDR = 0u;
+    CpuStartUserProgram();
+  }
+#endif
   /* open the backdoor after a reset */
   backdoorOpen = BLT_TRUE;
   BackDoorRestartTimer();
