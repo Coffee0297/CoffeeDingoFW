@@ -12,6 +12,7 @@ static bool GetUsbConnected() { return false; }
 #include "device_config.h"
 #include "config_ext.h"
 #include "mailbox.h"
+#include "force_sleep.h"
 #include <algorithm>
 
 #if CAN_SLEEP
@@ -47,6 +48,9 @@ static uint16_t nWakes;
 static volatile bool bQuietWake;
 // Going to sleep: nothing periodic goes out either, a frame now would wake a module that is already asleep
 static volatile bool bSleeping;
+// Forced, goodbye sent, waiting for the bus to go quiet (ForceSleepDue): muted like the two above
+static volatile bool bForcePending;
+static uint32_t nForcedTime;
 
 // External variables from pdm.cpp that we need access to
 extern DeviceConfig stConfig;
@@ -146,6 +150,13 @@ bool CheckEnterSleep()
 
     // like the mute input (CanTxMuted): a force-sleep input fed by a master that was never on the bus is not a request
     bool bForceSleep = bSleepAllowed && CanBusHeard() && *pVarMap[stConfig.stDevice.nForceSleepInput];
+    if (bForceSleep && !bForcePending)
+    {
+        SendGoodbye(2);
+        nForcedTime = SYS_TIME;
+    }
+    bForcePending = bForceSleep; // the input going off (ignition back on) calls it off and unmutes
+    bool bForceDue = bForceSleep && ForceSleepDue(nCanRxIdleTime, SYS_TIME - nForcedTime);
 
     // Blockers: 1 sleep disabled, 2 outputs on, 4 USB, 8 CAN traffic within the timeout
     nBlockers = (stConfig.stDevice.bSleepEnabled ? 0 : 1) | ((nNumOutputsOn > 0) ? 2 : 0) |
@@ -171,7 +182,7 @@ bool CheckEnterSleep()
     }
     #endif
 
-    return bEnterSleep || bRequestSleep || bForceSleep;
+    return bEnterSleep || bRequestSleep || bForceDue;
 }
 
 uint8_t SleepCountdownSec()
@@ -229,7 +240,7 @@ uint8_t WakeSourceBits()
 
 bool QuietWake()
 {
-    return bQuietWake || bSleeping;
+    return bQuietWake || bSleeping || bForcePending;
 }
 
 // CAN RX thread. A goodbye wakes every sleeping module; if each then started talking (they forget "sleep now"
@@ -345,7 +356,7 @@ void EnterSleep()
     WriteRetained();
     #endif
 
-    if (nWhy != 4) // the ignition's went out when its quiet started
+    if (nWhy != 4 && nWhy != 2) // the ignition's went out when its quiet started, a forced one when it was forced
         SendGoodbye(nWhy);
     bSleeping = true;
 

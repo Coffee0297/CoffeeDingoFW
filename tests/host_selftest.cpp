@@ -23,6 +23,7 @@
 //   g++ -std=c++20 -Wall -DROTARY_CAL_ONLY -I tests/host -I functions -I core -I utils tests/host_selftest.cpp functions/input.cpp -o build/host_rotary_cal && build/host_rotary_cal
 //   g++ -std=c++20 -Wall -DCHECKSUM_ONLY -I tests/host -I functions -I core -I utils tests/host_selftest.cpp utils/dbc.cpp -o build/host_checksum && build/host_checksum
 //   g++ -std=c++20 -Wall -DTABLE_ONLY -I tests/host -I functions -I core -I utils tests/host_selftest.cpp functions/table.cpp -o build/host_table && build/host_table
+//   g++ -std=c++20 -Wall -DFORCE_SLEEP_ONLY -I tests/host -I functions -I core -I utils tests/host_selftest.cpp -o build/host_force_sleep && build/host_force_sleep
 //   g++ -std=c++20 -Wall -DCURVE_ONLY -I tests/host -I functions -I core -I utils tests/host_selftest.cpp functions/curve.cpp -o build/host_curve && build/host_curve
 #include <cassert>
 #include <cstdio>
@@ -1054,6 +1055,19 @@ int main()
     c.nStatusId = 0x6C1; assert(Ignition::StatusId(c, 0x680, 0x6A4) == 0x6C1);
 
     std::puts("host_ign_status_id OK");
+    return 0;
+}
+#elif defined(FORCE_SLEEP_ONLY)
+#include "force_sleep.h"
+
+int main()
+{
+    assert(!ForceSleepDue(0, 0));                 // forced while the others still talk: wait
+    assert(!ForceSleepDue(999, 5000));            // a goodbye 999 ms ago: wait for the full quiet
+    assert(ForceSleepDue(1000, 1200));            // 1 s quiet: sleep
+    assert(ForceSleepDue(0, 10000));              // still talking after 10 s: sleep anyway
+
+    std::puts("host_force_sleep OK");
     return 0;
 }
 #else
