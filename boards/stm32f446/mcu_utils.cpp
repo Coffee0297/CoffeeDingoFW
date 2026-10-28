@@ -30,7 +30,10 @@ void EnterStopMode()
 
     __WFI();
 
-    // Resume here after wakeup
+    // Resume here after wakeup. A wake is not an update: 'WAKE' in the handoff word makes the OpenBLT bootloader
+    // (bootloader/Source/backdoor.c) start the app at once instead of opening its 500 ms window.
+    *((volatile uint32_t *)0x2001FFF0) = 0x57414B45;
+    __DSB();
     NVIC_SystemReset();
 }
 

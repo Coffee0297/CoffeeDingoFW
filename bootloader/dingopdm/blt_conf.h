@@ -129,6 +129,10 @@
  */
 /** \brief Enable/disable the backdoor override hook functions. */
 #define BOOT_BACKDOOR_HOOKS_ENABLE      (0)
+/* dingoFW: the word the application hands over in (top of the 128 kB SRAM, above this bootloader's RAM). 'WAKE' there = a reset that only
+ * ends a sleep: start the application without the backdoor window (Source/backdoor.c). */
+#define DINGO_HANDOFF_ADDR              (0x2001FFF0UL)
+#define DINGO_WAKE_MAGIC                (0x57414B45UL)
 
 
 /****************************************************************************************
