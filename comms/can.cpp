@@ -16,6 +16,9 @@ static volatile bool bTxQuiet;
 // After a few TX timeouts in a row abort the mailboxes and send to USB only for a while, then re-probe.
 #define CAN_NOACK_FAIL_STREAK 3
 #define CAN_NOACK_BACKOFF_CYCLES 50 // cyclic rounds, 50 x CAN_TX_CYCLIC_MSG_DELAY
+// Only with nothing heard this long: on a bus with error frames TX timeouts also come with peers there, and the
+// back-off took a module off the bus for 5.1 s at a time
+#define CAN_NOACK_QUIET_MS 500
 static volatile uint16_t nNoAckBackoff;
 
 extern DeviceConfig stConfig;
@@ -78,7 +81,8 @@ void CanTxThread(void *)
             {
                 if (canTransmitTimeout(&CAND1, CAN_ANY_MAILBOX, &msg, TIME_MS2I(10)) == MSG_OK)
                     nTxFails = 0;
-                else if (++nTxFails >= CAN_NOACK_FAIL_STREAK)
+                else if (++nTxFails >= CAN_NOACK_FAIL_STREAK &&
+                         static_cast<int32_t>(SYS_TIME - nLastCanRxTime) > CAN_NOACK_QUIET_MS)
                 {
                     // Every TX mailbox stuck retransmitting: abort them (no-op in ChibiOS' FDCAN driver)
                     for (canmbx_t nMbx = 1; nMbx <= CAN_TX_MAILBOXES; nMbx++)
