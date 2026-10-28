@@ -580,7 +580,10 @@ msg_t InitUsb()
 
 bool GetUsbConnected()
 {
-    return usbGetDriverStateI(&USBD1) == USB_ACTIVE;
+    // VBUS too: the driver alone stayed "active" after the cable was pulled (a wakeup event after the unplug's
+    // suspend restores the saved active state, and no host is left to suspend it again), so the USB bridge never
+    // muted or slept and kept the whole car awake
+    return (palReadLine(LINE_USB_VBUS) == PAL_HIGH) && (usbGetDriverStateI(&USBD1) == USB_ACTIVE);
 }
 
 #endif
