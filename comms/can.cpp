@@ -118,6 +118,11 @@ void CanRxThread(void *)
         msg_t res = canReceiveTimeout(&CAND1, CAN_ANY_MAILBOX, &msg, TIME_MS2I(100));
         if (res == MSG_OK)
         {
+            // Bytes past the DLC are left over from an earlier frame in the mailbox: a CAN input reading them
+            // (a short frame, a bit past its length) saw stale values and could act on them
+            for (uint8_t i = (msg.DLC < 8) ? msg.DLC : 8; i < 8; i++)
+                msg.data8[i] = 0;
+
             nLastCanRxTime = SYS_TIME;
 
             // Config frames go straight to the param thread
