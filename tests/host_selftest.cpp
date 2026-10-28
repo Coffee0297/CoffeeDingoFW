@@ -3,6 +3,7 @@
 //   g++ -std=c++20 -I tests/host -I functions -I core -I utils tests/host_selftest.cpp functions/timer.cpp -o build/host_selftest && build/host_selftest
 //   g++ -std=c++20 -DMATH_ONLY -I tests/host -I functions -I core -I utils tests/host_selftest.cpp functions/math_block.cpp -o build/host_math && build/host_math
 // Each feature adds its own section below, picked with -D<NAME>_ONLY, and its build line here.
+//   g++ -std=c++20 -Wall -DFORCE_SLEEP_ONLY -I tests/host -I functions -I core -I utils tests/host_selftest.cpp -o build/host_force_sleep && build/host_force_sleep
 #include <cassert>
 #include <cstdio>
 #include "port.h"
@@ -41,6 +42,19 @@ int main()
     c.bEnabled = false; m.Update(); assert(m.fVal == 0);
 
     std::puts("host_selftest MATH OK");
+    return 0;
+}
+#elif defined(FORCE_SLEEP_ONLY)
+#include "force_sleep.h"
+
+int main()
+{
+    assert(!ForceSleepDue(0, 0));                 // forced while the others still talk: wait
+    assert(!ForceSleepDue(999, 5000));            // a goodbye 999 ms ago: wait for the full quiet
+    assert(ForceSleepDue(1000, 1200));            // 1 s quiet: sleep
+    assert(ForceSleepDue(0, 10000));              // still talking after 10 s: sleep anyway
+
+    std::puts("host_force_sleep OK");
     return 0;
 }
 #else

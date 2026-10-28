@@ -11,6 +11,7 @@ static bool GetUsbConnected() { return false; }
 #include "mcu_utils.h"
 #include "device_config.h"
 #include "mailbox.h"
+#include "force_sleep.h"
 #include <algorithm>
 
 #if CAN_SLEEP
@@ -44,6 +45,9 @@ static uint16_t nWakes;
 
 // Woken by CAN and not yet heard a real frame: nothing periodic goes out (see CheckQuietWake)
 static volatile bool bQuietWake;
+// Forced, goodbye sent, waiting for the bus to go quiet (ForceSleepDue): muted like a quiet wake
+static volatile bool bForcePending;
+static uint32_t nForcedTime;
 
 // External variables from pdm.cpp that we need access to
 extern DeviceConfig stConfig;
@@ -51,6 +55,27 @@ bool bSleepRequest;
 #if NUM_OUTPUTS > 0
 extern Profet pf[NUM_OUTPUTS];
 #endif
+
+// [Sleep, 'Z', 'Z', 'Z', why (1 auto, 2 forced, 3 request)], so the tool can tell asleep from unplugged.
+// Not from a quiet wake: it would wake the others again.
+static void SendGoodbye(uint8_t nGoodbyeWhy)
+{
+    if (bQuietWake)
+        return;
+    CANTxFrame txMsg;
+    txMsg.SID = stConfig.stDevice.nBaseId + CONFIG_TX_OFFSET;
+    txMsg.IDE = CAN_IDE_STD;
+    txMsg.DLC = 8;
+    txMsg.data8[0] = static_cast<uint8_t>(MsgCmd::Sleep);
+    txMsg.data8[1] = 'Z';
+    txMsg.data8[2] = 'Z';
+    txMsg.data8[3] = 'Z';
+    txMsg.data8[4] = nGoodbyeWhy;
+    txMsg.data8[5] = 0;
+    txMsg.data8[6] = 0;
+    txMsg.data8[7] = 0;
+    PostTxFrame(&txMsg);
+}
 
 bool CheckEnterSleep()
 {
@@ -118,6 +143,15 @@ bool CheckEnterSleep()
     bool bRequestSleep = (SYS_TIME - nNoSleepRequestTime) > SLEEP_REQUEST_DELAY;
 
     bool bForceSleep = bSleepAllowed && *pVarMap[stConfig.stDevice.nForceSleepInput];
+    // Forced: goodbye at once, while every module is still awake, then nothing goes out until the bus has been
+    // quiet a moment, so modules forced together all sleep after the same quiet and no goodbye wakes one again
+    if (bForceSleep && !bForcePending)
+    {
+        SendGoodbye(2);
+        nForcedTime = SYS_TIME;
+    }
+    bForcePending = bForceSleep; // the input going off calls it off and unmutes
+    bool bForceDue = bForceSleep && ForceSleepDue(nCanRxIdleTime, SYS_TIME - nForcedTime);
 
     // Blockers: 1 sleep disabled, 2 outputs on, 4 USB, 8 CAN traffic within the timeout
     nBlockers = (stConfig.stDevice.bSleepEnabled ? 0 : 1) | ((nNumOutputsOn > 0) ? 2 : 0) |
@@ -129,7 +163,7 @@ bool CheckEnterSleep()
         nCountdown = (nIdle >= nTimeout) ? 0 : (nTimeout - nIdle + 999) / 1000;
     nWhy = bForceSleep ? 2 : (bRequestSleep ? 3 : 1);
 
-    return bEnterSleep || bRequestSleep || bForceSleep;
+    return bEnterSleep || bRequestSleep || bForceDue;
 }
 
 uint8_t SleepCountdownSec()
@@ -180,7 +214,7 @@ void InitSleep()
 
 bool QuietWake()
 {
-    return bQuietWake;
+    return bQuietWake || bForcePending;
 }
 
 // CAN RX thread. A goodbye wakes every sleeping module; if each then started talking (they forget "sleep now"
@@ -287,24 +321,8 @@ void EnterSleep()
     }
     #endif
 
-    // Goodbye, so the tool can tell asleep from unplugged: [Sleep, 'Z', 'Z', 'Z', why (1 auto, 2 forced, 3 request)].
-    // Not from a quiet wake: it would wake the others again.
-    if (!bQuietWake)
-    {
-        CANTxFrame txMsg;
-        txMsg.SID = stConfig.stDevice.nBaseId + CONFIG_TX_OFFSET;
-        txMsg.IDE = CAN_IDE_STD;
-        txMsg.DLC = 8;
-        txMsg.data8[0] = static_cast<uint8_t>(MsgCmd::Sleep);
-        txMsg.data8[1] = 'Z';
-        txMsg.data8[2] = 'Z';
-        txMsg.data8[3] = 'Z';
-        txMsg.data8[4] = nWhy;
-        txMsg.data8[5] = 0;
-        txMsg.data8[6] = 0;
-        txMsg.data8[7] = 0;
-        PostTxFrame(&txMsg);
-    }
+    if (nWhy != 2) // a forced sleep said goodbye when it was forced
+        SendGoodbye(nWhy);
 
     // The control loop stops in STOP mode, don't leave a digital output latched on
     #if NUM_DIG_OUTPUTS > 0
