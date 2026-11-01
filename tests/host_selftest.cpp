@@ -336,6 +336,14 @@ int main()
     for (int k = 0; k < ROTARY_MAX_POS; k++) assert(pos(400 * (k + 1)) == k);
     assert(pos(400 * (ROTARY_MAX_POS + 1)) == ROTARY_NO_POS);
 
+    // positions in any voltage order: each window still uses the nearest voltage on each side
+    c.stRotary.nNumPos = 3; c.stRotary.nTolerance = 300;
+    c.stRotary.nPointPair[0] = pair(0, 4530); c.stRotary.nPointPair[1] = pair(2890, 0);
+    assert(pos(0) == 0 && pos(4530) == 1 && pos(2890) == 2);
+    assert(pos(4230) == 1 && pos(4229) == ROTARY_NO_POS && pos(3190) == 2 && pos(3191) == ROTARY_NO_POS);
+    c.stRotary.nPointPair[0] = pair(1000, 1400); c.stRotary.nPointPair[1] = pair(1100, 0);   // 1100 sits between
+    assert(pos(1050) == 0 && pos(1051) == 2 && pos(1249) == 2 && pos(1251) == 1);
+
     std::puts("host_rotary_cal OK");
     return 0;
 }

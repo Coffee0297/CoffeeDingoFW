@@ -30,8 +30,9 @@ void Analog_Input::RotaryUpdate()
 
     if (pConfig->stRotary.eMode == RotaryMode::Calibrated)
     {
-        // A position counts only inside its window: the tolerance, capped at half the gap to each
-        // neighbour so windows never overlap. Anywhere else reads ROTARY_NO_POS.
+        // A position counts only inside its window: the tolerance, capped at half the gap to the nearest
+        // voltage below and above (in any position order) so windows never overlap. Anywhere else reads
+        // ROTARY_NO_POS.
         const Config_RotarySwitch &r = pConfig->stRotary;
         auto point = [&r](int k) { return (int)((r.nPointPair[k / 2] >> ((k & 1) * 16)) & 0xFFFF); };
         int n = (r.nNumPos > ROTARY_MAX_POS) ? ROTARY_MAX_POS : r.nNumPos;
@@ -40,8 +41,13 @@ void Analog_Input::RotaryUpdate()
         for (int k = 0; k < n; k++)
         {
             int c = point(k);
-            int lo = (k > 0 && (c - point(k - 1)) / 2 < r.nTolerance) ? (c - point(k - 1)) / 2 : r.nTolerance;
-            int hi = (k < n - 1 && (point(k + 1) - c) / 2 < r.nTolerance) ? (point(k + 1) - c) / 2 : r.nTolerance;
+            int lo = r.nTolerance, hi = r.nTolerance;
+            for (int j = 0; j < n; j++)
+            {
+                int g = point(j) - c;
+                if (g > 0 && g / 2 < hi) hi = g / 2;
+                if (g < 0 && -g / 2 < lo) lo = -g / 2;
+            }
             if (mv >= c - lo && mv <= c + hi)
             {
                 pos = r.bInvert ? (n - 1 - k) : k;
