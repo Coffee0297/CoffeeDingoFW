@@ -46,7 +46,8 @@ private:
         bool bCancel = false;  // This press cancelled the other side's comfort blink
         uint32_t nSince = 0;   // When the lever went on
         uint8_t nBlinks = 0;   // Clock on-phases shown since the lever went on
-        bool On() const { return (bLast && !bCancel) || bComfort; }
+        bool bWait = false;    // Lever went on late in an on-phase: dark until the next one
+        bool On() const { return ((bLast && !bCancel) || bComfort) && !bWait; }
     };
     void Step(Side &s, Side &other, bool bIn, bool bClock, uint32_t nTimeNow);
 
@@ -54,4 +55,6 @@ private:
     float *pLeft, *pRight, *pClock;
     Side stLeft, stRight;
     bool bLastClock;
+    uint32_t nRiseTime = 0; // when the clock last went on
+    uint32_t nOnMs = 0;     // length of its last on-phase (0 = not measured yet)
 };

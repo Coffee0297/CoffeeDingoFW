@@ -741,6 +741,7 @@ static ComfortBlink cb;
 static uint32_t t = 0;
 static int blinksL = 0, blinksR = 0;
 static bool lastL = false, lastR = false;
+static uint32_t litFromL = 0, shortestL = 0xFFFFFFFF;   // shortest left flash seen, ms
 // Run for ms in 10 ms steps, clock 400 on / 400 off from t = 0; counts lit phases per side (lamp = side && clock)
 static void run(uint32_t ms)
 {
@@ -749,12 +750,13 @@ static void run(uint32_t ms)
         v[CLK] = ((t / 400) % 2 == 0) ? 1 : 0;
         cb.Update(t);
         bool l = cb.fLeft && v[CLK], r = cb.fRight && v[CLK];
-        if (l && !lastL) blinksL++;
+        if (l && !lastL) { blinksL++; litFromL = t; }
+        if (!l && lastL && t - litFromL < shortestL) shortestL = t - litFromL;
         if (r && !lastR) blinksR++;
         lastL = l; lastR = r;
     }
 }
-static void reset() { v[L] = v[R] = 0; run(2000); blinksL = blinksR = 0; }
+static void reset() { v[L] = v[R] = 0; run(2000); blinksL = blinksR = 0; shortestL = 0xFFFFFFFF; }
 
 int main()
 {
@@ -787,6 +789,9 @@ int main()
     // tapped while the clock is lit: that blink counts, still 3 in all; 4 blinks when set to 4
     reset(); t = 48200;
     v[L] = 1; run(100); v[L] = 0; run(5000); assert(blinksL == 3);
+    // tapped near the end of a lit phase: no sliver, the side waits for the next one; still 3 full blinks
+    reset(); t = 48380;
+    v[L] = 1; run(100); v[L] = 0; run(5000); assert(blinksL == 3 && shortestL >= 390);
     c.nBlinks = 4; reset(); t = 60000;
     v[L] = 1; run(200); v[L] = 0; run(6000); assert(blinksL == 4);
 

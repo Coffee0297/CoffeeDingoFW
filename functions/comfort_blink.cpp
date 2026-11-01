@@ -10,7 +10,11 @@ void ComfortBlink::Step(Side &s, Side &other, bool bIn, bool bClock, uint32_t nT
         s.bCancel = other.bComfort; // A tap the other way during a comfort blink only cancels it
         other.bComfort = false;
         s.bComfort = false;         // A new tap on the same side starts the count again
-        s.nBlinks = bClock ? 1 : 0; // An on-phase already showing counts
+        // An on-phase already showing counts only with at least half of it still to come; with less, the
+        // side waits for the next one, so the first blink is never a sliver too short to see
+        const bool bFresh = !nOnMs || (nTimeNow - nRiseTime) * 2 <= nOnMs;
+        s.bWait = bClock && !bFresh;
+        s.nBlinks = (bClock && bFresh) ? 1 : 0;
     }
     if (bIn && !s.bHeld && (nTimeNow - s.nSince) >= pConfig->nTapMs)
     {
@@ -41,6 +45,10 @@ void ComfortBlink::Update(uint32_t nTimeNow)
     const bool bRise = bClock && !bLastClock;
     const bool bFall = !bClock && bLastClock;
     bLastClock = bClock;
+    if (bRise)
+        nRiseTime = nTimeNow;
+    if (bFall)
+        nOnMs = nTimeNow - nRiseTime; // the clock's on-phase length, measured
 
     Step(stLeft, stRight, *pLeft != 0.0f, bClock, nTimeNow);
     Step(stRight, stLeft, *pRight != 0.0f, bClock, nTimeNow);
@@ -48,6 +56,8 @@ void ComfortBlink::Update(uint32_t nTimeNow)
     for (Side *s : { &stLeft, &stRight })
     {
         const bool bJustOn = s->bLast && s->nSince == nTimeNow; // Counted when the lever went on
+        if (bRise && !bJustOn)
+            s->bWait = false;
         if (bRise && s->On() && !bJustOn && s->nBlinks < 255)
             s->nBlinks++;
         // The comfort blink ends with the on-phase that completes the count
